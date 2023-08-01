@@ -1,0 +1,7 @@
+name = "Aion"
+badges = ["github-actions/test.yml"]
+authority="cpan:DART"
+
+module_maker="ModuleBuildTiny"
+static_install = "auto"
+
