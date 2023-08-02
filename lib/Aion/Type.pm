@@ -23,8 +23,8 @@ use overload
 		__PACKAGE__->new(name => "Exclude", args => [$type1], test => sub { !$type1->test });
 	},
 	"~~" => sub {
-		my ($type, $z) = @_;
-		$type->include($z)
+		(my $type, local $_) = @_;
+		$type->test
 	};
 
 # конструктор
@@ -95,13 +95,14 @@ sub exclude {
 sub detail {
 	my ($self, $val, $name) = @_;
 	$self->{detail}? $self->{detail}->():
-		"Свойство $name должно иметь тип " . $self->stringify . ". $name же = " . _val_to_str($val)
+		"Feature $name must have the type $self. The same $name is " . _val_to_str($val)
 }
 
 # Валидировать значение в параметре
 sub validate {
 	(my $self, local $_, my $name) = @_;
 	die $self->detail($_, $name) if !$self->test;
+	$_
 }
 
 # Преобразовать значение в параметре и вернуть преобразованное

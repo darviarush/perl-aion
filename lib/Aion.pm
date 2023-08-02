@@ -5,46 +5,106 @@ use warnings;
 
 our $VERSION = "0.01";
 
-use Scalar::Util qw//;
+use Scalar::Util qw/blessed/;
+use Sub::Util qw/set_subname/;
+
+# Когда осуществлять проверки:
+#   ro - только при выдаче
+#   wo - только при установке
+#   rw - при выдаче и уcтановке
+#   no - никогда не проверять
+use config ISA => 'rw';
 
 # вызывается из другого пакета, для импорта данного
 sub import {
 	my ($cls, $attr) = @_;
 	my ($pkg, $path) = caller;
 
-    if($attr ne '-role') {
+    if($attr ne '-role') {  # Класс
 	    *{"${pkg}::new"} = \&new;
         *{"${pkg}::extends"} = \&extends;
+    } else {    # Роль
+        *{"${pkg}::requires"} = \&requires;
     }
 
 	*{"${pkg}::with"} = \&with;
 	*{"${pkg}::upgrade"} = \&upgrade;
 	*{"${pkg}::has"} = \&has;
-	*{"${pkg}::ATTRIBUTE"} = \&ATTRIBUTE;
-	%{"${pkg}::ATTRIBUTE"} = ();
+
+    # Свойства объекта
+	constant->import("${pkg}::FEATURE" => {});
+
+    # Атрибуты для has
+	constant->import("${pkg}::ATTRIBUTE" => {
+        is => \&_is,
+        isa => \&_isa,
+        coerce => \&_coerce,
+        default => \&_default,
+    });
+}
+
+# ro, rw, + и -
+sub _is {
+    my ($cls, $name, $is, $construct, $feature) = @_;
+    die "Use is => '(ro|rw|wo|no)[+-]?'" if $is !~ /^(ro|rw|wo|no)[+-]?\z/;
+
+    $construct->{get} = "die 'has: $name is $is (not get)'" if $is =~ /^(wo|no)/;
+    $construct->{set} = "die 'has: $name is $is (not set)'" if $is =~ /^(ro|no)/;
+
+    $feature->{required} = 1 if $is =~ /\+$/;
+    $feature->{not_in_new} = 1 if $is =~ /-$/;
+}
+
+# isa => Type
+sub _isa {
+    my ($cls, $name, $isa, $construct, $feature) = @_;
+    die "has: $name - isa maybe Aion::View::Type"
+        if !UNIVERSAL::isa($isa, 'Aion::View::Type');
+
+    $feature->{isa} = $isa;
+
+    $construct->{get} = "\$self->FEATURE->{$name}{isa}->validate(do{$construct->{get}}, '$name')" if ISA =~ /ro|rw/;
+
+    $construct->{set} = "\$self->FEATURE->{$name}{isa}->validate(\$val, '$name'); $construct->{set}" if ISA =~ /wo|rw/;
+}
+
+# coerce => 1|Coerce
+sub _coerce {
+    my ($cls, $name, $type, $construct, $feature) = @_;
+    
+}
+
+# default => value
+sub _default {
+    my ($cls, $name, $default, $construct, $feature) = @_;
+
+    if(ref $default eq "CODE") {
+        $feature->{lazy} = 1;
+        *{"${cls}::${name}__DEFAULT"} = $default;
+        $construct->{get} = "\$self->{$name} = \$self->${name}__DEFAULT if !exists \$self->{$name}; $construct->{get}";
+    } else {
+        $feature->{opt}{isa}->validate($default, $name) if $feature->{opt}{isa};
+        $feature->{default} = $default;
+    }
 }
 
 # Расширяет
 sub _extends {
-    my ($pkg, $import_name) = @_;
+    my $pkg = shift; my $import_name = shift;
 
-	for(@_) {  # подключаем
-		eval "require $_";
-		die if $@;
-	}
-
+    my $FEATURE = $pkg->FEATURE;
     my $ATTRIBUTE = $pkg->ATTRIBUTE;
 
-    # Добавляем наследуемые атрибуты
+    # Добавляем наследуемые свойства и атрибуты
 	for(@_) {
-		next if !$_->can("ATTRIBUTE");
-		my $ATTRIBUTE_EXTEND = $_->ATTRIBUTE;
-		while(my ($k, $v) = each %$ATTRIBUTE_EXTEND) {
-			$ATTRIBUTE->{$k} = $v;
-		}
+        eval "require $_";
+		die if $@;
+
+		%$FEATURE = (%$FEATURE, %{$_->FEATURE}) if $_->can("FEATURE");
+		%$ATTRIBUTE = (%$ATTRIBUTE, %{$_->ATTRIBUTE}) if $_->can("ATTRIBUTE");
 	}
 
-    # Запускаем 
+    # Запускаем
     for my $mod (@_) {
         my $import = $mod->can($import_name);
         $import->($mod, $pkg) if $import;
@@ -59,124 +119,76 @@ sub extends {
 
 	@{"${pkg}::ISA"} = @_;
 
-    _extends($pkg, "import_extends");
+    unshift @_, $pkg, "import_extends";
+    goto &_extends;
 }
 
 # Расширение
 sub with {
 	my $pkg = caller;
-    _extends($pkg, "import_with");
+    unshift @_, $pkg, "import_with";
+    goto &_extends;
 }
 
 # создаёт свойство
 sub has(@) {
 	my $property = shift;
 
-    return exists $property->{$_[0]} if Scalar::Util::blessed($property);
+    return exists $property->{$_[0]} if blessed $property;
 
 	my $pkg = caller;
+    my %opt = @_;
 
 	# атрибуты
 	for my $name (ref $property? @$property: $property) {
 
 		die "has: the method $name is already in the package $pkg"
-            if $pkg->can($name) && !exists ${"${pkg}::ATTRIBUTE"}{$name};
+            if $pkg->can($name) && !exists $pkg->ATTRIBUTE->{$name};
 
-		my %opt = @_;
+        my %construct = (
+            pkg => $pkg,
+            name => $name,
+            sub => 'package %(pkg)s {
+                sub %(name)s {
+                    my ($self, $val) = @_;
+				    if(@_>1) { %(set)s } else { %(get)s }
+                }
+            }',
+            get => '$self->{%(name)s}',
+            set => '$self->{%(name)s} = $val; $self',
+        );
 
-		die "has: property $name has a strange is='$opt{is}'" if $opt{is} !~ /^(ro|rw)[+-]?$/;
+        my $feature = {
+            has => [@_],
+            opt => \%opt,
+            name => $name,
+            construct => \%construct,
+        };
 
-		for my $key (keys %opt) {
-			die "has: свойство $name имеет странный атрибут '$key'" if $key !~ /^(is|isa|default|coerce)$/;
-		}
+        my $ATTRIBUTE = $pkg->ATTRIBUTE;
+        for(my $i=0; $i<@_; $i+=2) {
+            my ($attribute, $value) = @_[$i, $i+1];
+            my $attribute_sub = $ATTRIBUTE->{$attribute};
+            die "has: not exists attribute `$attribute`!" if !$attribute_sub;
+            $attribute_sub->($pkg, $name, $value, \%construct, $feature);
+        }
 
-		$opt{name} = $name;
-		$opt{ro} = $opt{is} =~ m/o/? 1: 0;
-		$opt{rw} = $opt{is} =~ m/w/? 1: 0;
-		$opt{input} = $opt{is} !~ m/-/? 1: 0;
-		$opt{required} = $opt{is} =~ m/\+/? 1: 0;
-		
-		if(defined $opt{isa}) {
-			die "has: isa у свойства $name должна быть Aion::View::Type"
-                if !UNIVERSAL::isa($opt{isa}, 'Aion::View::Type');
-		}
-
-		$opt{coerce} = $opt{isa} if $opt{coerce} == 1;
-
-		die "has: from у свойства $name никогда не сработает, т.к. это не свойство ввода!" if exists $opt{from} && !$opt{input};
-		die "has: in у свойства $name никогда не сработает, т.к. это не свойство ввода!" if exists $opt{in} && !$opt{input};
-
-		$opt{lazy} = ref $opt{default} eq "CODE";
-		$opt{is_natural_default} = exists $opt{default} && !$opt{lazy};
-
-		die "has: default у свойства $name никогда не сработает, т.к. свойство обязательно!" if exists $opt{default} && $opt{required};
-		#die "has: coerce у свойства $name никогда не сработает, т.к. свойство не имеет сеттера!" if $opt{coerce} && $opt{ro} && ;
-
-		if($opt{lazy}) {
-			Sub::Util::set_subname "${pkg}::${name}__DEFAULT__" => $opt{default};
-			
-			$opt{default} = wrapsub $opt{default} => \&_view_telemetry if $main_config::view_telemetry;
-		}
-		
-		# Валидируем default, который будет устанавливаться в атрибуты
-		$opt{isa}->validate($opt{default}, $name, $pkg) if $opt{is_natural_default} && $opt{isa};
-
-		# Когда осуществлять проверки: 
-		#   ro - только при выдаче
-		#   wo - только при установке
-		#   rw - при выдаче и учтановке
-		#   no - никогда не проверять
-		# my $isa_mode = $main_config::aion_view_isa_mode // "rw";
-		# my @isa_mode = qw/ro wo rw no/;
-		# do { local $, = ", "; die "\$main_config::aion_view_isa_mode должен быть [@isa_mode], а не $isa_mode" } unless $isa_mode ~~ \@isa_mode;
-
-		my $coerce; my $isa;
-		$coerce = "\$val = \$ATTRIBUTE{$name}{coerce}->coerce(\$val); " if $opt{coerce};
-		$isa = "\$ATTRIBUTE{$name}{isa}->validate(\$val, '$name', __PACKAGE__); " if $opt{isa};
-		# my $ro_isa = $isa_mode ~~ [qw/ro rw/]? $isa: "";
-		# my $wo_isa = $isa_mode ~~ [qw/ro rw/]? $isa: "";
-
-		my $set = $opt{ro}? "die 'has: $name is ro'":
-			"$coerce$isa\$self->{$name} = \$val; \$self";
-		my $get = join "", (
-			$opt{lazy}? "if(exists \$self->{$name}) { \$val = \$self->{$name} } else {
-				\$val = \$ATTRIBUTE{$name}{default}->(\$self);$coerce
-				\$self->{$name} = \$val;
-			}; ":
-				"\$val = \$self->{$name}; "
-		),
-		$isa, "\$val";
-
-
-		my $DEBUG = 0;
-		if($DEBUG) {
-			$set = "print ref \$self, '#$name ⟵ ', \"\\n\"; $set";
-			$get = "my \$x=$get; print ref \$self, '#$name ⟶ ', length(\$x)<25? \$x: substr(\$x, 0, 25) . '…', \"\\n\"; \$x";
-		}
-		#$get = "trace '$name'; $get";
-
-		eval "package ${pkg} {
-			our %ATTRIBUTE;
-			sub $name {
-				my (\$self, \$val) = \@_;
-				if(\@_>1) { $set } else { $get }
-			}
-		}";
+        my $sub = $construct{sub};
+        $sub =~ s!%\((\w+)\)s!$construct{$1} // die "has: not construct `$1`\!"!ge;
+		eval $sub;
 		die if $@;
 
-		#eval "package ${pkg} { sub has_$name { exists \$_[0]->{$name} } }";
-		#die if $@;
-
-		${"${pkg}::ATTRIBUTE"}{$name} = \%opt;
+        $feature->{sub} = $sub;
+		$pkg->FEATURE->{$name} = $feature;
 	}
 	return;
 }
 
 # конструктор
 sub new {
-	my ($cls, %value) = @_;
+	my $cls = shift;
 	
-	my ($self, @errors) = $cls->create_from_params(%value);
+	my ($self, @errors) = $cls->create_from_params(@_);
 
 	die join "", "has:\n\n", map "* $_\n", @errors if @errors;
 
@@ -192,34 +204,37 @@ sub create_from_params {
 
 	my @required;
 	my @errors;
+    my $FEATURE = $cls->FEATURE;
 
-	while(my ($name, $opt) = each %{$cls->ATTRIBUTE}) {
+	while(my ($name, $feature) = each %$FEATURE) {
 
 		if(exists $value{$name}) {
 			my $val = delete $value{$name};
-			
-			if($opt->{input}) {
-				$val = $opt->{coerce}->coerce($val) if $opt->{coerce};
 
-				push @errors, $opt->{isa}->detail($val, $name) if $opt->{isa} && !$opt->{isa}->include($val);
+			if(!$feature->{not_in_new}) {
+				$val = $feature->{coerce}->coerce($val) if $feature->{coerce};
+
+				push @errors, $feature->{isa}->detail($val, $name)
+                    if ISA =~ /w/ && $feature->{isa} && !$feature->{isa}->include($val);
 				$self->{$name} = $val;
 			}
 			else {
-				push @errors, "Свойство $name нельзя устанавливать через конструктор!";
+				push @errors, "has: feature $name not set in new!";
 			}
-		} else {
-			$self->{$name} = $opt->{default} if $opt->{is_natural_default};
-			push @required, $name if $opt->{required};
+		} elsif($feature->{required}) {
+            push @required, $name;
+        } else {
+			$self->{$name} = $feature->{default} if !$feature->{lazy};
 		}
 
 	}
 
-	do {local $" = ", "; unshift @errors, "Свойства @required — обязательны!"} if @required > 1;
-	unshift @errors, "Свойство @required — обязательно!" if @required == 1;
+	do {local $" = ", "; unshift @errors, "Features @required is required!"} if @required > 1;
+	unshift @errors, "Feature @required is required!" if @required == 1;
 	
 	my @fakekeys = sort keys %value;
-	unshift @errors, "@fakekeys — нет свойства!" if @fakekeys == 1;
-	do {local $" = ", "; unshift @errors, "@fakekeys — нет свойств!"} if @fakekeys > 1;
+	unshift @errors, "@fakekeys is not feature!" if @fakekeys == 1;
+	do {local $" = ", "; unshift @errors, "@fakekeys is not features!"} if @fakekeys > 1;
 
 	return $self, @errors;
 }
