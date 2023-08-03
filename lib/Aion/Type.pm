@@ -1,4 +1,4 @@
-package Aion::View::Type;
+package Aion::Type;
 # Базовый класс для типов и преобразователей
 
 use common::sense;
@@ -143,7 +143,7 @@ sub make_arg {
 	my $var = \$self;
 	
 	sub $self->{name} (\$) {
-		Aion::View::Type->new(
+		Aion::Type->new(
 			%$var,
 			args => \$_[0],
 		)$init
@@ -169,7 +169,7 @@ sub make_maybe_arg {
 	
 	sub $self->{name} (;\$) {
 		\@_==0? $var:
-		Aion::View::Type->new(
+		Aion::Type->new(
 			%$var,
 			args => \$_[0],
 			test => ${var}->{a_test},

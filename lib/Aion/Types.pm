@@ -2,7 +2,90 @@ package Aion::Types;
 # Типы-валидаторы для Aion
 
 use common::sense;
-use Aion::View::Type;
+use Aion::Type;
+use Scalar::Util qw//;
+use List::Util qw/all/;
+use Exporter qw/import/;
+
+our @EXPORT_OK = qw/
+    subtype as init_where where awhere message
+    SELF ARGS A B C D
+    coerce from via
+
+    Any
+        Control
+            Union
+            Intersection
+            Exclude
+            Optional
+            Slurpy
+
+        Array
+            ATuple
+            ACycleTuple
+        Hash
+            HMap
+        Item
+            Bool
+            Enum
+            Maybe
+            Undef
+            Defined
+                Value
+                    Version
+                    Str
+                        Uni
+                        Bin
+                        NonEmptyStr
+                        Email
+                        Tel
+                        Url
+                        Path
+                        Html
+                        StrDate
+                        StrDateTime
+                        StrMatch
+                        ClassName
+                        RoleName
+                        Numeric
+                            Num
+                                PositiveNum
+                                Float
+                                Range
+                                Int
+                                    PositiveInt
+                                    Nat
+                Ref
+                    Tied
+                    LValueRef
+                    FormatRef
+                    CodeRef
+                    RegexpRef
+                    ScalarRef
+                    RefRef
+                    GlobRef
+                    ArrayRef
+                    HashRef
+                    Object
+                    Map
+                    Tuple
+                    CycleTuple
+                    Dict
+                Like
+                    HasMethods
+                    Overload
+                    InstanceOf
+                    ConsumerOf
+                StrLike
+                RegexpLike
+                CodeLike
+                ArrayLike
+                HashLike
+
+    EmptyStrToUndef
+    ArrayByComma
+/;
+
 
 my $SUB1 = sub {1};
 
@@ -20,12 +103,12 @@ sub subtype(@) {
 	$name =~ s/(`?)(\[.*)/ $is_maybe_arg = $1; $is_arg = $2; ''/e;
 
 	if($is_maybe_arg) {
-		die "subtype $save: Требуется awhere" if !$awhere;
+		die "subtype $save: needs a awhere" if !$awhere;
 	} else {
-		die "subtype $save: awhere - лишнее" if $awhere;
+		die "subtype $save: awhere is excess" if $awhere;
 	}
 	
-	die "subtype $save: Требуется where" if $is_arg && !$where;
+	die "subtype $save: needs a where" if $is_arg && !$where;
 
 	if($as && $as->{test} != $SUB1) {
 		if(!$where && !$awhere) {
@@ -36,7 +119,7 @@ sub subtype(@) {
 		}
 	}
 
-	my $type = Aion::View::Type->new(name => $name);
+	my $type = Aion::Type->new(name => $name);
 	
 	$type->{detail} = $message if $message;
 	$type->{init} = $init_where if $init_where;
@@ -60,12 +143,12 @@ sub where(&@) { (where => @_) }
 sub awhere(&@) { (awhere => @_) }
 sub message(&@) { (message => @_) }
 
-sub SELF() { $Aion::View::Type::SELF }
-sub ARGS() { wantarray? @{$Aion::View::Type::SELF->{args}}: $Aion::View::Type::SELF->{args} }
-sub A() { $Aion::View::Type::SELF->{args}[0] }
-sub B() { $Aion::View::Type::SELF->{args}[1] }
-sub C() { $Aion::View::Type::SELF->{args}[2] }
-sub D() { $Aion::View::Type::SELF->{args}[3] }
+sub SELF() { $Aion::Type::SELF }
+sub ARGS() { wantarray? @{$Aion::Type::SELF->{args}}: $Aion::Type::SELF->{args} }
+sub A() { $Aion::Type::SELF->{args}[0] }
+sub B() { $Aion::Type::SELF->{args}[1] }
+sub C() { $Aion::Type::SELF->{args}[2] }
+sub D() { $Aion::Type::SELF->{args}[3] }
 
 # Создание транслятора. У типа может быть сколько угодно трансляторов из других типов
 # coerce Name from OtherName1 via {...} from OtherName2 via {...} ...
@@ -78,7 +161,7 @@ sub coerce(@) {
 	die "coerce $save: Нет from" if !$from;
 	die "coerce $save: Нет via" if !$via;
 
-	my $coerce = Aion::View::Type->new(name => $name, coerce => $via, from => $from);
+	my $coerce = Aion::Type->new(name => $name, coerce => $via, from => $from);
 	$coerce->make(scalar caller)
 }
 
@@ -150,7 +233,7 @@ subtype "Any";
 		};
 
 		subtype "ATuple[A...]", as &Array,
-			init_where { ArrayRef([Object(['Aion::View::Type'])])->validate(scalar ARGS) }
+			init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
 			where {
 				my $T = ARGS;
 				my ($i, $a) = @$_;
@@ -165,7 +248,7 @@ subtype "Any";
 			};
 
 		subtype "ACycleTuple[A...]", as &Array,
-			init_where { ArrayRef([Object(['Aion::View::Type'])])->validate(scalar ARGS) }
+			init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
 			where {
 				my $A = ATuple $_[1];
 				$A->test or return 0;
@@ -177,8 +260,8 @@ subtype "Any";
 		where { ACycleTuple([&Str, &Item])->test }
 		awhere { ACycleTuple([&Str, $_[0]])->test };
 		
-		subtype "Map[K, V]", as &Hash,
-			where {  };
+		subtype "HMap[K, V]", as &Any,
+		where { ACycleTuple([@_])->test };
 	
 			
 	subtype "Item", as &Any;
@@ -199,7 +282,7 @@ subtype "Any";
 						where { !utf8::is_utf8($_) }
 						init_where { $StrInit->() }
 						awhere { &Bin->test && SELF->{min} <= length($_) && length($_) <= SELF->{max} };
-					subtype "NonEmptyStr`[A, B?]", as &Str, 
+					subtype "NonEmptyStr`[A, B?]", as &Str,
 						where { /\S/ }
 						init_where { $StrInit->() }
 						awhere { /\S/ && SELF->{min} <= length($_) && length($_) <= SELF->{max} };
@@ -285,7 +368,7 @@ subtype "Any";
 					where { ref $_ eq "HASH" }
 					awhere { my $A = A; ref $_ eq "HASH" && all { $A->test } values %$_ };
 				subtype "Object`[O]", as &Ref,
-					init_where { include A if defined A }
+					init_where { eval "require " . A if defined A }
 					where { Scalar::Util::blessed($_) ne "" }
 					awhere { UNIVERSAL::isa($_, A) };
 					#subtype "Date", as Object(['Pleroma::Date']);
@@ -300,7 +383,7 @@ subtype "Any";
 					};
 
 				subtype "Tuple[A...]", as &ArrayRef,
-					init_where { ArrayRef([Object(['Aion::View::Type'])])->validate(scalar ARGS) }
+					init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
 					where {
 						my $T = ARGS;
 						return "" unless @$T == @$_;
@@ -309,7 +392,7 @@ subtype "Any";
 						return 1;
 					};
 				subtype "CycleTuple[A...]", as &ArrayRef,
-					init_where { ArrayRef([Object(['Aion::View::Type'])])->validate(scalar ARGS) }
+					init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
 					where {
 						my $T = ARGS;
 						return "" unless @$_ % @$T == 0;
@@ -320,7 +403,7 @@ subtype "Any";
 						return 1;
 					};
 				subtype "Dict[k => A, ...]", as &HashRef,
-					init_where { CycleTuple([&Str => Object(['Aion::View::Type'])])->validate(scalar ARGS) }
+					init_where { CycleTuple([&Str => Object(['Aion::Type'])])->validate(scalar ARGS) }
 					where {
 						my $T = ARGS;
 						return "" if @$T / 2 != keys(%$_);
@@ -365,5 +448,7 @@ subtype "Any";
 
 coerce "EmptyStrToUndef", from &Str, via { $_ eq ""? undef: $_ };
 coerce "ArrayByComma", from &Str, via { [split /,/, $_] };
+
+};
 
 1;

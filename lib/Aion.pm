@@ -58,8 +58,8 @@ sub _is {
 # isa => Type
 sub _isa {
     my ($cls, $name, $isa, $construct, $feature) = @_;
-    die "has: $name - isa maybe Aion::View::Type"
-        if !UNIVERSAL::isa($isa, 'Aion::View::Type');
+    die "has: $name - isa maybe Aion::Type"
+        if !UNIVERSAL::isa($isa, 'Aion::Type');
 
     $feature->{isa} = $isa;
 
@@ -71,7 +71,7 @@ sub _isa {
 # coerce => 1|Coerce
 sub _coerce {
     my ($cls, $name, $type, $construct, $feature) = @_;
-    
+
 }
 
 # default => value
