@@ -1,7 +1,6 @@
 package Aion;
 use 5.008001;
-use strict;
-use warnings;
+use common::sense;
 
 our $VERSION = "0.01";
 
@@ -30,6 +29,8 @@ sub import {
 	*{"${pkg}::with"} = \&with;
 	*{"${pkg}::upgrade"} = \&upgrade;
 	*{"${pkg}::has"} = \&has;
+	*{"${pkg}::does"} = \&does;
+	*{"${pkg}::clear"} = \&clear;
 
     # Свойства объекта
 	constant->import("${pkg}::FEATURE" => {});
@@ -113,7 +114,7 @@ sub _extends {
     return;
 }
 
-# Наследование
+# Наследование классов
 sub extends {
 	my $pkg = caller;
 
@@ -123,11 +124,36 @@ sub extends {
     goto &_extends;
 }
 
-# Расширение
+# Расширение ролями
 sub with {
 	my $pkg = caller;
+
+    @{"${pkg}::DOES"} = @_;
+
     unshift @_, $pkg, "import_with";
     goto &_extends;
+}
+
+# Определяет - подключена ли роль
+sub does {
+    my ($self, $role) = @_;
+
+    my $pkg = ref $self || $self;
+    my $does = \@{"${pkg}::DOES"};
+
+    return 1 if $role ~~ $does;
+    for(@$does) {
+        return 1 if $_->can("does") && $_->does($role);
+    }
+
+    return "";
+}
+
+# Очищает переменную в объекте, возвращает себя
+sub clear {
+    my ($self, $feature) = @_;
+    delete $self->{$feature};
+    $self
 }
 
 # создаёт свойство

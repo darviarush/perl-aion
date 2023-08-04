@@ -352,7 +352,7 @@ subtype "Any";
 				subtype "FormatRef", as &Ref, where { ref $_ eq "FORMAT" };
 				subtype "CodeRef", as &Ref, where { ref $_ eq "CODE" };
 				subtype "RegexpRef", as &Ref, where { ref $_ eq "Regexp" };
-				subtype "ScalarRef`[A]", as &Ref, 
+				subtype "ScalarRef`[A]", as &Ref,
 					where { ref $_ eq "SCALAR" }
 					awhere { ref $_ eq "SCALAR" && A->include($$_) };
 				subtype "RefRef`[A]", as &Ref,
