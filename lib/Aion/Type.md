@@ -84,14 +84,13 @@ $PositiveInt->test  # -> ""
 Initial the validator.
 
 ```perl
-use DDP;
 my $Range = Aion::Type->new(
     name => "Range",
     args => [3, 5],
     init => sub {
         @{$Aion::Type::SELF}{qw/min max/} = @{$Aion::Type::SELF->{args}};
     },
-    test => sub { p $Aion::Type::SELF->{min}; $Aion::Type::SELF->{min} <= $_ <= $Aion::Type::SELF->{max} },
+    test => sub { $Aion::Type::SELF->{min} <= $_ <= $Aion::Type::SELF->{max} },
 );
 
 $Range->init;
@@ -133,7 +132,7 @@ $PositiveInt->exclude(5)  # -> ""
 $PositiveInt->exclude(-6) # -> 1
 ```
 
-## detail ($val, $name)
+## detail ($element, $feature)
 
 Return message belongs to error.
 
@@ -147,7 +146,31 @@ my $Num = Aion::Type->new(name => "Num", detail => sub {
     "Error: $val is'nt $name!"
 });
 
-$num->detail("x", "car")  # => Error: x is'nt car!
+$Num->detail("x", "car")  # => Error: x is'nt car!
+```
+
+## validate ($element, $feature)
+
+It tested `$element` and throw `detail` if element is exclude from class.
+
+```perl
+my $PositiveInt = Aion::Type->new(
+    name => "PositiveInt",
+    test => sub { /^\d+$/ },
+);
+
+eval {
+    $PositiveInt->validate(-1, "Neg")
+};
+$@   # ~> Feature Neg must have the type PositiveInt. The same Neg is -1
+```
+
+## val_to_str ($element)
+
+Translate `$val` to string.
+
+```perl
+Aion::Type->val_to_str([1,2,{x=>6}])   # => [\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]
 ```
 
 
@@ -163,22 +186,62 @@ my $PositiveInt = Aion::Type->new(
     test => sub { /^\d+$/ },
 );
 
+local $_ = 10;
+$PositiveInt->()    # -> 1
 
+$_ = -1;
+$PositiveInt->()    # -> ""
 ```
 
 ## ""
 
 Stringify object.
 
+```perl
+Aion::Type->new(name => "Int") . ""   # => Int
+
+my $Enum = Aion::Type->new(name => "Enum", args => [qw/A B C/]);
+
+"$Enum" # => Enum['A', 'B', 'C']
+```
+
+
 ## $a | $b
 
 It make new type as union of `$a` and `$b`.
+
+```perl
+my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
+
+my $IntOrChar = $Int | $Char;
+
+77   ~~ $IntOrChar # => 1
+"a"  ~~ $IntOrChar # => 1
+"ab" ~~ $IntOrChar # -> ""
+```
 
 ## $a & $b
 
 It make new type as intersection of `$a` and `$b`.
 
+```perl
+my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
+
+my $Digit = $Int & $Char;
+
+7  ~~ $Digit # => 1
+77 ~~ $Digit # -> ""
+```
+
 ## ~ $a
 
 It make exclude type from `$a`.
 
+```perl
+my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+
+"a" ~~ ~$Int; # => 1
+5   ~~ ~$Int; # -> ""
+```

@@ -84,17 +84,13 @@ is scalar do {$PositiveInt->test}, scalar do{""}, '$PositiveInt->test  # -> ""';
 # Initial the validator.
 # 
 done_testing; }; subtest 'init' => sub { 
-use DDP;
 my $Range = Aion::Type->new(
     name => "Range",
     args => [3, 5],
     init => sub {
-        p my $x=$Aion::Type::SELF->{args};
         @{$Aion::Type::SELF}{qw/min max/} = @{$Aion::Type::SELF->{args}};
-        my %x=%$Aion::Type::SELF;
-        p %x;
     },
-    test => sub { p $Aion::Type::SELF->{min}; $Aion::Type::SELF->{min} <= $_ <= $Aion::Type::SELF->{max} },
+    test => sub { $Aion::Type::SELF->{min} <= $_ <= $Aion::Type::SELF->{max} },
 );
 
 $Range->init;
@@ -136,6 +132,47 @@ is scalar do {$PositiveInt->exclude(5)}, scalar do{""}, '$PositiveInt->exclude(5
 is scalar do {$PositiveInt->exclude(-6)}, scalar do{1}, '$PositiveInt->exclude(-6) # -> 1';
 
 # 
+# ## detail ($element, $feature)
+# 
+# Return message belongs to error.
+# 
+done_testing; }; subtest 'detail ($element, $feature)' => sub { 
+my $Int = Aion::Type->new(name => "Int");
+
+is scalar do {$Int->detail(-5, "car")}, "Feature car must have the type Int. The same car is -5", '$Int->detail(-5, "car") # => Feature car must have the type Int. The same car is -5';
+
+my $Num = Aion::Type->new(name => "Num", detail => sub {
+    my ($val, $name) = @_;
+    "Error: $val is'nt $name!"
+});
+
+is scalar do {$Num->detail("x", "car")}, "Error: x is'nt car!", '$Num->detail("x", "car")  # => Error: x is\'nt car!';
+
+# 
+# ## validate ($element, $feature)
+# 
+# It tested `$element` and throw `detail` if element is exclude from class.
+# 
+done_testing; }; subtest 'validate ($element, $feature)' => sub { 
+my $PositiveInt = Aion::Type->new(
+    name => "PositiveInt",
+    test => sub { /^\d+$/ },
+);
+
+eval {
+    $PositiveInt->validate(-1, "Neg")
+};
+like scalar do {$@}, qr!Feature Neg must have the type PositiveInt. The same Neg is -1!, '$@   # ~> Feature Neg must have the type PositiveInt. The same Neg is -1';
+
+# 
+# ## val_to_str ($element)
+# 
+# Translate `$val` to string.
+# 
+done_testing; }; subtest 'val_to_str ($element)' => sub { 
+is scalar do {Aion::Type->val_to_str([1,2,{x=>6}])}, "[\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]", 'Aion::Type->val_to_str([1,2,{x=>6}])   # => [\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]';
+
+# 
 # 
 # # OPERATORS
 # 
@@ -143,22 +180,71 @@ is scalar do {$PositiveInt->exclude(-6)}, scalar do{1}, '$PositiveInt->exclude(-
 # 
 # It make the object is callable.
 # 
+done_testing; }; subtest '&{}' => sub { 
+my $PositiveInt = Aion::Type->new(
+    name => "PositiveInt",
+    test => sub { /^\d+$/ },
+);
+
+local $_ = 10;
+is scalar do {$PositiveInt->()}, scalar do{1}, '$PositiveInt->()    # -> 1';
+
+$_ = -1;
+is scalar do {$PositiveInt->()}, scalar do{""}, '$PositiveInt->()    # -> ""';
+
+# 
 # ## ""
 # 
 # Stringify object.
+# 
+done_testing; }; subtest '""' => sub { 
+is scalar do {Aion::Type->new(name => "Int") . ""}, "Int", 'Aion::Type->new(name => "Int") . ""   # => Int';
+
+my $Enum = Aion::Type->new(name => "Enum", args => [qw/A B C/]);
+
+is scalar do {"$Enum"}, "Enum['A', 'B', 'C']", '"$Enum" # => Enum[\'A\', \'B\', \'C\']';
+
+# 
 # 
 # ## $a | $b
 # 
 # It make new type as union of `$a` and `$b`.
 # 
+done_testing; }; subtest '$a | $b' => sub { 
+my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
+
+my $IntOrChar = $Int | $Char;
+
+is scalar do {77   ~~ $IntOrChar}, "1", '77   ~~ $IntOrChar # => 1';
+is scalar do {"a"  ~~ $IntOrChar}, "1", '"a"  ~~ $IntOrChar # => 1';
+is scalar do {"ab" ~~ $IntOrChar}, scalar do{""}, '"ab" ~~ $IntOrChar # -> ""';
+
+# 
 # ## $a & $b
 # 
 # It make new type as intersection of `$a` and `$b`.
+# 
+done_testing; }; subtest '$a & $b' => sub { 
+my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
+
+my $Digit = $Int & $Char;
+
+is scalar do {7  ~~ $Digit}, "1", '7  ~~ $Digit # => 1';
+is scalar do {77 ~~ $Digit}, scalar do{""}, '77 ~~ $Digit # -> ""';
+
 # 
 # ## ~ $a
 # 
 # It make exclude type from `$a`.
 # 
+done_testing; }; subtest '~ $a' => sub { 
+my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+
+is scalar do {"a" ~~ ~$Int;}, "1", '"a" ~~ ~$Int; # => 1';
+is scalar do {5   ~~ ~$Int;}, scalar do{""}, '5   ~~ ~$Int; # -> ""';
+
 
 	done_testing;
 };

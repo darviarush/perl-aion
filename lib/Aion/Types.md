@@ -7,18 +7,24 @@ Aion::Types is library of validators. And it makes new validators
 ```perl
 use Aion::Types;
 
+# Create validator SpeakOfKitty extends it from validator StrMatch.
 BEGIN {
     subtype "SpeakOfKitty", as StrMatch[qr/\bkitty\b/i],
         message { "Speak not of kitty!" };
 }
 
 "Kitty!" ~~ SpeakOfKitty # => 1
-
 ```
 
 # DESCRIPTION
 
-Hierarhy of types:
+This modile export subroutines:
+
+* subtype, as, init_where, where, awhere, message — for create validators.
+* SELF, ARGS, A, B, C, D — for use in validators has arguments.
+* coerce, from, via — for create coerce, using for translate values from one class to other class.
+
+Hierarhy of validators:
 
 ```
 Any
@@ -156,7 +162,7 @@ Top-level type in the hierarchy scalar types.
 
 ## Bool
 
-`1` is true. `0`, `""` or `undef` is false
+`1` is true. `0`, `""` or `undef` is false.
 
 ```perl
 1 ~~ Bool     # -> 1
