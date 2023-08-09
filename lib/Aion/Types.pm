@@ -7,7 +7,7 @@ use Scalar::Util qw//;
 use List::Util qw/all/;
 use Exporter qw/import/;
 
-our @EXPORT_OK = qw/
+our @EXPORT = our @EXPORT_OK = qw/
     subtype as init_where where awhere message
     SELF ARGS A B C D
     coerce from via
@@ -151,18 +151,17 @@ sub C() { $Aion::Type::SELF->{args}[2] }
 sub D() { $Aion::Type::SELF->{args}[3] }
 
 # Создание транслятора. У типа может быть сколько угодно трансляторов из других типов
-# coerce Name from OtherName1 via {...} from OtherName2 via {...} ...
+# coerce Type, from OtherType, via {...}
 sub coerce(@) {
-	my $save = my $name = shift;
-	my %o = @_;
-
+	my ($type, %o) = @_;
 	my ($from, $via) = @o{qw/from via/};
-	
-	die "coerce $save: Нет from" if !$from;
-	die "coerce $save: Нет via" if !$via;
 
-	my $coerce = Aion::Type->new(name => $name, coerce => $via, from => $from);
-	$coerce->make(scalar caller)
+	die "coerce $type not Aion::Type!" unless UNIVERSAL::isa($from, "Aion::Type");
+	die "coerce $type: Нет from" unless UNIVERSAL::isa($from, "Aion::Type");
+	die "coerce $type: Нет via" unless ref $via eq "CODE";
+
+	push @{$type->{coerce}}, [$from, $via];
+	return;
 }
 
 sub from($) { (from => $_[0]) }
@@ -290,19 +289,19 @@ subtype "Any";
 					subtype "Tel", as &Str, where { /^\+\d{7,}/ };
 					subtype "Url", as &Str, where { /^https?:\/\// };
 					subtype "Path", as &Str, where { /^\// };
-					subtype "Html", as &Str, where { /^\s*<(!|html)/ };
+					subtype "Html", as &Str, where { /^\s*<(!doctype|html)\b/i };
 					subtype "StrDate", as &Str, where { /^\d{4}-\d{2}-\d{2}\z/ };
 					subtype "StrDateTime", as &Str, where { /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/ };
 					subtype "StrMatch[qr/.../]", as &Str, where { $_ =~ A };
 					
-					subtype "ClassName[A]", as &Str, where { A->can('new') };
-					subtype "RoleName[A]", as &Str, where { !A->can('new') };
+					subtype "ClassName", as &Str, where { $_->can('new') };
+					subtype "RoleName", as &Str, where { $_->can('requires') };
 					
 					subtype "Numeric", as &Str, where { Scalar::Util::looks_like_number($_) };
 						subtype "Num", as &Numeric, where { /\d\z/ };
 							subtype "PositiveNum", as &Num, where { $_ >= 0 };
 							subtype "Float", as &Num, where { -3.402823466E+38 <= $_ <= 3.402823466E+38 };
-							subtype "Range[from, to]", as &Num, where { A <= $_ && $_ <= B };
+							subtype "Range[from, to]", as &Num, where { A <= $_ <= B };
 							subtype "Int`[N]", as &Num, 
 								where { /^-?\d+\z/ }
 								init_where {
@@ -452,3 +451,578 @@ coerce "ArrayByComma", from &Str, via { [split /,/, $_] };
 };
 
 1;
+
+__END__
+
+=encoding utf-8
+
+=head1 NAME
+
+Aion::Types is library of validators. And it makes new validators
+
+=head1 SYNOPSIS
+
+	use Aion::Types;
+	
+	# Create validator SpeakOfKitty extends it from validator StrMatch.
+	BEGIN {
+	    subtype "SpeakOfKitty", as StrMatch[qr/\bkitty\b/i],
+	        message { "Speak not of kitty!" };
+	}
+	
+	"Kitty!" ~~ SpeakOfKitty # => 1
+
+=head1 DESCRIPTION
+
+This modile export subroutines:
+
+=over
+
+=item * subtype, as, init_where, where, awhere, message — for create validators.
+
+=item * SELF, ARGS, A, B, C, D — for use in validators has arguments.
+
+=item * coerce, from, via — for create coerce, using for translate values from one class to other class.
+
+=back
+
+Hierarhy of validators:
+
+	Any
+		Control
+			Union[A, B...]
+			Intersection[A, B...]
+			Exclude[A, B...]
+			Optional[A...]
+			Slurpy[A...]
+		Array`[A]
+			ATuple[A...]
+			ACycleTuple[A...]
+		Hash`[A]
+			HMap[K, V]
+		Item
+			Bool
+			Enum[A...]
+			Maybe[A]
+			Undef
+			Defined
+				Value
+					Version
+					Str`[A, B?]
+						Uni
+						Bin`[A, B?]
+						NonEmptyStr`[A, B?]
+						Email
+						Tel
+						Url
+						Path
+						Html
+						StrDate
+						StrDateTime
+						StrMatch[qr/.../]
+						ClassName[A]
+						RoleName[A]
+						Numeric
+							Num
+								PositiveNum
+								Float
+								Range[from, to]
+								Int`[N]
+									PositiveInt`[N]
+									Nat`[N]
+				Ref
+					Tied`[A]
+					LValueRef
+					FormatRef
+					CodeRef
+					RegexpRef
+					ScalarRef`[A]
+					RefRef`[A]
+					GlobRef`[A]
+					ArrayRef`[A]
+					HashRef`[H]
+					Object`[O]
+					Map[K, V]
+					Tuple[A...]
+					CycleTuple[A...]
+					Dict[k => A, ...]
+				Like
+					HasMethods[m...]
+					Overload`[m...]
+					InstanceOf[A...]
+					ConsumerOf[A...]
+				StrLike
+				RegexpLike
+				CodeLike
+				ArrayLike`[A]
+				HashLike`[A]
+
+=head1 TYPES
+
+=head2 Any
+
+Top-level type in the hierarchy. Match all.
+
+=head2 Control
+
+Top-level type in the hierarchy constructors new types from any types.
+
+=head2 Union[A, B...]
+
+Union many types.
+
+	33  ~~ Union[Int, Ref]    # -> 1
+	[]  ~~ Union[Int, Ref]    # -> 1
+	"a" ~~ Union[Int, Ref]    # -> ""
+
+=head2 Intersection[A, B...]
+
+Intersection many types.
+
+	15 ~~ Intersection[Int, StrMatch[/5/]]    # -> 1
+
+=head2 Exclude[A, B...]
+
+Exclude many types.
+
+	-5  ~~ Exclude[PositiveInt]    # -> 1
+	"a" ~~ Exclude[PositiveInt]    # -> 1
+	5   ~~ Exclude[PositiveInt]    # -> ""
+
+=head2 Optional[A...]
+
+=head2 Slurpy[A...]
+
+=head2 Array`[A]
+
+=head2 ATuple[A...]
+
+=head2 ACycleTuple[A...]
+
+=head2 Hash`[A]
+
+=head2 HMap[K, V]
+
+=head2 Item
+
+Top-level type in the hierarchy scalar types.
+
+=head2 Bool
+
+C<1> is true. C<0>, C<""> or C<undef> is false.
+
+	1 ~~ Bool     # -> 1
+	0 ~~ Bool     # -> 1
+	undef ~~ Bool # -> 1
+	"" ~~ Bool    # -> 1
+	
+	2 ~~ Bool     # -> ""
+
+=head2 Enum[A...]
+
+Enumerate values.
+
+	3 ~~ Enum[1,2,3]        # -> 1
+	"a" ~~ Enum["a", "b"]   # -> 1
+	4 ~~ Enum[1,2,3]        # -> ""
+
+=head2 Maybe[A]
+
+C<undef> or type in C<[]>.
+
+	undef ~~ Maybe[Int]    # -> 1
+	4 ~~ Maybe[Int]        # -> 1
+	"" ~~ Maybe[Int]       # -> ""
+
+=head2 Undef
+
+C<undef> only.
+
+	undef ~~ Undef    # -> 1
+	0 ~~ Undef        # -> ""
+
+=head2 Defined
+
+All exclude C<undef>.
+
+	\0 ~~ Defined       # -> 1
+	undef ~~ Defined    # -> ""
+
+=head2 Value
+
+Defined unreference values.
+
+	3 ~~ Value        # -> 1
+	\3 ~~ Value       # -> ""
+	undef ~~ Value    # -> ""
+
+=head2 Version
+
+Perl versions.
+
+	1.1.0 ~~ Version    # -> 1
+	v1.1.0 ~~ Version   # -> 1
+	1.1 ~~ Version      # -> ""
+	"1.1.0" ~~ Version  # -> ""
+
+=head2 Str`[A, B?]
+
+Strings, include numbers.
+It maybe define maximal, or minimal and maximal length.
+
+	1.1 ~~ Str         # -> 1
+	"" ~~ Str          # -> 1
+	1.1.0 ~~ Str       # -> ""
+	"1234" ~~ Str[3]   # -> ""
+	"123" ~~ Str[3]    # -> 1
+	"12" ~~ Str[3]     # -> 1
+	"" ~~ Str[1, 2]    # -> ""
+	"1" ~~ Str[1, 2]   # -> 1
+	"12" ~~ Str[1, 2]   # -> 1
+	"123" ~~ Str[1, 2]   # -> ""
+
+=head2 Uni
+
+Unicode strings: with utf8-flag or characters with numbers less then 128.
+
+	"↭" ~~ Uni    # -> 1
+	123 ~~ Uni    # -> 1
+	do {no utf8; "↭" ~~ Uni}    # -> ""
+
+=head2 Bin`[A, B?]
+
+Binary strings: without utf8-flag.
+It maybe define maximal, or minimal and maximal length.
+
+	123 ~~ Bin    # -> 1
+	"z" ~~ Bin    # -> 1
+	do {no utf8; "↭" ~~ Bin }   # -> 1
+
+=head2 NonEmptyStr`[A, B?]
+
+String with one or many non-space characters.
+
+	" " ~~ NonEmptyStr        # -> ""
+	" S " ~~ NonEmptyStr      # -> 1
+	" S " ~~ NonEmptyStr[2]   # -> ""
+	" S" ~~ NonEmptyStr[2]    # -> 1
+	" S" ~~ NonEmptyStr[1,2]  # -> 1
+	" S " ~~ NonEmptyStr[1,2] # -> ""
+	"S" ~~ NonEmptyStr[2,3]   # -> ""
+
+=head2 Email
+
+Strings with C<@>.
+
+	'@' ~~ Email      # -> 1
+	'a@a.a' ~~ Email  # -> 1
+	'a.a' ~~ Email    # -> ""
+
+=head2 Tel
+
+.
+
+	 ~~ Tel    # -> 1
+	 ~~ Tel    # -> ""
+
+=head2 Url
+
+.
+
+	 ~~ Url    # -> 1
+	 ~~ Url    # -> ""
+
+=head2 Path
+
+.
+
+	 ~~ Path    # -> 1
+	 ~~ Path    # -> ""
+
+=head2 Html
+
+.
+
+	 ~~ Html    # -> 1
+	 ~~ Html    # -> ""
+
+=head2 StrDate
+
+.
+
+	 ~~ StrDate    # -> 1
+	 ~~ StrDate    # -> ""
+
+=head2 StrDateTime
+
+.
+
+	 ~~ StrDateTime    # -> 1
+	 ~~ StrDateTime    # -> ""
+
+=head2 StrMatch[qr/.../]
+
+.
+
+	 ~~ StrMatch[qr/.../]    # -> 1
+	 ~~ StrMatch[qr/.../]    # -> ""
+
+=head2 ClassName[A]
+
+.
+
+	 ~~ ClassName[A]    # -> 1
+	 ~~ ClassName[A]    # -> ""
+
+=head2 RoleName[A]
+
+.
+
+	 ~~ RoleName[A]    # -> 1
+	 ~~ RoleName[A]    # -> ""
+
+=head2 Numeric
+
+.
+
+	 ~~ Numeric    # -> 1
+	 ~~ Numeric    # -> ""
+
+=head2 Num
+
+.
+
+	 ~~ Num    # -> 1
+	 ~~ Num    # -> ""
+
+=head2 PositiveNum
+
+.
+
+	 ~~ PositiveNum    # -> 1
+	 ~~ PositiveNum    # -> ""
+
+=head2 Float
+
+.
+
+	 ~~ Float    # -> 1
+	 ~~ Float    # -> ""
+
+=head2 Range[from, to]
+
+.
+
+	 ~~ Range[from, to]    # -> 1
+	 ~~ Range[from, to]    # -> ""
+
+=head2 Int`[N]
+
+.
+
+	 ~~ Int`[N]    # -> 1
+	 ~~ Int`[N]    # -> ""
+
+=head2 PositiveInt`[N]
+
+.
+
+	 ~~ PositiveInt`[N]    # -> 1
+	 ~~ PositiveInt`[N]    # -> ""
+
+=head2 Nat`[N]
+
+.
+
+	 ~~ Nat`[N]    # -> 1
+	 ~~ Nat`[N]    # -> ""
+
+=head2 Ref
+
+.
+
+	 ~~ Ref    # -> 1
+	 ~~ Ref    # -> ""
+
+=head2 Tied`[A]
+
+.
+
+	 ~~ Tied`[A]    # -> 1
+	 ~~ Tied`[A]    # -> ""
+
+=head2 LValueRef
+
+.
+
+	 ~~ LValueRef    # -> 1
+	 ~~ LValueRef    # -> ""
+
+=head2 FormatRef
+
+.
+
+	 ~~ FormatRef    # -> 1
+	 ~~ FormatRef    # -> ""
+
+=head2 CodeRef
+
+.
+
+	 ~~ CodeRef    # -> 1
+	 ~~ CodeRef    # -> ""
+
+=head2 RegexpRef
+
+.
+
+	 ~~ RegexpRef    # -> 1
+	 ~~ RegexpRef    # -> ""
+
+=head2 ScalarRef`[A]
+
+.
+
+	 ~~ ScalarRef`[A]    # -> 1
+	 ~~ ScalarRef`[A]    # -> ""
+
+=head2 RefRef`[A]
+
+.
+
+	 ~~ RefRef`[A]    # -> 1
+	 ~~ RefRef`[A]    # -> ""
+
+=head2 GlobRef`[A]
+
+.
+
+	 ~~ GlobRef`[A]    # -> 1
+	 ~~ GlobRef`[A]    # -> ""
+
+=head2 ArrayRef`[A]
+
+.
+
+	 ~~ ArrayRef`[A]    # -> 1
+	 ~~ ArrayRef`[A]    # -> ""
+
+=head2 HashRef`[H]
+
+.
+
+	 ~~ HashRef`[H]    # -> 1
+	 ~~ HashRef`[H]    # -> ""
+
+=head2 Object`[O]
+
+.
+
+	 ~~ Object`[O]    # -> 1
+	 ~~ Object`[O]    # -> ""
+
+=head2 Map[K, V]
+
+.
+
+	 ~~ Map[K, V]    # -> 1
+	 ~~ Map[K, V]    # -> ""
+
+=head2 Tuple[A...]
+
+.
+
+	 ~~ Tuple[A...]    # -> 1
+	 ~~ Tuple[A...]    # -> ""
+
+=head2 CycleTuple[A...]
+
+.
+
+	 ~~ CycleTuple[A...]    # -> 1
+	 ~~ CycleTuple[A...]    # -> ""
+
+=head2 Dict[k => A, ...]
+
+.
+
+	 ~~ Dict[k => A, ...]    # -> 1
+	 ~~ Dict[k => A, ...]    # -> ""
+
+=head2 Like
+
+.
+
+	 ~~ Like    # -> 1
+	 ~~ Like    # -> ""
+
+=head2 HasMethods[m...]
+
+.
+
+	 ~~ HasMethods[m...]    # -> 1
+	 ~~ HasMethods[m...]    # -> ""
+
+=head2 Overload`[m...]
+
+.
+
+	 ~~ Overload`[m...]    # -> 1
+	 ~~ Overload`[m...]    # -> ""
+
+=head2 InstanceOf[A...]
+
+.
+
+	 ~~ InstanceOf[A...]    # -> 1
+	 ~~ InstanceOf[A...]    # -> ""
+
+=head2 ConsumerOf[A...]
+
+.
+
+	 ~~ ConsumerOf[A...]    # -> 1
+	 ~~ ConsumerOf[A...]    # -> ""
+
+=head2 StrLike
+
+.
+
+	 ~~ StrLike    # -> 1
+	 ~~ StrLike    # -> ""
+
+=head2 RegexpLike
+
+.
+
+	 ~~ RegexpLike    # -> 1
+	 ~~ RegexpLike    # -> ""
+
+=head2 CodeLike
+
+.
+
+	 ~~ CodeLike    # -> 1
+	 ~~ CodeLike    # -> ""
+
+=head2 ArrayLike`[A]
+
+.
+
+	 ~~ ArrayLike`[A]    # -> 1
+	 ~~ ArrayLike`[A]    # -> ""
+
+=head2 HashLike`[A]
+
+.
+
+	 ~~ HashLike`[A]    # -> 1
+	 ~~ HashLike`[A]    # -> ""
+
+=head1 AUTHOR
+
+Yaroslav O. Kosmina LL<mailto:dart@cpan.org>
+
+=head1 LICENSE
+
+⚖ B<GPLv3>

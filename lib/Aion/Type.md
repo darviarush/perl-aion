@@ -38,17 +38,12 @@ Constructor.
 
 ### ARGUMENTS
 
-#### name
-
-Name of type.
-
-#### args
-
-List of type arguments.
-
-#### test
-
-Subroutine for check value.
+* name (Str) — Name of type.
+* args (ArrayRef) — List of type arguments.
+* init (CodeRef) — Initializer for type.
+* test (CodeRef) — Values cheker.
+* a_test (CodeRef) — Values cheker for types with optional arguments.
+* coerce (ArrayRef[Tuple[Aion::Type, CodeRef]]) — Array of pairs: type and via.
 
 ## stringify
 
@@ -173,6 +168,49 @@ Translate `$val` to string.
 Aion::Type->val_to_str([1,2,{x=>6}])   # => [\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]
 ```
 
+## make ($pkg)
+
+It make subroutine without arguments, who return type.
+
+```perl
+BEGIN {
+    Aion::Type->new(name=>"Rim", test => sub { /^[IVXLCDM]+$/i })->make;
+}
+
+"IX" ~~ Rim     # => 1
+```
+
+## make_arg ($pkg)
+
+It make subroutine with arguments, who return type.
+
+```perl
+BEGIN {
+    Aion::Type->new(name=>"Len", test => sub {
+        $Aion::Type::SELF->{args}[0] <= length($_) <= $Aion::Type::SELF->{args}[1]
+    })->make_arg;
+}
+
+"IX" ~~ Len[2,2]    # => 1
+```
+
+## make_maybe_arg ($pkg)
+
+It make subroutine with or without arguments, who return type.
+
+```perl
+BEGIN {
+    Aion::Type->new(
+        name=>"Enum123",
+        test => sub { $_ ~~ [1,2,3] },
+        a_test => sub { $_ ~~ $Aion::Type::SELF->{args} },
+    )->make_maybe_arg;
+}
+
+3 ~~ Enum123            # -> 1
+3 ~~ Enum123[4,5,6]     # -> ""
+5 ~~ Enum123[4,5,6]     # -> 1
+```
 
 # OPERATORS
 
@@ -204,7 +242,6 @@ my $Enum = Aion::Type->new(name => "Enum", args => [qw/A B C/]);
 
 "$Enum" # => Enum['A', 'B', 'C']
 ```
-
 
 ## $a | $b
 
@@ -245,3 +282,11 @@ my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
 "a" ~~ ~$Int; # => 1
 5   ~~ ~$Int; # -> ""
 ```
+
+# AUTHOR
+
+Yaroslav O. Kosmina [dart@cpan.org](mailto:dart@cpan.org)
+
+# LICENSE
+
+⚖ **GPLv3**

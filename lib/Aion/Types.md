@@ -9,11 +9,28 @@ use Aion::Types;
 
 # Create validator SpeakOfKitty extends it from validator StrMatch.
 BEGIN {
-    subtype "SpeakOfKitty", as StrMatch[qr/\bkitty\b/i],
+    subtype SpeakOfKitty => as StrMatch[qr/\bkitty\b/i],
         message { "Speak not of kitty!" };
 }
 
 "Kitty!" ~~ SpeakOfKitty # => 1
+
+eval { SpeakOfKitty->validate("Kitty!") };
+$@ # ~> Speak not of kitty!
+
+
+BEGIN {
+	subtype IntOrArrayRef => as Int | ArrayRef;
+}
+
+[] ~~ StrOrArrayRef  # -> 1
+5 ~~ StrOrArrayRef   # -> 1
+"" ~~ StrOrArrayRef  # -> ""
+
+
+coerce StrOrArrayRef, from Num, via { int($_ + .5) };
+
+local $_ = 5.5; StrOrArrayRef->coerce # => 6
 ```
 
 # DESCRIPTION
@@ -26,7 +43,7 @@ This modile export subroutines:
 
 Hierarhy of validators:
 
-```
+```text
 Any
 	Control
 		Union[A, B...]
@@ -297,106 +314,117 @@ Strings with `@`.
 
 ## Tel
 
-.
+Format phones is plus sign and one or many digits.
 
 ```perl
- ~~ Tel    # -> 1
- ~~ Tel    # -> ""
+"+1" ~~ Tel    # -> 1
+"+ 1" ~~ Tel    # -> ""
+"+1 " ~~ Tel    # -> ""
 ```
 
 ## Url
 
-.
+Web urls is string with prefix http:// or https://.
 
 ```perl
- ~~ Url    # -> 1
- ~~ Url    # -> ""
+"http://" ~~ Url    # -> 1
+"http:/" ~~ Url    # -> ""
 ```
 
 ## Path
 
-.
+The paths starts with a slash.
 
 ```perl
- ~~ Path    # -> 1
- ~~ Path    # -> ""
+"/" ~~ Path     # -> 1
+"/a/b" ~~ Path  # -> 1
+"a/b" ~~ Path   # -> ""
 ```
 
 ## Html
 
-.
+The html starts with a `<!doctype` or `<html`.
 
 ```perl
- ~~ Html    # -> 1
- ~~ Html    # -> ""
+"<HTML" ~~ Html            # -> 1
+" <html" ~~ Html           # -> 1
+" <!doctype html>" ~~ Html # -> 1
+" <html1>" ~~ Html         # -> ""
 ```
 
 ## StrDate
 
-.
+The date is format `yyyy-mm-dd`.
 
 ```perl
- ~~ StrDate    # -> 1
- ~~ StrDate    # -> ""
+"2001-01-12" ~~ StrDate    # -> 1
+"01-01-01" ~~ StrDate    # -> ""
 ```
 
 ## StrDateTime
 
-.
+The dateTime is format `yyyy-mm-dd HH:MM:SS`.
 
 ```perl
- ~~ StrDateTime    # -> 1
- ~~ StrDateTime    # -> ""
+"2012-12-01 00:00:00" ~~ StrDateTime     # -> 1
+"2012-12-01 00:00:00 " ~~ StrDateTime    # -> ""
 ```
 
 ## StrMatch[qr/.../]
 
-.
+Match value with regular expression.
 
 ```perl
- ~~ StrMatch[qr/.../]    # -> 1
- ~~ StrMatch[qr/.../]    # -> ""
+' abc ' ~~ StrMatch[qr/abc/]    # -> 1
+' abbc ' ~~ StrMatch[qr/abc/]   # -> ""
 ```
 
-## ClassName[A]
+## ClassName
 
-.
+Classname is the package with method `new`.
 
 ```perl
- ~~ ClassName[A]    # -> 1
- ~~ ClassName[A]    # -> ""
+'Aion::Type' ~~ ClassName     # -> 1
+'Aion::Types' ~~ ClassName    # -> ""
 ```
 
-## RoleName[A]
+## RoleName
 
-.
+Rolename is the package with subroutine `requires`.
 
 ```perl
- ~~ RoleName[A]    # -> 1
- ~~ RoleName[A]    # -> ""
+package ExRole {
+	sub requires {}
+}
+
+'ExRole' ~~ RoleName    	# -> 1
+'Aion::Type' ~~ RoleName    # -> ""
 ```
 
 ## Numeric
 
-.
+Test scalar with `Scalar::Util::looks_like_number`. Maybe spaces on end.
 
 ```perl
- ~~ Numeric    # -> 1
- ~~ Numeric    # -> ""
+6.5 ~~ Numeric       # -> 1
+6.5e-7 ~~ Numeric    # -> 1
+"6.5 " ~~ Numeric    # -> 1
+"v6.5" ~~ Numeric    # -> ""
 ```
 
 ## Num
 
-.
+The numbers.
 
 ```perl
- ~~ Num    # -> 1
- ~~ Num    # -> ""
+-6.5 ~~ Num       # -> 1
+6.5e-7 ~~ Num    # -> 1
+"6.5 " ~~ Num    # -> ""
 ```
 
 ## PositiveNum
 
-.
+The positive numbers.
 
 ```perl
  ~~ PositiveNum    # -> 1
@@ -405,28 +433,33 @@ Strings with `@`.
 
 ## Float
 
-.
+The machine float number is 4 bytes.
 
 ```perl
- ~~ Float    # -> 1
- ~~ Float    # -> ""
+-4.8 ~~ Float    				# -> 1
+-3.402823466E+38 ~~ Float    	# -> 1
++3.402823466E+38 ~~ Float    	# -> 1
+(-3.402823466E+38 - 1) ~~ Float # -> ""
 ```
 
 ## Range[from, to]
 
-.
+Numbers between `from` and `to`.
 
 ```perl
- ~~ Range[from, to]    # -> 1
- ~~ Range[from, to]    # -> ""
+1 ~~ Range[1, 3]    # -> 1
+2.5 ~~ Range[1, 3]  # -> 1
+3 ~~ Range[1, 3]    # -> 1
+3.1 ~~ Range[1, 3]  # -> ""
+0.9 ~~ Range[1, 3]  # -> ""
 ```
 
 ## Int`[N]
 
-.
+Integers. The parameter `N` 
 
 ```perl
- ~~ Int`[N]    # -> 1
+ ~~ Int    # -> 1
  ~~ Int`[N]    # -> ""
 ```
 
@@ -681,3 +714,11 @@ Strings with `@`.
  ~~ HashLike`[A]    # -> 1
  ~~ HashLike`[A]    # -> ""
 ```
+
+# AUTHOR
+
+Yaroslav O. Kosmina [dart@cpan.org](mailto:dart@cpan.org)
+
+# LICENSE
+
+⚖ **GPLv3**

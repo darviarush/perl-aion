@@ -5,7 +5,7 @@ use common::sense;
 our $VERSION = "0.01";
 
 use Scalar::Util qw/blessed/;
-use Sub::Util qw/set_subname/;
+use Aion::Types qw//;
 
 # Когда осуществлять проверки:
 #   ro - только при выдаче
@@ -29,6 +29,7 @@ sub import {
 	*{"${pkg}::with"} = \&with;
 	*{"${pkg}::upgrade"} = \&upgrade;
 	*{"${pkg}::has"} = \&has;
+	*{"${pkg}::attribute"} = \&attribute;
 	*{"${pkg}::does"} = \&does;
 	*{"${pkg}::clear"} = \&clear;
 
@@ -42,6 +43,8 @@ sub import {
         coerce => \&_coerce,
         default => \&_default,
     });
+
+    Aion::Types->import($pkg);
 }
 
 # ro, rw, + и -
@@ -69,10 +72,10 @@ sub _isa {
     $construct->{set} = "\$self->FEATURE->{$name}{isa}->validate(\$val, '$name'); $construct->{set}" if ISA =~ /wo|rw/;
 }
 
-# coerce => 1|Coerce
+# coerce => 1
 sub _coerce {
     my ($cls, $name, $type, $construct, $feature) = @_;
-
+    $construct->{set} = "\$val = \$self->FEATURE->{$name}{isa}->coerce(\$val); $construct->{set}"
 }
 
 # default => value
@@ -91,7 +94,7 @@ sub _default {
 
 # Расширяет
 sub _extends {
-    my $pkg = shift; my $import_name = shift;
+    my $pkg = shift; my $with = shift;
 
     my $FEATURE = $pkg->FEATURE;
     my $ATTRIBUTE = $pkg->ATTRIBUTE;
@@ -105,10 +108,16 @@ sub _extends {
 		%$ATTRIBUTE = (%$ATTRIBUTE, %{$_->ATTRIBUTE}) if $_->can("ATTRIBUTE");
 	}
 
-    # Запускаем
+    my $import_name = $with? 'import_with': 'import_extends';
     for my $mod (@_) {
         my $import = $mod->can($import_name);
         $import->($mod, $pkg) if $import;
+    }
+
+    if($with) {
+        for my $required (@{"${pkg}::REQUIRES"}) {
+            die "Requires `$required` !" if !$pkg->can($required);
+        }
     }
 
     return;
@@ -120,7 +129,7 @@ sub extends {
 
 	@{"${pkg}::ISA"} = @_;
 
-    unshift @_, $pkg, "import_extends";
+    unshift @_, $pkg, 0;
     goto &_extends;
 }
 
@@ -130,8 +139,15 @@ sub with {
 
     @{"${pkg}::DOES"} = @_;
 
-    unshift @_, $pkg, "import_with";
+    unshift @_, $pkg, 1;
     goto &_extends;
+}
+
+# Требуются подпрограммы
+sub requires {
+    my $pkg = caller;
+    push @{"${pkg}::REQUIRES"}, @_;
+    return;
 }
 
 # Определяет - подключена ли роль
@@ -266,32 +282,87 @@ sub create_from_params {
 }
 
 1;
+
 __END__
 
 =encoding utf-8
 
 =head1 NAME
 
-Aion - It's new $module
+B<Aion> — A postmodern object system for Perl 5, as C<Moose> and C<Moo>, but with improvements.
+
+=head1 VERSION
+
+1.0
 
 =head1 SYNOPSIS
 
-    use Aion;
+File lib/Calc.pm:
+
+	package Calc;
+	
+	use Aion;
+	
+	has a => (is => 'ro+', isa => Num);
+	has b => (is => 'ro+', isa => Num);
+	has op => (is => 'ro', isa => Enum[qw/+ - * \/ **/], default => '+');
+	
+	sub result {
+	    my ($self) = @_;
+	    eval "${\ $self->a} ${\ $self->op} ${\ $self->b}"
+	}
+	
+	1;
+
+
+
+	use Calc;
+	
+	Calc->new(a => 1, b => 2)->result   # => 3
 
 =head1 DESCRIPTION
 
-Aion is ...
+=head1 SUBROUTINES
 
-=head1 LICENSE
+C<use Aion> include in module types from C<Aion::Types> and next subroutines:
 
-Copyright (C) Yaroslav O. Kosmina.
+=head2 has ($name, @attributes)
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+Make method for get/set feature (property) of the class.
+
+File lib/Animal.pm:
+
+	package Animal;
+	use Aion;
+	
+	has 
+	
+	1;
+
+=head2 extends (@superclasses)
+
+Extends package other package. It call on each the package method C<import_with>.
+
+=head2 with
+
+Add to module roles. It call on each the role method C<import_with>.
+
+=head1 METHODS
+
+C<use Aion> include in module next methods:
+
+=head2 new (%parameters)
+
+The constructor.
+
+=head2 has ($property)
+
+It check what property is set.
 
 =head1 AUTHOR
 
-Yaroslav O. Kosmina E<lt>darviarush@mail.ruE<gt>
+Yaroslav O. Kosmina LL<mailto:dart@cpan.org>
 
-=cut
+=head1 LICENSE
 
+⚖ B<GPLv3>

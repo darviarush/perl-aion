@@ -30,8 +30,10 @@ use overload
 # конструктор
 # * args (ArrayRef) — Список аргументов.
 # * name (Str) — Имя метода.
-# * test (CodeRef) — чекер.
-# * coerce (CodeRef) — конвертер.
+# * init (CodeRef) — Инициализатор типа.
+# * test (CodeRef) — Чекер.
+# * a_test (CodeRef) — Используется в .
+# * coerce (HashRef) — Массив преобразователей в этот тип: TypeName => sub {}.
 sub new {
 	my $cls = shift;
 	bless {@_}, ref $cls || $cls;
@@ -108,7 +110,10 @@ sub validate {
 # Преобразовать значение в параметре и вернуть преобразованное
 sub coerce {
 	(my $self, local $_) = @_;
-	$self->{from}->test? $self->{coerce}->(): $_
+	for my $coerce (@{$self->{coerce}}) {
+		return $coerce->[1]->() if $coerce->[0]->test;
+	}
+	return $_;
 }
 
 # Создаёт функцию для типа
@@ -227,17 +232,21 @@ Constructor.
 
 =head3 ARGUMENTS
 
-=head4 name
+=over
 
-Name of type.
+=item * name (Str) — Name of type.
 
-=head4 args
+=item * args (ArrayRef) — List of type arguments.
 
-List of type arguments.
+=item * init (CodeRef) — Initializer for type.
 
-=head4 test
+=item * test (CodeRef) — Values cheker.
 
-Subroutine for check value.
+=item * a_test (CodeRef) — Values cheker for types with optional arguments.
+
+=item * coerce (ArrayRef[Tuple[Aion::Type, CodeRef]]) — Array of pairs: type and via.
+
+=back
 
 =head2 stringify
 
@@ -345,6 +354,44 @@ Translate C<$val> to string.
 
 	Aion::Type->val_to_str([1,2,{x=>6}])   # => [\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]
 
+=head2 make ($pkg)
+
+It make subroutine without arguments, who return type.
+
+	BEGIN {
+	    Aion::Type->new(name=>"Rim", test => sub { /^[IVXLCDM]+$/i })->make;
+	}
+	
+	"IX" ~~ Rim     # => 1
+
+=head2 make_arg ($pkg)
+
+It make subroutine with arguments, who return type.
+
+	BEGIN {
+	    Aion::Type->new(name=>"Len", test => sub {
+	        $Aion::Type::SELF->{args}[0] <= length($_) <= $Aion::Type::SELF->{args}[1]
+	    })->make_arg;
+	}
+	
+	"IX" ~~ Len[2,2]    # => 1
+
+=head2 make_maybe_arg ($pkg)
+
+It make subroutine with or without arguments, who return type.
+
+	BEGIN {
+	    Aion::Type->new(
+	        name=>"Enum123",
+	        test => sub { $_ ~~ [1,2,3] },
+	        a_test => sub { $_ ~~ $Aion::Type::SELF->{args} },
+	    )->make_maybe_arg;
+	}
+	
+	3 ~~ Enum123            # -> 1
+	3 ~~ Enum123[4,5,6]     # -> ""
+	5 ~~ Enum123[4,5,6]     # -> 1
+
 =head1 OPERATORS
 
 =head2 &{}
@@ -406,3 +453,10 @@ It make exclude type from C<$a>.
 	"a" ~~ ~$Int; # => 1
 	5   ~~ ~$Int; # -> ""
 
+=head1 AUTHOR
+
+Yaroslav O. Kosmina LL<mailto:dart@cpan.org>
+
+=head1 LICENSE
+
+⚖ B<GPLv3>

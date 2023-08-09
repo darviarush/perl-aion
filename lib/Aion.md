@@ -40,17 +40,16 @@ Calc->new(a => 1, b => 2)->result   # => 3
 
 `use Aion` include in module types from `Aion::Types` and next subroutines:
 
-## has
+## has ($name, @attributes)
 
-Make method for get/set property.
+Make method for get/set feature (property) of the class.
 
 File lib/Animal.pm:
 ```perl
 package Animal;
-
 use Aion;
 
-
+has 
 
 1;
 ```
@@ -74,3 +73,11 @@ The constructor.
 ## has ($property)
 
 It check what property is set.
+
+# AUTHOR
+
+Yaroslav O. Kosmina [dart@cpan.org](mailto:dart@cpan.org)
+
+# LICENSE
+
+⚖ **GPLv3**
