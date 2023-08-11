@@ -76,14 +76,11 @@ our @EXPORT = our @EXPORT_OK = qw/
                     Overload
                     InstanceOf
                     ConsumerOf
-                StrLike
-                RegexpLike
-                CodeLike
-                ArrayLike
-                HashLike
-
-    EmptyStrToUndef
-    ArrayByComma
+					StrLike
+					RegexpLike
+					CodeLike
+					ArrayLike
+					HashLike
 /;
 
 
@@ -295,7 +292,6 @@ subtype "Any";
 					
 					subtype "ClassName", as &Str, where { $_->can('new') };
 					subtype "RoleName", as &Str, where { $_->can('requires') };
-					
 					subtype "Numeric", as &Str, where { Scalar::Util::looks_like_number($_) };
 						subtype "Num", as &Numeric, where { /\d\z/ };
 							subtype "PositiveNum", as &Num, where { $_ >= 0 };
@@ -370,7 +366,6 @@ subtype "Any";
 					init_where { eval "require " . A if defined A }
 					where { Scalar::Util::blessed($_) ne "" }
 					awhere { UNIVERSAL::isa($_, A) };
-					#subtype "Date", as Object(['Pleroma::Date']);
 
 				subtype "Map[K, V]", as &HashRef,
 					where {
@@ -433,7 +428,6 @@ subtype "Any";
 
 				subtype "InstanceOf[A...]", as &Like, where { my $x = $_; all { $x->isa($_) } ARGS };
 				subtype "ConsumerOf[A...]", as &Like, where { my $x = $_; all { $x->DOES($_) } ARGS };
-				#subtype "Self", as &Like, where { my $x = $_; all { $x->DOES($_) } @{$_[0]} };
 
 			subtype "StrLike", as (&Str | Overload(['""']));
 			subtype "RegexpLike", as (&RegexpRef | Overload(['qr']));

@@ -30,7 +30,7 @@ sub import {
 	*{"${pkg}::with"} = \&with;
 	*{"${pkg}::upgrade"} = \&upgrade;
 	*{"${pkg}::has"} = \&has;
-	*{"${pkg}::attribute"} = \&attribute;
+	*{"${pkg}::aspect"} = \&aspect;
 	*{"${pkg}::does"} = \&does;
 	*{"${pkg}::clear"} = \&clear;
 
@@ -45,7 +45,9 @@ sub import {
         default => \&_default,
     });
 
-    Aion::Types->import($pkg);
+    #Aion::Types->import($pkg);
+    eval "package $pkg { use Aion::Types; }";
+    die if $@;
 }
 
 sub UNIVERSAL::Isa : ATTR(CODE) {
@@ -56,8 +58,8 @@ sub UNIVERSAL::Isa : ATTR(CODE) {
     $data =~ s/(\w)\s*=>\s*/$1, /g;
 
     my @signature = eval "package $pkg { [$data] }";
-    my $returns = Tuple(pop @signature);
-    my $args = Tuple(\@signature);
+    my $returns = Aion::Types::Tuple(pop @signature);
+    my $args = Aion::Types::Tuple(\@signature);
 
     *$symbol = sub {
         $args->validate(\@_, $args_of_meth);
@@ -125,7 +127,7 @@ sub _extends {
     my $pkg = shift; my $with = shift;
 
     my $FEATURE = $pkg->FEATURE;
-    my $ATTRIBUTE = $pkg->ATTRIBUTE;
+    my $ASPECT = $pkg->ASPECT;
 
     # Добавляем наследуемые свойства и атрибуты
 	for(@_) {
@@ -133,7 +135,7 @@ sub _extends {
 		die if $@;
 
 		%$FEATURE = (%$FEATURE, %{$_->FEATURE}) if $_->can("FEATURE");
-		%$ATTRIBUTE = (%$ATTRIBUTE, %{$_->ATTRIBUTE}) if $_->can("ATTRIBUTE");
+		%$ASPECT = (%$ASPECT, %{$_->ASPECT}) if $_->can("ASPECT");
 	}
 
     my $import_name = $with? 'import_with': 'import_extends';
@@ -213,7 +215,7 @@ sub has(@) {
 	for my $name (ref $property? @$property: $property) {
 
 		die "has: the method $name is already in the package $pkg"
-            if $pkg->can($name) && !exists $pkg->ATTRIBUTE->{$name};
+            if $pkg->can($name) && !exists $pkg->ASPECT->{$name};
 
         my %construct = (
             pkg => $pkg,
@@ -235,16 +237,15 @@ sub has(@) {
             construct => \%construct,
         };
 
-        my $ATTRIBUTE = $pkg->ATTRIBUTE;
+        my $ASPECT = $pkg->ASPECT;
         for(my $i=0; $i<@_; $i+=2) {
-            my ($attribute, $value) = @_[$i, $i+1];
-            my $attribute_sub = $ATTRIBUTE->{$attribute};
-            die "has: not exists attribute `$attribute`!" if !$attribute_sub;
-            $attribute_sub->($pkg, $name, $value, \%construct, $feature);
+            my ($aspect, $value) = @_[$i, $i+1];
+            my $aspect_sub = $ASPECT->{$aspect};
+            die "has: not exists aspect `$aspect`!" if !$aspect_sub;
+            $aspect_sub->($pkg, $name, $value, \%construct, $feature);
         }
 
-        my $sub = $construct{sub};
-        $sub =~ s!%\((\w+)\)s!$construct{$1} // die "has: not construct `$1`\!"!ge;
+        my $sub = _resolv($construct{sub}, \%construct);
 		eval $sub;
 		die if $@;
 
@@ -252,6 +253,15 @@ sub has(@) {
 		$pkg->FEATURE->{$name} = $feature;
 	}
 	return;
+}
+
+sub _resolv {
+    my ($s, $construct) = @_;
+    $s =~ s{%\((\w*)\)s}{
+        die "has: not construct `$1`\!" unless exists $construct->{$1};
+        _resolv($construct->{$1}, $construct);
+    }ge;
+    $s
 }
 
 # конструктор
@@ -372,9 +382,25 @@ File lib/Animal.pm:
 	package Animal;
 	use Aion;
 	
-	has 
+	has type => (is => 'ro+', isa => Str);
+	has name => (is => 'rw-', isa => Str);
 	
 	1;
+
+
+
+	use Animal;
+	
+	eval { Animal->new }; $@    # ~> 123
+	eval { Animal->new(name => 'murka') }; $@    # ~> 123
+	
+	my $cat = Animal->new(type => 'cat');
+	$cat->type   # => cat
+	
+	eval { $cat->name }; $@   # ~> 123
+	
+	$cat->name("murzik");
+	$cat->name  # => murzik
 
 =head2 with
 
@@ -414,16 +440,16 @@ C<use Aion> include in module next methods:
 
 The constructor.
 
-=head1 ASPECTS
+=head1 ATTRIBUTES
 
-Aion add universal aspects.
+Aion add universal attributes.
 
 =head2 Isa (@signature)
 
 	package Anim {
 	    use Aion;
 	
-	    sub is_cat : Isa(Self => Str => Bool) {
+	    sub is_cat : Isa(Object => Str => Bool) {
 	        my ($self, $anim) = @_;
 	        $anim =~ /(cat)/
 	    }
@@ -437,7 +463,6 @@ Aion add universal aspects.
 	
 	eval { Anim->is_cat("cat") }; $@ # ~> 123
 	eval { my @items = $anim->is_cat("cat") }; $@ # ~> 123
-	
 
 =head1 AUTHOR
 

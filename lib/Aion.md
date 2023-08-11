@@ -56,9 +56,25 @@ File lib/Animal.pm:
 package Animal;
 use Aion;
 
-has 
+has type => (is => 'ro+', isa => Str);
+has name => (is => 'rw-', isa => Str);
 
 1;
+```
+
+```perl
+use Animal;
+
+eval { Animal->new }; $@    # ~> 123
+eval { Animal->new(name => 'murka') }; $@    # ~> 123
+
+my $cat = Animal->new(type => 'cat');
+$cat->type   # => cat
+
+eval { $cat->name }; $@   # ~> 123
+
+$cat->name("murzik");
+$cat->name  # => murzik
 ```
 
 ## with
@@ -110,7 +126,7 @@ Aion add universal attributes.
 package Anim {
     use Aion;
 
-    sub is_cat : Isa(Self => Str => Bool) {
+    sub is_cat : Isa(Object => Str => Bool) {
         my ($self, $anim) = @_;
         $anim =~ /(cat)/
     }

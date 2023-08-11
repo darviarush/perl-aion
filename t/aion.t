@@ -56,10 +56,26 @@ is scalar do {Calc->new(a => 1.1, b => 2)->result}, "3.1", 'Calc->new(a => 1.1, 
 #>> package Animal;
 #>> use Aion;
 #>> 
-#>> has 
+#>> has type => (is => 'ro+', isa => Str);
+#>> has name => (is => 'rw-', isa => Str);
 #>> 
 #>> 1;
 #@< EOF
+# 
+done_testing; }; subtest 'has ($name, @aspects)' => sub { 
+use Animal;
+
+like scalar do {eval { Animal->new }; $@}, qr!123!, 'eval { Animal->new }; $@    # ~> 123';
+like scalar do {eval { Animal->new(name => 'murka') }; $@}, qr!123!, 'eval { Animal->new(name => \'murka\') }; $@    # ~> 123';
+
+my $cat = Animal->new(type => 'cat');
+is scalar do {$cat->type}, "cat", '$cat->type   # => cat';
+
+like scalar do {eval { $cat->name }; $@}, qr!123!, 'eval { $cat->name }; $@   # ~> 123';
+
+$cat->name("murzik");
+is scalar do {$cat->name}, "murzik", '$cat->name  # => murzik';
+
 # 
 # ## with
 # 
@@ -102,7 +118,7 @@ is scalar do {Calc->new(a => 1.1, b => 2)->result}, "3.1", 'Calc->new(a => 1.1, 
 # 
 # # ATTRIBUTES
 # 
-# Aion add universal atributes.
+# Aion add universal attributes.
 # 
 # ## Isa (@signature)
 # 
@@ -110,7 +126,7 @@ done_testing; }; subtest 'Isa (@signature)' => sub {
 package Anim {
     use Aion;
 
-    sub is_cat : Isa(Self => Str => Bool) {
+    sub is_cat : Isa(Object => Str => Bool) {
         my ($self, $anim) = @_;
         $anim =~ /(cat)/
     }
@@ -124,7 +140,6 @@ is scalar do {$anim->is_cat('dog')}, scalar do{""}, '$anim->is_cat(\'dog\')    #
 
 like scalar do {eval { Anim->is_cat("cat") }; $@}, qr!123!, 'eval { Anim->is_cat("cat") }; $@ # ~> 123';
 like scalar do {eval { my @items = $anim->is_cat("cat") }; $@}, qr!123!, 'eval { my @items = $anim->is_cat("cat") }; $@ # ~> 123';
-
 
 # 
 # # AUTHOR
