@@ -6,5 +6,9 @@ on 'test' => sub {
         git => 'https://github.com/darviarush/perl-liveman.git',
         ref => 'master'
     ;
+    requires 'config',
+        git => 'https://github.com/darviarush/perl-config.git',
+        ref => 'master'
+    ;
 };
 

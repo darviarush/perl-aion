@@ -258,11 +258,10 @@ subtype "Any";
 	subtype "Hash`[A]", as &Any,
 		where { ACycleTuple([&Str, &Item])->test }
 		awhere { ACycleTuple([&Str, $_[0]])->test };
-		
+
 		subtype "HMap[K, V]", as &Any,
 		where { ACycleTuple([@_])->test };
-	
-			
+
 	subtype "Item", as &Any;
 		subtype "Bool", as &Item, where { ref $_ eq "" and /^(1|0|)\z/ };
 		subtype "Enum[A...]", as &Item, where { $_ ~~ ARGS };
@@ -301,6 +300,7 @@ subtype "Any";
 						subtype "Num", as &Numeric, where { /\d\z/ };
 							subtype "PositiveNum", as &Num, where { $_ >= 0 };
 							subtype "Float", as &Num, where { -3.402823466E+38 <= $_ <= 3.402823466E+38 };
+							subtype "Double", as &Num, where { -1.7976931348623158e+308 <= $_ <= 1.7976931348623158e+308 };
 							subtype "Range[from, to]", as &Num, where { A <= $_ <= B };
 							subtype "Int`[N]", as &Num, 
 								where { /^-?\d+\z/ }
@@ -334,7 +334,7 @@ subtype "Any";
 									awhere { SELF->{min} <= $_ && $_ <= SELF->{max} };
 
 			subtype "Ref", as &Defined, where { "" ne ref $_ };
-				subtype "Tied`[A]", as &Ref, 
+				subtype "Tied`[A]", as &Ref,
 					where { my $ref = Scalar::Util::reftype($_); !!(
 						$ref eq "HASH"? tied %$_:
 						$ref eq "ARRAY"? tied @$_:
@@ -371,7 +371,7 @@ subtype "Any";
 					where { Scalar::Util::blessed($_) ne "" }
 					awhere { UNIVERSAL::isa($_, A) };
 					#subtype "Date", as Object(['Pleroma::Date']);
-					
+
 				subtype "Map[K, V]", as &HashRef,
 					where {
 						my ($K, $V) = ARGS;

@@ -97,7 +97,7 @@ sub exclude {
 sub detail {
 	my ($self, $val, $name) = @_;
 	$self->{detail}? $self->{detail}->($val, $name):
-		"Feature $name must have the type $self. The same $name is " . $self->val_to_str($val)
+		"$name must have the type $self. The same $name is " . $self->val_to_str($val)
 }
 
 # Валидировать значение в параметре

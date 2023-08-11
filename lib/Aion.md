@@ -27,20 +27,27 @@ sub result {
 ```
 
 ```perl
+use lib "lib";
 use Calc;
 
-Calc->new(a => 1, b => 2)->result   # => 3
+Calc->new(a => 1.1, b => 2)->result   # => 3.1
 ```
 
 # DESCRIPTION
 
+Aion — OOP 
 
+Properties declared via `has` are called **features**.
 
-# SUBROUTINES
+And `is`, `isa`, `default` and so on in `has` are called **aspects**.
+
+In addition to standard aspects, roles can add their own aspects using subroutine `aspect`.
+
+# SUBROUTINES IN CLASSES AND ROLES
 
 `use Aion` include in module types from `Aion::Types` and next subroutines:
 
-## has ($name, @attributes)
+## has ($name, @aspects)
 
 Make method for get/set feature (property) of the class.
 
@@ -54,15 +61,38 @@ has
 1;
 ```
 
-## extends (@superclasses)
-
-Extends package other package. It call on each the package method `import_with`.
-
 ## with
 
 Add to module roles. It call on each the role method `import_with`.
 
+## aspect ($aspect => sub { ... })
+
+It add aspect to this class or role, and to the classes, who use this role, if it role.
+
+# SUBROUTINES IN CLASSES
+
+## extends (@superclasses)
+
+Extends package other package. It call on each the package method `import_with` if it exists.
+
+# SUBROUTINES IN ROLES
+
+## requires (@subroutine_names)
+
+It add aspect to the classes, who use this role.
+
 # METHODS
+
+## has ($feature)
+
+It check what property is set.
+
+## clear ($feature)
+
+It check what property is set.
+
+
+# METHODS IN CLASSES
 
 `use Aion` include in module next methods:
 
@@ -70,9 +100,31 @@ Add to module roles. It call on each the role method `import_with`.
 
 The constructor.
 
-## has ($property)
+# ATTRIBUTES
 
-It check what property is set.
+Aion add universal attributes.
+
+## Isa (@signature)
+
+```perl
+package Anim {
+    use Aion;
+
+    sub is_cat : Isa(Self => Str => Bool) {
+        my ($self, $anim) = @_;
+        $anim =~ /(cat)/
+    }
+}
+
+my $anim = Anim->new;
+
+$anim->is_cat('cat')    # -> 1
+$anim->is_cat('dog')    # -> ""
+
+
+eval { Anim->is_cat("cat") }; $@ # ~> 123
+eval { my @items = $anim->is_cat("cat") }; $@ # ~> 123
+```
 
 # AUTHOR
 

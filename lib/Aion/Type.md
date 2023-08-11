@@ -157,7 +157,7 @@ my $PositiveInt = Aion::Type->new(
 eval {
     $PositiveInt->validate(-1, "Neg")
 };
-$@   # ~> Feature Neg must have the type PositiveInt. The same Neg is -1
+$@   # ~> Neg must have the type PositiveInt. The same Neg is -1
 ```
 
 ## val_to_str ($element)

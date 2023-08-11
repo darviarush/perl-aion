@@ -5,6 +5,7 @@ use common::sense;
 our $VERSION = "0.01";
 
 use Scalar::Util qw/blessed/;
+use Attribute::Handlers;
 use Aion::Types qw//;
 
 # Когда осуществлять проверки:
@@ -37,7 +38,7 @@ sub import {
 	constant->import("${pkg}::FEATURE" => {});
 
     # Атрибуты для has
-	constant->import("${pkg}::ATTRIBUTE" => {
+	constant->import("${pkg}::ASPECT" => {
         is => \&_is,
         isa => \&_isa,
         coerce => \&_coerce,
@@ -46,6 +47,33 @@ sub import {
 
     Aion::Types->import($pkg);
 }
+
+sub UNIVERSAL::Isa : ATTR(CODE) {
+    my ($pkg, $symbol, $referent, $attr, $data, $phase, $file, $line) = @_;
+    my $args_of_meth = "Arguments of method `" . *{$symbol}{NAME} . "`";
+    my $returns_of_meth = "Returns of method " . *{$symbol}{NAME} . "`";
+
+    $data =~ s/(\w)\s*=>\s*/$1, /g;
+
+    my @signature = eval "package $pkg { [$data] }";
+    my $returns = Tuple(pop @signature);
+    my $args = Tuple(\@signature);
+
+    *$symbol = sub {
+        $args->validate(\@_, $args_of_meth);
+        wantarray? do {
+            my @returns = $referent->(@_);
+            $returns->validate(\@returns, $returns_of_meth);
+            @returns
+        }: do {
+            my $return = $referent->(@_);
+            $returns->validate([$return], $returns_of_meth);
+            $return
+        }
+    }
+}
+
+#@category Aspects
 
 # ro, rw, + и -
 sub _is {
@@ -316,17 +344,26 @@ File lib/Calc.pm:
 
 
 
+	use lib "lib";
 	use Calc;
 	
-	Calc->new(a => 1, b => 2)->result   # => 3
+	Calc->new(a => 1.1, b => 2)->result   # => 3.1
 
 =head1 DESCRIPTION
 
-=head1 SUBROUTINES
+Aion — OOP 
+
+Properties declared via C<has> are called B<features>.
+
+And C<is>, C<isa>, C<default> and so on in C<has> are called B<aspects>.
+
+In addition to standard aspects, roles can add their own aspects using subroutine C<aspect>.
+
+=head1 SUBROUTINES IN CLASSES AND ROLES
 
 C<use Aion> include in module types from C<Aion::Types> and next subroutines:
 
-=head2 has ($name, @attributes)
+=head2 has ($name, @aspects)
 
 Make method for get/set feature (property) of the class.
 
@@ -339,15 +376,37 @@ File lib/Animal.pm:
 	
 	1;
 
-=head2 extends (@superclasses)
-
-Extends package other package. It call on each the package method C<import_with>.
-
 =head2 with
 
 Add to module roles. It call on each the role method C<import_with>.
 
+=head2 aspect ($aspect => sub { ... })
+
+It add aspect to this class or role, and to the classes, who use this role, if it role.
+
+=head1 SUBROUTINES IN CLASSES
+
+=head2 extends (@superclasses)
+
+Extends package other package. It call on each the package method C<import_with> if it exists.
+
+=head1 SUBROUTINES IN ROLES
+
+=head2 requires (@subroutine_names)
+
+It add aspect to the classes, who use this role.
+
 =head1 METHODS
+
+=head2 has ($feature)
+
+It check what property is set.
+
+=head2 clear ($feature)
+
+It check what property is set.
+
+=head1 METHODS IN CLASSES
 
 C<use Aion> include in module next methods:
 
@@ -355,9 +414,30 @@ C<use Aion> include in module next methods:
 
 The constructor.
 
-=head2 has ($property)
+=head1 ASPECTS
 
-It check what property is set.
+Aion add universal aspects.
+
+=head2 Isa (@signature)
+
+	package Anim {
+	    use Aion;
+	
+	    sub is_cat : Isa(Self => Str => Bool) {
+	        my ($self, $anim) = @_;
+	        $anim =~ /(cat)/
+	    }
+	}
+	
+	my $anim = Anim->new;
+	
+	$anim->is_cat('cat')    # -> 1
+	$anim->is_cat('dog')    # -> ""
+	
+	
+	eval { Anim->is_cat("cat") }; $@ # ~> 123
+	eval { my @items = $anim->is_cat("cat") }; $@ # ~> 123
+	
 
 =head1 AUTHOR
 

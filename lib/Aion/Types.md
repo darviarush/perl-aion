@@ -439,7 +439,18 @@ The machine float number is 4 bytes.
 -4.8 ~~ Float    				# -> 1
 -3.402823466E+38 ~~ Float    	# -> 1
 +3.402823466E+38 ~~ Float    	# -> 1
-(-3.402823466E+38 - 1) ~~ Float # -> ""
+-3.402823467E+38 ~~ Float       # -> ""
+```
+
+## Double
+
+The machine float number is 8 bytes.
+
+```perl
+-4.8 ~~ Double    					# -> 1
+-1.7976931348623158e+308 ~~ Double  # -> 1
++1.7976931348623158e+308 ~~ Double  # -> 1
+-1.7976931348623159e+308 ~~ Double # -> ""
 ```
 
 ## Range[from, to]
@@ -456,21 +467,34 @@ Numbers between `from` and `to`.
 
 ## Int`[N]
 
-Integers. The parameter `N` 
+Integers.
 
 ```perl
- ~~ Int    # -> 1
- ~~ Int`[N]    # -> ""
+123 ~~ Int    # -> 1
+-12 ~~ Int    # -> 1
+5.5 ~~ Int    # -> ""
+```
+
+`N` - the number of bytes for limit.
+
+```perl
+123 ~~ Int    # -> 1
+-12 ~~ Int    # -> 1
+5.5 ~~ Int    # -> ""
 ```
 
 ## PositiveInt`[N]
 
-.
+Positive integers.
 
 ```perl
- ~~ PositiveInt`[N]    # -> 1
- ~~ PositiveInt`[N]    # -> ""
++0 ~~ PositiveInt    # -> 1
+-0 ~~ PositiveInt    # -> 1
+55 ~~ PositiveInt    # -> 1
+-1 ~~ PositiveInt    # -> ""
 ```
+
+`N` - the number of bytes for limit.
 
 ## Nat`[N]
 
