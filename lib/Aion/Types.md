@@ -455,7 +455,7 @@ The machine float number is 8 bytes.
 
 ## Range[from, to]
 
-Numbers between `from` and `to`.
+Values between `from` and `to`.
 
 ```perl
 1 ~~ Range[1, 3]    # -> 1
@@ -463,6 +463,9 @@ Numbers between `from` and `to`.
 3 ~~ Range[1, 3]    # -> 1
 3.1 ~~ Range[1, 3]  # -> ""
 0.9 ~~ Range[1, 3]  # -> ""
+"b" ~~ Range["a", "c"]  # -> 1
+"bc" ~~ Range["a", "c"]  # -> 1
+"d" ~~ Range["a", "c"]  # -> ""
 ```
 
 ## Int`[N]
@@ -478,9 +481,11 @@ Integers.
 `N` - the number of bytes for limit.
 
 ```perl
-123 ~~ Int    # -> 1
--12 ~~ Int    # -> 1
-5.5 ~~ Int    # -> ""
+127 ~~ Int[1]    # -> 1
+128 ~~ Int[1]    # -> ""
+
+127 ~~ Int[1]    # -> 1
+128 ~~ Int[1]    # -> ""
 ```
 
 ## PositiveInt`[N]
@@ -498,11 +503,11 @@ Positive integers.
 
 ## Nat`[N]
 
-.
+Integers 1+.
 
 ```perl
- ~~ Nat`[N]    # -> 1
- ~~ Nat`[N]    # -> ""
+1 ~~ Nat    # -> 1
+0 ~~ Nat    # -> ""
 ```
 
 ## Ref

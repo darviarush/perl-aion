@@ -208,20 +208,20 @@ BEGIN {
 
 subtype "Any";
 	subtype "Control", as &Any;
-		subtype "Union[A, B...]", as &Control, 
+		subtype "Union[A, B...]", as &Control,
 			where { my $val = $_; any { $_->include($val) } ARGS };
-		subtype "Intersection[A, B...]", as &Control, 
+		subtype "Intersection[A, B...]", as &Control,
 			where { my $val = $_; all { $_->include($val) } ARGS };
-		subtype "Exclude[A, B...]", as &Control, 
+		subtype "Exclude[A, B...]", as &Control,
 			where { my $val = $_; !any { $_->include($val) } ARGS };
-		subtype "Optional[A...]", as &Control,
-			where {...};
+		subtype "Optional[A]", as &Control,
+			where { A->test };
 		subtype "Slurpy[A...]", as &Control,
 			where { ... };
 
 	subtype "Array`[A]", as &Any,
 		where { $_->[1] = @{$_->[0]}; 1 }
-		awhere { 
+		awhere {
 			my ($i, $a) = @$_; my ($A) = @_;
 			while($i<@$a) { $i++ if $A->include( $a->[$i] ) }
 			$_->[0] = $i;
@@ -237,9 +237,9 @@ subtype "Any";
 				for(; $i < @$a && $j < @$T; $j++, $i++) { 
 					last unless $T->[$j]->include($a->[$i]);
 				}
-				
+
 				$_->[0] = $i, return 1 if $j == @$T;
-				
+
 				return 0;
 			};
 
@@ -397,28 +397,23 @@ subtype "Any";
 						return 1;
 					};
 				subtype "Dict[k => A, ...]", as &HashRef,
-					init_where { CycleTuple([&Str => Object(['Aion::Type'])])->validate(scalar ARGS) }
+					init_where {
+						CycleTuple([&Str => Object(['Aion::Type'])])->validate(scalar ARGS);
+
+						SELF->{DICT} = +{ARGS()};
+					}
 					where {
-						my $T = ARGS;
-						return "" if @$T / 2 != keys(%$_);
-						my $i = 0; my $k;
-						for my $A (@$T) {
-							$k = $A, next if $i++ % 2 == 0;
-							return "" unless exists $_->{$k} && $A->include($_->{$k});
+						my $T = SELF->{DICT};
+						for my $k (keys %$_) {
+							return "" if !exists $T->{$k};
+							return "" if $T->{$k}->exclude($_->{$k});
+						}
+						for my $k (keys %$T) {
+							return "" if !exists $_->{$k} && $T->{$k}{name} ne "Optional";
 						}
 						return 1;
 					};
-					
 
-		
-		# Array <- Slurpy[ArrayRef]
-		# Hash <- Slurpy[HashRef]
-		# MapOf[K, V...] <-  Slurpy[Map[K, V]]
-		# TupleOf[K...] <-  Slurpy[Tuple[K...]]
-		# CycleTupleOf[K...] <-  Slurpy[CycleTuple[K...]]
-				# Slurpy
-				# Optional[A...]
-				
 			subtype "Like", as (&Str | &Object);
 				subtype "HasMethods[m...]", as &Like,
 					where { my $x = $_; all { $x->can($_) } @{$_[1]} };
@@ -439,9 +434,7 @@ subtype "Any";
 				where { Scalar::Util::reftype($_) eq "HASH" || overload::Method($_, "%{}") }
 				awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
 
-coerce "EmptyStrToUndef", from &Str, via { $_ eq ""? undef: $_ };
-coerce "ArrayByComma", from &Str, via { [split /,/, $_] };
-
+	coerce &Str => from &Undef => via { "" };
 };
 
 1;
