@@ -154,8 +154,8 @@ sub coerce(@) {
 	my ($from, $via) = @o{qw/from via/};
 
 	die "coerce $type not Aion::Type!" unless UNIVERSAL::isa($from, "Aion::Type");
-	die "coerce $type: Нет from" unless UNIVERSAL::isa($from, "Aion::Type");
-	die "coerce $type: Нет via" unless ref $via eq "CODE";
+	die "coerce $type: from is'nt Aion::Type!" unless UNIVERSAL::isa($from, "Aion::Type");
+	die "coerce $type: via is not subroutine!" unless ref $via eq "CODE";
 
 	push @{$type->{coerce}}, [$from, $via];
 	return;
@@ -380,23 +380,23 @@ subtype "Any";
 					init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
 					where {
 						my $T = ARGS;
-						return "" unless @$T == @$_;
 						my $i = 0;
-						for(@$_) { return "" unless $T->[$i++]->test }
+						for(@$_) {
+							return "" unless $T->[$i++]->test
+						}
 						return 1;
 					};
 				subtype "CycleTuple[A...]", as &ArrayRef,
 					init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
 					where {
 						my $T = ARGS;
-						return "" unless @$_ % @$T == 0;
 						my $i = 0;
 						for(@$_) {
 							return "" unless $T->[$i++ % @$T]->test
 						}
 						return 1;
 					};
-				subtype "Dict[k => A, ...]", as &HashRef,
+				subtype "Dict[k1 => a1, k2 => a2, etc...]", as &HashRef,
 					init_where {
 						CycleTuple([&Str => Object(['Aion::Type'])])->validate(scalar ARGS);
 
