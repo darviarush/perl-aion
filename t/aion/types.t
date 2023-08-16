@@ -1,36 +1,35 @@
 use common::sense; use open qw/:std :utf8/; use Test::More 0.98; use Carp::Always::Color; sub _mkpath_ { my ($p) = @_; length($`) && !-e $`? mkdir($`, 0755) || die "mkdir $`: $!": () while $p =~ m!/!g; $p } BEGIN { my $t = `pwd`; chop $t; $t .= '/' . __FILE__; my $s = '/tmp/.liveman/perl-aion/aion/types/'; `rm -fr $s` if -e $s; chdir _mkpath_($s) or die "chdir $s: $!"; open my $__f__, "<:utf8", $t or die "Read $t: $!"; $s = join "", <$__f__>; close $__f__; while($s =~ /^#\@> (.*)\n((#>> .*\n)*)#\@< EOF\n/gm) { my ($file, $code) = ($1, $2); $code =~ s/^#>> //mg; open my $__f__, ">:utf8", _mkpath_($file) or die "Write $file: $!"; print $__f__ $code; close $__f__; } } # # NAME
 # 
-# Aion::Types is library of validators. And it makes new validators
+# Aion::Types is library of validators. And it makes new validators.
 # 
 # # SYNOPSIS
 # 
 subtest 'SYNOPSIS' => sub { 
 use Aion::Types;
 
-# Create validator SpeakOfKitty extends it from validator StrMatch.
 BEGIN {
     subtype SpeakOfKitty => as StrMatch[qr/\bkitty\b/i],
-        message { "Speak not of kitty!" };
+        message { "Speak is'nt included kitty!" };
 }
 
-is scalar do {"Kitty!" ~~ SpeakOfKitty}, "1", '"Kitty!" ~~ SpeakOfKitty # => 1';
+is scalar do {"Kitty!" ~~ SpeakOfKitty}, scalar do{1}, '"Kitty!" ~~ SpeakOfKitty # -> 1';
+is scalar do {"abc" ~~ SpeakOfKitty}, scalar do{""}, '"abc" ~~ SpeakOfKitty 	 # -> ""';
 
-eval { SpeakOfKitty->validate("Kitty!") };
-like scalar do {$@}, qr!Speak not of kitty\!!, '$@ # ~> Speak not of kitty!';
+like scalar do {eval { SpeakOfKitty->validate("abc") }; "$@"}, qr!Speak is'nt included kitty\!!, 'eval { SpeakOfKitty->validate("abc") }; "$@" # ~> Speak is\'nt included kitty!';
 
 
 BEGIN {
-	subtype IntOrArrayRef => as Int | ArrayRef;
+	subtype IntOrArrayRef => as (Int | ArrayRef);
 }
 
 is scalar do {[] ~~ IntOrArrayRef}, scalar do{1}, '[] ~~ IntOrArrayRef  # -> 1';
-is scalar do {5 ~~ IntOrArrayRef}, scalar do{1}, '5 ~~ IntOrArrayRef   # -> 1';
+is scalar do {35 ~~ IntOrArrayRef}, scalar do{1}, '35 ~~ IntOrArrayRef  # -> 1';
 is scalar do {"" ~~ IntOrArrayRef}, scalar do{""}, '"" ~~ IntOrArrayRef  # -> ""';
 
 
 coerce IntOrArrayRef, from Num, via { int($_ + .5) };
 
-is scalar do {local $_ = 5.5; IntOrArrayRef->coerce}, "6", 'local $_ = 5.5; IntOrArrayRef->coerce # => 6';
+is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # => 6';
 
 # 
 # # DESCRIPTION
@@ -152,14 +151,34 @@ is scalar do {"a" ~~ Exclude[PositiveInt]}, scalar do{1}, '"a" ~~ Exclude[Positi
 is scalar do {5   ~~ Exclude[PositiveInt]}, scalar do{""}, '5   ~~ Exclude[PositiveInt]    # -> ""';
 
 # 
-# ## Optional[A...]
+# ## Option[A...]
 # 
+# The optional keys in the `Dict`.
 # 
-# ## Slurpy[A...]
+done_testing; }; subtest 'Option[A...]' => sub { 
+is scalar do {{a=>55} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1';
+is scalar do {{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1';
+
 # 
+# ## Slurp[A...]
+# 
+# It extends the `Dict` other dictionaries, and `Tuple` and `CycleTuple` other .
 # 
 # ## Array`[A]
 # 
+# The subroutine return array.
+# 
+done_testing; }; subtest 'Array`[A]' => sub { 
+sub array123: Isa(Int => Array[Int]) {
+	my ($n) = @_;
+	return $n, $n+1, $n+2;
+}
+
+is_deeply scalar do {[ array123(1) ]}, scalar do {[2,3,4]}, '[ array123(1) ]		# --> [2,3,4]';
+
+like scalar do {eval { array123(1.1) };}, qr!1!, 'eval { array123(1.1) }; # ~> 1';
+
+
 # 
 # ## ATuple[A...]
 # 
@@ -588,7 +607,7 @@ format EXAMPLE_FMT =
 "left",   "middle", "right"
 .
 
-is scalar do {\EXAMPLE_FMT ~~ FormatRef}, scalar do{1}, '\EXAMPLE_FMT ~~ FormatRef   # -> 1';
+is scalar do {*EXAMPLE_FMT{FORMAT} ~~ FormatRef}, scalar do{1}, '*EXAMPLE_FMT{FORMAT} ~~ FormatRef   # -> 1';
 is scalar do {\1 ~~ FormatRef}, scalar do{""}, '\1 ~~ FormatRef    			# -> ""';
 
 # 
@@ -615,35 +634,40 @@ is scalar do {\1 ~~ RegexpRef}, scalar do{""}, '\1 ~~ RegexpRef    	 # -> ""';
 # The scalar.
 # 
 done_testing; }; subtest 'ScalarRef`[A]' => sub { 
-is scalar do {~~ ScalarRef}, scalar do{1}, ' ~~ ScalarRef    # -> 1';
-is scalar do {~~ ScalarRef}, scalar do{""}, ' ~~ ScalarRef    # -> ""';
+is scalar do {\12 ~~ ScalarRef}, scalar do{1}, '\12 ~~ ScalarRef     		# -> 1';
+is scalar do {\\12 ~~ ScalarRef}, scalar do{""}, '\\12 ~~ ScalarRef    		# -> ""';
+is scalar do {\-1.2 ~~ ScalarRef[Num]}, scalar do{1}, '\-1.2 ~~ ScalarRef[Num]     # -> 1';
 
 # 
 # ## RefRef`[A]
 # 
-# .
+# The ref as ref.
 # 
 done_testing; }; subtest 'RefRef`[A]' => sub { 
-is scalar do {~~ RefRef`[A]}, scalar do{1}, ' ~~ RefRef`[A]    # -> 1';
-is scalar do {~~ RefRef`[A]}, scalar do{""}, ' ~~ RefRef`[A]    # -> ""';
+is scalar do {\\1 ~~ RefRef}, scalar do{1}, '\\1 ~~ RefRef    # -> 1';
+is scalar do {\1 ~~ RefRef}, scalar do{""}, '\1 ~~ RefRef     # -> ""';
+is scalar do {\\1.3 ~~ RefRef[ScalarRef[Num]]}, scalar do{1}, '\\1.3 ~~ RefRef[ScalarRef[Num]]    # -> 1';
 
 # 
-# ## GlobRef`[A]
+# ## GlobRef
 # 
-# .
+# The global.
 # 
-done_testing; }; subtest 'GlobRef`[A]' => sub { 
-is scalar do {\*A::a ~~ GlobRef`[A]}, scalar do{1}, '\*A::a ~~ GlobRef`[A]    # -> 1';
-is scalar do {~~ GlobRef`[A]}, scalar do{""}, ' ~~ GlobRef`[A]    # -> ""';
+done_testing; }; subtest 'GlobRef' => sub { 
+is scalar do {\*A::a ~~ GlobRef}, scalar do{1}, '\*A::a ~~ GlobRef    # -> 1';
+is scalar do {*A::a ~~ GlobRef}, scalar do{""}, '*A::a ~~ GlobRef     # -> ""';
 
 # 
 # ## ArrayRef`[A]
 # 
-# .
+# The arrays.
 # 
 done_testing; }; subtest 'ArrayRef`[A]' => sub { 
-is scalar do {~~ ArrayRef`[A]}, scalar do{1}, ' ~~ ArrayRef`[A]    # -> 1';
-is scalar do {~~ ArrayRef`[A]}, scalar do{""}, ' ~~ ArrayRef`[A]    # -> ""';
+is scalar do {[] ~~ ArrayRef}, scalar do{1}, '[] ~~ ArrayRef    # -> 1';
+is scalar do {{} ~~ ArrayRef}, scalar do{""}, '{} ~~ ArrayRef    # -> ""';
+is scalar do {[] ~~ ArrayRef[Num]}, scalar do{1}, '[] ~~ ArrayRef[Num]    # -> 1';
+is scalar do {[1, 1.1] ~~ ArrayRef[Num]}, scalar do{1}, '[1, 1.1] ~~ ArrayRef[Num]    # -> 1';
+is scalar do {[1, undef] ~~ ArrayRef[Num]}, scalar do{""}, '[1, undef] ~~ ArrayRef[Num]    # -> ""';
 
 # 
 # ## HashRef`[H]
@@ -707,8 +731,9 @@ is scalar do {["a", -5, "x", -6.2] ~~ CycleTuple[Str, Int]}, scalar do{""}, '["a
 # The dictionary.
 # 
 done_testing; }; subtest 'Dict[k => A, ...]' => sub { 
-is scalar do {~~ Dict[k => A, ...]}, scalar do{1}, ' ~~ Dict[k => A, ...]    # -> 1';
-is scalar do {~~ Dict[k => A, ...]}, scalar do{""}, ' ~~ Dict[k => A, ...]    # -> ""';
+is scalar do {{a => -1.6, b => "abc"} ~~ Dict[a => Num, b => Str]}, scalar do{1}, '{a => -1.6, b => "abc"} ~~ Dict[a => Num, b => Str]    # -> 1';
+is scalar do {{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]}, scalar do{1}, '{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> 1';
+is scalar do {{a => -1.6} ~~ Dict[a => Num, b => Str]}, scalar do{1}, '{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> 1';
 
 # 
 # ## HasProp[p...]
@@ -744,12 +769,12 @@ package HasMethodsExample {
 	sub x2 {}
 }
 
-is scalar do {HasMethodsExample ~~ HasMethods[qw/x1 x2/]}, scalar do{1}, 'HasMethodsExample ~~ HasMethods[qw/x1 x2/]    			# -> 1';
+is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]}, scalar do{1}, '"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    			# -> 1';
 is scalar do {bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1 x2/]}, scalar do{1}, 'bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1 x2/] # -> 1';
 is scalar do {bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1/]}, scalar do{1}, 'bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1/]    # -> 1';
-is scalar do {HasMethodsExample ~~ HasMethods[qw/x3/]}, scalar do{""}, 'HasMethodsExample ~~ HasMethods[qw/x3/]    				# -> ""';
-is scalar do {HasMethodsExample ~~ HasMethods[qw/x1 x2 x3/]}, scalar do{""}, 'HasMethodsExample ~~ HasMethods[qw/x1 x2 x3/]    		# -> ""';
-is scalar do {HasMethodsExample ~~ HasMethods[qw/x1 x3/]}, scalar do{""}, 'HasMethodsExample ~~ HasMethods[qw/x1 x3/]    			# -> ""';
+is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x3/]}, scalar do{""}, '"HasMethodsExample" ~~ HasMethods[qw/x3/]    				# -> ""';
+is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x1 x2 x3/]}, scalar do{""}, '"HasMethodsExample" ~~ HasMethods[qw/x1 x2 x3/]    		# -> ""';
+is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]}, scalar do{""}, '"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    			# -> ""';
 
 # 
 # ## Overload`[op...]
@@ -758,13 +783,10 @@ is scalar do {HasMethodsExample ~~ HasMethods[qw/x1 x3/]}, scalar do{""}, 'HasMe
 # 
 done_testing; }; subtest 'Overload`[op...]' => sub { 
 package OverloadExample {
-	overloaded
-		fallback => 1,
-		'""' => sub { "abc" }
-	;
+	use overload '""' => sub { "abc" };
 }
 
-is scalar do {OverloadExample ~~ Overload}, scalar do{1}, 'OverloadExample ~~ Overload    # -> 1';
+is scalar do {"OverloadExample" ~~ Overload}, scalar do{1}, '"OverloadExample" ~~ Overload    # -> 1';
 is scalar do {bless({}, "OverloadExample") ~~ Overload}, scalar do{1}, 'bless({}, "OverloadExample") ~~ Overload    # -> 1';
 is scalar do {"A" ~~ Overload}, scalar do{""}, '"A" ~~ Overload    				# -> ""';
 is scalar do {bless({}, "A") ~~ Overload}, scalar do{""}, 'bless({}, "A") ~~ Overload    	# -> ""';
@@ -773,8 +795,8 @@ is scalar do {bless({}, "A") ~~ Overload}, scalar do{""}, 'bless({}, "A") ~~ Ove
 # And it has the operators if arguments are specified.
 # 
 
-is scalar do {OverloadExample ~~ Overload['""']}, scalar do{1}, 'OverloadExample ~~ Overload[\'""\']   # -> 1';
-is scalar do {OverloadExample ~~ Overload['|']}, scalar do{""}, 'OverloadExample ~~ Overload[\'|\']    # -> ""';
+is scalar do {"OverloadExample" ~~ Overload['""']}, scalar do{1}, '"OverloadExample" ~~ Overload[\'""\']   # -> 1';
+is scalar do {"OverloadExample" ~~ Overload['|']}, scalar do{""}, '"OverloadExample" ~~ Overload[\'|\']    # -> ""';
 
 # 
 # ## InstanceOf[A...]
@@ -787,9 +809,9 @@ package Cat { our @ISA = qw/Animal/ }
 package Tiger { our @ISA = qw/Cat/ }
 
 
-is scalar do {Tiger ~~ InstanceOf['Animal', 'Cat']}, scalar do{1}, 'Tiger ~~ InstanceOf[\'Animal\', \'Cat\']    # -> 1';
-is scalar do {Tiger ~~ InstanceOf['Tiger']}, scalar do{""}, 'Tiger ~~ InstanceOf[\'Tiger\']    		# -> ""';
-is scalar do {Tiger ~~ InstanceOf['Cat', 'Dog']}, scalar do{""}, 'Tiger ~~ InstanceOf[\'Cat\', \'Dog\']    	# -> ""';
+is scalar do {"Tiger" ~~ InstanceOf['Animal', 'Cat']}, scalar do{1}, '"Tiger" ~~ InstanceOf[\'Animal\', \'Cat\']    # -> 1';
+is scalar do {"Tiger" ~~ InstanceOf['Tiger']}, scalar do{""}, '"Tiger" ~~ InstanceOf[\'Tiger\']    		# -> ""';
+is scalar do {"Tiger" ~~ InstanceOf['Cat', 'Dog']}, scalar do{""}, '"Tiger" ~~ InstanceOf[\'Cat\', \'Dog\']    	# -> ""';
 
 # 
 # ## ConsumerOf[A...]
@@ -802,7 +824,13 @@ is scalar do {Tiger ~~ InstanceOf['Cat', 'Dog']}, scalar do{""}, 'Tiger ~~ Insta
 # 
 done_testing; }; subtest 'StrLike' => sub { 
 is scalar do {"" ~~ StrLike}, scalar do{1}, '"" ~~ StrLike    							# -> 1';
-is scalar do {bless({}, "OverloadExample") ~~ StrLike}, scalar do{1}, 'bless({}, "OverloadExample") ~~ StrLike    	# -> 1';
+
+package StrLikeExample {
+	use overload '""' => sub { "abc" };
+}
+
+is scalar do {bless({}, "StrLikeExample") ~~ StrLike}, scalar do{1}, 'bless({}, "StrLikeExample") ~~ StrLike    	# -> 1';
+
 is scalar do {{} ~~ StrLike}, scalar do{""}, '{} ~~ StrLike    							# -> ""';
 
 # 
@@ -815,10 +843,10 @@ is scalar do {qr// ~~ RegexpLike}, scalar do{1}, 'qr// ~~ RegexpLike    	# -> 1'
 is scalar do {"" ~~ RegexpLike}, scalar do{""}, '"" ~~ RegexpLike    	# -> ""';
 
 package RegexpLikeExample {
-	overloaded 'qr' => sub { qr/abc/ };
+	use overload 'qr' => sub { qr/abc/ };
 }
 
-is scalar do {RegexpLikeExample ~~ RegexpLike}, scalar do{1}, 'RegexpLikeExample ~~ RegexpLike    # -> 1';
+is scalar do {"RegexpLikeExample" ~~ RegexpLike}, scalar do{1}, '"RegexpLikeExample" ~~ RegexpLike    # -> 1';
 
 # 
 # ## CodeLike
@@ -840,7 +868,7 @@ is scalar do {[] ~~ ArrayLike}, scalar do{1}, '[] ~~ ArrayLike    	# -> 1';
 is scalar do {{} ~~ ArrayLike}, scalar do{""}, '{} ~~ ArrayLike    	# -> ""';
 
 package ArrayLikeExample {
-	overloaded '@{}' => sub: lvalue { shift->{shift()} };
+	use overload '@{}' => sub: lvalue { shift->{shift()} };
 }
 
 my $x = bless {}, 'ArrayLikeExample';
@@ -859,7 +887,7 @@ is scalar do {{} ~~ HashLike}, scalar do{1}, '{} ~~ HashLike    	# -> 1';
 is scalar do {[] ~~ HashLike}, scalar do{""}, '[] ~~ HashLike    	# -> ""';
 
 package HashLikeExample {
-	overloaded '%{}' => sub: lvalue { shift->[shift()] };
+	use overload '%{}' => sub: lvalue { shift->[shift()] };
 }
 
 my $x = bless [], 'HashLikeExample';

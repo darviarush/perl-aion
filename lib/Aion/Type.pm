@@ -97,7 +97,7 @@ sub exclude {
 sub detail {
 	my ($self, $val, $name) = @_;
 	$self->{detail}? $self->{detail}->($val, $name):
-		"$name must have the type $self. The same $name is " . $self->val_to_str($val)
+		"$name must have the type $self. The it is " . $self->val_to_str($val)
 }
 
 # Валидировать значение в параметре
@@ -325,7 +325,7 @@ Return message belongs to error.
 
 	my $Int = Aion::Type->new(name => "Int");
 	
-	$Int->detail(-5, "car") # => Feature car must have the type Int. The same car is -5
+	$Int->detail(-5, "Feature car") # => Feature car must have the type Int. The it is -5
 	
 	my $Num = Aion::Type->new(name => "Num", detail => sub {
 	    my ($val, $name) = @_;
@@ -346,7 +346,7 @@ It tested C<$element> and throw C<detail> if element is exclude from class.
 	eval {
 	    $PositiveInt->validate(-1, "Neg")
 	};
-	$@   # ~> Feature Neg must have the type PositiveInt. The same Neg is -1
+	$@   # ~> Neg must have the type PositiveInt. The it is -1
 
 =head2 val_to_str ($element)
 

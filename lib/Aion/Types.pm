@@ -3,6 +3,7 @@ package Aion::Types;
 
 use common::sense;
 use Aion::Type;
+use Attribute::Handlers;
 use Scalar::Util qw//;
 use List::Util qw/all/;
 use Exporter qw/import/;
@@ -86,6 +87,31 @@ our @EXPORT = our @EXPORT_OK = qw/
 /;
 
 
+sub UNIVERSAL::Isa : ATTR(CODE) {
+    my ($pkg, $symbol, $referent, $attr, $data, $phase, $file, $line) = @_;
+    my $args_of_meth = "Arguments of method `" . *{$symbol}{NAME} . "`";
+    my $returns_of_meth = "Returns of method " . *{$symbol}{NAME} . "`";
+
+    $data =~ s/(\w)\s*=>\s*/$1, /g;
+
+    my @signature = eval "package $pkg { [$data] }";
+    my $returns = Aion::Types::Tuple(pop @signature);
+    my $args = Aion::Types::Tuple(\@signature);
+
+    *$symbol = sub {
+        $args->validate(\@_, $args_of_meth);
+        wantarray? do {
+            my @returns = $referent->(@_);
+            $returns->validate(\@returns, $returns_of_meth);
+            @returns
+        }: do {
+            my $return = $referent->(@_);
+            $returns->validate([$return], $returns_of_meth);
+            $return
+        }
+    }
+}
+
 my $SUB1 = sub {1};
 
 # Создание типа
@@ -94,9 +120,6 @@ sub subtype(@) {
 	my %o = @_;
 	
 	my ($as, $init_where, $where, $awhere, $message) = @o{qw/as init_where where awhere message/};
-
-	# TODO: subtype 'Str1[10]', as 'Str[1, A]'
-	$as = Object([$as]) if defined $as and !ref $as;
 
 	my $is_maybe_arg; my $is_arg;
 	$name =~ s/(`?)(\[.*)/ $is_maybe_arg = $1; $is_arg = $2; ''/e;
@@ -111,7 +134,7 @@ sub subtype(@) {
 
 	if($as && $as->{test} != $SUB1) {
 		if(!$where && !$awhere) {
-			$where = $as->{test};
+			$where = (sub { my ($as) = @_; sub { $as->test } })->($as);
 		} else {
 			$where = (sub { my ($as, $where) = @_; sub { $as->test && $where->(@_) } })->($as, $where) if $where;
 			$awhere = (sub { my ($as, $awhere) = @_; sub { $as->test && $awhere->(@_) } })->($as, $awhere) if $awhere;
@@ -338,7 +361,7 @@ subtype "Any";
 							subtype "Float", as &Num, where { -3.402823466E+38 <= $_ <= 3.402823466E+38 };
 							subtype "Double", as &Num, where { -1.7976931348623158e+308 <= $_ <= 1.7976931348623158e+308 };
 							subtype "Range[from, to]", as &Num, where { A <= $_ <= B };
-							subtype "Int`[N]", as &Num, 
+							subtype "Int`[N]", as &Num,
 								where { /^-?\d+\z/ }
 								init_where {
 									my $A = A;
@@ -393,9 +416,8 @@ subtype "Any";
 				subtype "RefRef`[A]", as &Ref,
 					where { ref $_ eq "REF" }
 					awhere { ref $_ eq "REF" && A->include($$_) };
-				subtype "GlobRef`[A]", as &Ref, 
-					where { ref $_ eq "GLOB" }
-					awhere { ref $_ eq "GLOB" && A->include($$_) };
+				subtype "GlobRef", as &Ref,
+					where { ref $_ eq "GLOB" };
 				subtype "ArrayRef`[A]", as &Ref,
 					where { ref $_ eq "ARRAY" }
 					awhere { my $A = A; ref $_ eq "ARRAY" && all { $A->test } @$_ };
@@ -479,36 +501,35 @@ __END__
 
 =head1 NAME
 
-Aion::Types is library of validators. And it makes new validators
+Aion::Types is library of validators. And it makes new validators.
 
 =head1 SYNOPSIS
 
 	use Aion::Types;
 	
-	# Create validator SpeakOfKitty extends it from validator StrMatch.
 	BEGIN {
 	    subtype SpeakOfKitty => as StrMatch[qr/\bkitty\b/i],
-	        message { "Speak not of kitty!" };
+	        message { "Speak is'nt included kitty!" };
 	}
 	
-	"Kitty!" ~~ SpeakOfKitty # => 1
+	"Kitty!" ~~ SpeakOfKitty # -> 1
+	"abc" ~~ SpeakOfKitty 	 # -> ""
 	
-	eval { SpeakOfKitty->validate("Kitty!") };
-	$@ # ~> Speak not of kitty!
+	eval { SpeakOfKitty->validate("abc") }; "$@" # ~> Speak is'nt included kitty!
 	
 	
 	BEGIN {
-		subtype IntOrArrayRef => as Int | ArrayRef;
+		subtype IntOrArrayRef => as (Int | ArrayRef);
 	}
 	
 	[] ~~ IntOrArrayRef  # -> 1
-	5 ~~ IntOrArrayRef   # -> 1
+	35 ~~ IntOrArrayRef  # -> 1
 	"" ~~ IntOrArrayRef  # -> ""
 	
 	
 	coerce IntOrArrayRef, from Num, via { int($_ + .5) };
 	
-	local $_ = 5.5; IntOrArrayRef->coerce # => 6
+	IntOrArrayRef->coerce(5.5) # => 6
 
 =head1 DESCRIPTION
 
@@ -627,11 +648,30 @@ Exclude many types.
 	"a" ~~ Exclude[PositiveInt]    # -> 1
 	5   ~~ Exclude[PositiveInt]    # -> ""
 
-=head2 Optional[A...]
+=head2 Option[A...]
 
-=head2 Slurpy[A...]
+The optional keys in the C<Dict>.
+
+	{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
+	{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
+
+=head2 Slurp[A...]
+
+It extends the C<Dict> other dictionaries, and C<Tuple> and C<CycleTuple> other .
 
 =head2 Array`[A]
+
+The subroutine return array.
+
+	sub array123: Isa(Int => Array[Int]) {
+		my ($n) = @_;
+		return $n, $n+1, $n+2;
+	}
+	
+	[ array123(1) ]		# --> [2,3,4]
+	
+	eval { array123(1.1) }; # ~> 1
+	
 
 =head2 ATuple[A...]
 
@@ -985,7 +1025,7 @@ The format.
 	"left",   "middle", "right"
 	.
 	
-	\EXAMPLE_FMT ~~ FormatRef   # -> 1
+	*EXAMPLE_FMT{FORMAT} ~~ FormatRef   # -> 1
 	\1 ~~ FormatRef    			# -> ""
 
 =head2 CodeRef
@@ -1006,29 +1046,34 @@ The regular expression.
 
 The scalar.
 
-	 ~~ ScalarRef    # -> 1
-	 ~~ ScalarRef    # -> ""
+	\12 ~~ ScalarRef     		# -> 1
+	\\12 ~~ ScalarRef    		# -> ""
+	\-1.2 ~~ ScalarRef[Num]     # -> 1
 
 =head2 RefRef`[A]
 
-.
+The ref as ref.
 
-	 ~~ RefRef`[A]    # -> 1
-	 ~~ RefRef`[A]    # -> ""
+	\\1 ~~ RefRef    # -> 1
+	\1 ~~ RefRef     # -> ""
+	\\1.3 ~~ RefRef[ScalarRef[Num]]    # -> 1
 
-=head2 GlobRef`[A]
+=head2 GlobRef
 
-.
+The global.
 
-	\*A::a ~~ GlobRef`[A]    # -> 1
-	 ~~ GlobRef`[A]    # -> ""
+	\*A::a ~~ GlobRef    # -> 1
+	*A::a ~~ GlobRef     # -> ""
 
 =head2 ArrayRef`[A]
 
-.
+The arrays.
 
-	 ~~ ArrayRef`[A]    # -> 1
-	 ~~ ArrayRef`[A]    # -> ""
+	[] ~~ ArrayRef    # -> 1
+	{} ~~ ArrayRef    # -> ""
+	[] ~~ ArrayRef[Num]    # -> 1
+	[1, 1.1] ~~ ArrayRef[Num]    # -> 1
+	[1, undef] ~~ ArrayRef[Num]    # -> ""
 
 =head2 HashRef`[H]
 
@@ -1080,8 +1125,9 @@ The tuple one or more times.
 
 The dictionary.
 
-	 ~~ Dict[k => A, ...]    # -> 1
-	 ~~ Dict[k => A, ...]    # -> ""
+	{a => -1.6, b => "abc"} ~~ Dict[a => Num, b => Str]    # -> 1
+	{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> 1
+	{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> 1
 
 =head2 HasProp[p...]
 
@@ -1111,33 +1157,30 @@ The object or the class has the methods.
 		sub x2 {}
 	}
 	
-	HasMethodsExample ~~ HasMethods[qw/x1 x2/]    			# -> 1
+	"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    			# -> 1
 	bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1 x2/] # -> 1
 	bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1/]    # -> 1
-	HasMethodsExample ~~ HasMethods[qw/x3/]    				# -> ""
-	HasMethodsExample ~~ HasMethods[qw/x1 x2 x3/]    		# -> ""
-	HasMethodsExample ~~ HasMethods[qw/x1 x3/]    			# -> ""
+	"HasMethodsExample" ~~ HasMethods[qw/x3/]    				# -> ""
+	"HasMethodsExample" ~~ HasMethods[qw/x1 x2 x3/]    		# -> ""
+	"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    			# -> ""
 
 =head2 Overload`[op...]
 
 The object or the class is overloaded.
 
 	package OverloadExample {
-		overloaded
-			fallback => 1,
-			'""' => sub { "abc" }
-		;
+		use overload '""' => sub { "abc" };
 	}
 	
-	OverloadExample ~~ Overload    # -> 1
+	"OverloadExample" ~~ Overload    # -> 1
 	bless({}, "OverloadExample") ~~ Overload    # -> 1
 	"A" ~~ Overload    				# -> ""
 	bless({}, "A") ~~ Overload    	# -> ""
 
 And it has the operators if arguments are specified.
 
-	OverloadExample ~~ Overload['""']   # -> 1
-	OverloadExample ~~ Overload['|']    # -> ""
+	"OverloadExample" ~~ Overload['""']   # -> 1
+	"OverloadExample" ~~ Overload['|']    # -> ""
 
 =head2 InstanceOf[A...]
 
@@ -1148,9 +1191,9 @@ The class or the object inherits the list of classes.
 	package Tiger { our @ISA = qw/Cat/ }
 	
 	
-	Tiger ~~ InstanceOf['Animal', 'Cat']    # -> 1
-	Tiger ~~ InstanceOf['Tiger']    		# -> ""
-	Tiger ~~ InstanceOf['Cat', 'Dog']    	# -> ""
+	"Tiger" ~~ InstanceOf['Animal', 'Cat']    # -> 1
+	"Tiger" ~~ InstanceOf['Tiger']    		# -> ""
+	"Tiger" ~~ InstanceOf['Cat', 'Dog']    	# -> ""
 
 =head2 ConsumerOf[A...]
 
@@ -1161,7 +1204,13 @@ The class or the object has the roles.
 String or object with overloaded operator C<"">.
 
 	"" ~~ StrLike    							# -> 1
-	bless({}, "OverloadExample") ~~ StrLike    	# -> 1
+	
+	package StrLikeExample {
+		use overload '""' => sub { "abc" };
+	}
+	
+	bless({}, "StrLikeExample") ~~ StrLike    	# -> 1
+	
 	{} ~~ StrLike    							# -> ""
 
 =head2 RegexpLike
@@ -1172,10 +1221,10 @@ The regular expression or the object with overloaded operator C<qr>.
 	"" ~~ RegexpLike    	# -> ""
 	
 	package RegexpLikeExample {
-		overloaded 'qr' => sub { qr/abc/ };
+		use overload 'qr' => sub { qr/abc/ };
 	}
 	
-	RegexpLikeExample ~~ RegexpLike    # -> 1
+	"RegexpLikeExample" ~~ RegexpLike    # -> 1
 
 =head2 CodeLike
 
@@ -1193,7 +1242,7 @@ The arrays or objects with overloaded operator C<@{}>.
 	{} ~~ ArrayLike    	# -> ""
 	
 	package ArrayLikeExample {
-		overloaded '@{}' => sub: lvalue { shift->{shift()} };
+		use overload '@{}' => sub: lvalue { shift->{shift()} };
 	}
 	
 	my $x = bless {}, 'ArrayLikeExample';
@@ -1210,7 +1259,7 @@ The hashes or objects with overloaded operator C<%{}>.
 	[] ~~ HashLike    	# -> ""
 	
 	package HashLikeExample {
-		overloaded '%{}' => sub: lvalue { shift->[shift()] };
+		use overload '%{}' => sub: lvalue { shift->[shift()] };
 	}
 	
 	my $x = bless [], 'HashLikeExample';
