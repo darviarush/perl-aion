@@ -15,7 +15,7 @@ BEGIN {
 is scalar do {"Kitty!" ~~ SpeakOfKitty}, scalar do{1}, '"Kitty!" ~~ SpeakOfKitty # -> 1';
 is scalar do {"abc" ~~ SpeakOfKitty}, scalar do{""}, '"abc" ~~ SpeakOfKitty 	 # -> ""';
 
-like scalar do {eval { SpeakOfKitty->validate("abc") }; "$@"}, qr!Speak is'nt included kitty\!!, 'eval { SpeakOfKitty->validate("abc") }; "$@" # ~> Speak is\'nt included kitty!';
+like scalar do {eval { SpeakOfKitty->validate("abc", "This") }; "$@"}, qr!Speak is'nt included kitty\!!, 'eval { SpeakOfKitty->validate("abc", "This") }; "$@" # ~> Speak is\'nt included kitty!';
 
 
 BEGIN {
@@ -48,8 +48,8 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # 		Union[A, B...]
 # 		Intersection[A, B...]
 # 		Exclude[A, B...]
-# 		Optional[A...]
-# 		Slurpy[A...]
+# 		Option[A]
+# 		Slurp[A]
 # 	Array`[A]
 # 		ATuple[A...]
 # 		ACycleTuple[A...]
@@ -151,22 +151,31 @@ is scalar do {"a" ~~ Exclude[PositiveInt]}, scalar do{1}, '"a" ~~ Exclude[Positi
 is scalar do {5   ~~ Exclude[PositiveInt]}, scalar do{""}, '5   ~~ Exclude[PositiveInt]    # -> ""';
 
 # 
-# ## Option[A...]
+# ## Option[A]
 # 
 # The optional keys in the `Dict`.
 # 
-done_testing; }; subtest 'Option[A...]' => sub { 
+done_testing; }; subtest 'Option[A]' => sub { 
 is scalar do {{a=>55} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1';
 is scalar do {{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1';
 
 # 
-# ## Slurp[A...]
+# ## Slurp[A]
 # 
-# It extends the `Dict` other dictionaries, and `Tuple` and `CycleTuple` other .
+# It extends the `Dict` other dictionaries, and `Tuple` and `CycleTuple` extends other tuples and arrays.
+# 
+done_testing; }; subtest 'Slurp[A]' => sub { 
+is scalar do {{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]}, scalar do{1}, '{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1';
+
+is scalar do {[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ]}, scalar do{1}, '[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1';
+is scalar do {[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ]}, scalar do{1}, '[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1';
+
+
+
 # 
 # ## Array`[A]
 # 
-# The subroutine return array.
+# It use for check what the subroutine return array.
 # 
 done_testing; }; subtest 'Array`[A]' => sub { 
 sub array123: Isa(Int => Array[Int]) {
@@ -191,6 +200,8 @@ like scalar do {eval { array123(1.1) };}, qr!1!, 'eval { array123(1.1) }; # ~> 1
 # 
 # ## HMap[K, V]
 # 
+# `HMap[K, V]` is equivalent `ACycleTuple[K, V]`.
+# 
 # 
 # ## Item
 # 
@@ -214,9 +225,9 @@ is scalar do {2 ~~ Bool}, scalar do{""}, '2 ~~ Bool     # -> ""';
 # Enumerate values.
 # 
 done_testing; }; subtest 'Enum[A...]' => sub { 
-is scalar do {3 ~~ Enum[1,2,3]}, scalar do{1}, '3 ~~ Enum[1,2,3]        # -> 1';
-is scalar do {"a" ~~ Enum["a", "b"]}, scalar do{1}, '"a" ~~ Enum["a", "b"]   # -> 1';
-is scalar do {4 ~~ Enum[1,2,3]}, scalar do{""}, '4 ~~ Enum[1,2,3]        # -> ""';
+is scalar do {3 ~~ Enum[1,2,3]}, scalar do{1}, '3 ~~ Enum[1,2,3]        	# -> 1';
+is scalar do {"cat" ~~ Enum["cat", "dog"]}, scalar do{1}, '"cat" ~~ Enum["cat", "dog"] # -> 1';
+is scalar do {4 ~~ Enum[1,2,3]}, scalar do{""}, '4 ~~ Enum[1,2,3]        	# -> ""';
 
 # 
 # ## Maybe[A]

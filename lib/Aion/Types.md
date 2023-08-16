@@ -15,7 +15,7 @@ BEGIN {
 "Kitty!" ~~ SpeakOfKitty # -> 1
 "abc" ~~ SpeakOfKitty 	 # -> ""
 
-eval { SpeakOfKitty->validate("abc") }; "$@" # ~> Speak is'nt included kitty!
+eval { SpeakOfKitty->validate("abc", "This") }; "$@" # ~> Speak is'nt included kitty!
 
 
 BEGIN {
@@ -48,8 +48,8 @@ Any
 		Union[A, B...]
 		Intersection[A, B...]
 		Exclude[A, B...]
-		Optional[A...]
-		Slurpy[A...]
+		Option[A]
+		Slurp[A]
 	Array`[A]
 		ATuple[A...]
 		ACycleTuple[A...]
@@ -151,7 +151,7 @@ Exclude many types.
 5   ~~ Exclude[PositiveInt]    # -> ""
 ```
 
-## Option[A...]
+## Option[A]
 
 The optional keys in the `Dict`.
 
@@ -160,7 +160,7 @@ The optional keys in the `Dict`.
 {a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 ```
 
-## Slurp[A...]
+## Slurp[A]
 
 It extends the `Dict` other dictionaries, and `Tuple` and `CycleTuple` extends other tuples and arrays.
 

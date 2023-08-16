@@ -95,7 +95,7 @@ sub UNIVERSAL::Isa : ATTR(CODE) {
     $data =~ s/(\w)\s*=>\s*/$1, /g;
 
     my @signature = eval "package $pkg { [$data] }";
-    my $returns = Aion::Types::Tuple(pop @signature);
+    my $returns = Aion::Types::Tuple([pop @signature]);
     my $args = Aion::Types::Tuple(\@signature);
 
     *$symbol = sub {
@@ -272,13 +272,13 @@ subtype "Any";
 		subtype "Option[A]", as &Control,
 			init_where {
 				SELF->{is_option} = 1;
-				Tuple([Object(["Aion::Type"])])->valudate(ARGS, "Option[A]")
+				Tuple([Object(["Aion::Type"])])->validate(scalar ARGS, "Option[A]")
 			}
 			where { A->test };
 		subtype "Slurp[A]", as &Control,
 			init_where {
 				SELF->{is_slurp} = 1;
-				Tuple([Object(["Aion::Type"])])->valudate(ARGS, "Slurp[A]")
+				Tuple([Object(["Aion::Type"])])->validate(scalar ARGS, "Slurp[A]")
 			}
 			where { ... };
 
@@ -292,7 +292,7 @@ subtype "Any";
 		};
 
 		subtype "ATuple[A...]", as &Array,
-			init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
+			init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS, "ATuple[A...]") }
 			where {
 				my $T = ARGS;
 				my ($i, $a) = @$_;
@@ -307,7 +307,7 @@ subtype "Any";
 			};
 
 		subtype "ACycleTuple[A...]", as &Array,
-			init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
+			init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS, "ACycleTuple[A...]") }
 			where {
 				my $A = ATuple $_[1];
 				$A->test or return 0;
@@ -429,7 +429,7 @@ subtype "Any";
 					where { Scalar::Util::blessed($_) ne "" }
 					awhere { UNIVERSAL::isa($_, A) };
 				subtype "HasProp[p...]", as &Ref,
-					where { my $x = $_; all { exists $x->{$_} } @{ARGS()} };
+					where { my $x = $_; all { exists $x->{$_} } ARGS };
 
 				subtype "Map[K, V]", as &HashRef,
 					where {
@@ -440,18 +440,21 @@ subtype "Any";
 						return 1;
 					};
 
+
+				my $tuple_args = ArrayRef([Object(['Aion::Type'])]);
 				subtype "Tuple[A...]", as &ArrayRef,
-					init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
+					init_where { warn Carp::longmess("?"); $tuple_args->validate(scalar ARGS, "Arguments Tuple[A...]") }
 					where {
-						my $ret = _tuple(ARGS, $_, 0);
+						my $ret = _tuple(scalar ARGS, $_, 0);
 						return "" unless defined $ret;
 						return 1;
 					};
 				subtype "CycleTuple[A...]", as &ArrayRef,
-					init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS) }
+					init_where { $tuple_args->validate(scalar ARGS, "Arguments CycleTuple[A...]") }
 					where {
+						my $args = ARGS;
 						for(my $i = 0, my $ret; $i < @$_; $i = $ret) {
-							$ret = _tuple(ARGS, $_, $i);
+							$ret = _tuple($args, $_, $i);
 							return "" unless defined $ret;
 						}
 						return 1;
@@ -461,10 +464,10 @@ subtype "Any";
 
 				subtype "Dict[k => A, ...]", as &HashRef,
 					init_where {
-						$dict_args->validate(scalar ARGS);
+						$dict_args->validate(scalar ARGS, "Dict[k => A, ...]");
 					}
 					where {
-						my $count = _dict(ARGS, $_);
+						my $count = _dict(scalar ARGS, $_);
 						return "" unless defined $count;
 						return "" unless $count == keys %$_;
 						return 1;
@@ -475,10 +478,10 @@ subtype "Any";
 					where { my $x = $_; all { $x->can($_) } @{$_[1]} };
 				subtype "Overload`[m...]", as &Like,
 					where { !!overload::Overloaded($_) }
-					awhere { my $x = $_; all { overload::Method($x, $_) } @{ARGS()} };
+					awhere { my $x = $_; all { overload::Method($x, $_) } ARGS };
 
-				subtype "InstanceOf[A...]", as &Like, where { my $x = $_; all { $x->isa($_) } @{ARGS()} };
-				subtype "ConsumerOf[A...]", as &Like, where { my $x = $_; all { $x->can("does") && $x->does($_) } @{ARGS()} };
+				subtype "InstanceOf[A...]", as &Like, where { my $x = $_; all { $x->isa($_) } ARGS };
+				subtype "ConsumerOf[A...]", as &Like, where { my $x = $_; all { $x->can("does") && $x->does($_) } ARGS };
 
 			subtype "StrLike", as (&Str | Overload(['""']));
 			subtype "RegexpLike", as (&RegexpRef | Overload(['qr']));
@@ -515,7 +518,7 @@ Aion::Types is library of validators. And it makes new validators.
 	"Kitty!" ~~ SpeakOfKitty # -> 1
 	"abc" ~~ SpeakOfKitty 	 # -> ""
 	
-	eval { SpeakOfKitty->validate("abc") }; "$@" # ~> Speak is'nt included kitty!
+	eval { SpeakOfKitty->validate("abc", "This") }; "$@" # ~> Speak is'nt included kitty!
 	
 	
 	BEGIN {
@@ -552,8 +555,8 @@ Hierarhy of validators:
 			Union[A, B...]
 			Intersection[A, B...]
 			Exclude[A, B...]
-			Optional[A...]
-			Slurpy[A...]
+			Option[A]
+			Slurp[A]
 		Array`[A]
 			ATuple[A...]
 			ACycleTuple[A...]
@@ -648,20 +651,27 @@ Exclude many types.
 	"a" ~~ Exclude[PositiveInt]    # -> 1
 	5   ~~ Exclude[PositiveInt]    # -> ""
 
-=head2 Option[A...]
+=head2 Option[A]
 
 The optional keys in the C<Dict>.
 
 	{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 	{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 
-=head2 Slurp[A...]
+=head2 Slurp[A]
 
-It extends the C<Dict> other dictionaries, and C<Tuple> and C<CycleTuple> other .
+It extends the C<Dict> other dictionaries, and C<Tuple> and C<CycleTuple> extends other tuples and arrays.
+
+	{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1
+	
+	[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
+	[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
+	
+	
 
 =head2 Array`[A]
 
-The subroutine return array.
+It use for check what the subroutine return array.
 
 	sub array123: Isa(Int => Array[Int]) {
 		my ($n) = @_;
@@ -680,6 +690,8 @@ The subroutine return array.
 =head2 Hash`[A]
 
 =head2 HMap[K, V]
+
+C<HMap[K, V]> is equivalent C<ACycleTuple[K, V]>.
 
 =head2 Item
 
@@ -700,9 +712,9 @@ C<1> is true. C<0>, C<""> or C<undef> is false.
 
 Enumerate values.
 
-	3 ~~ Enum[1,2,3]        # -> 1
-	"a" ~~ Enum["a", "b"]   # -> 1
-	4 ~~ Enum[1,2,3]        # -> ""
+	3 ~~ Enum[1,2,3]        	# -> 1
+	"cat" ~~ Enum["cat", "dog"] # -> 1
+	4 ~~ Enum[1,2,3]        	# -> ""
 
 =head2 Maybe[A]
 

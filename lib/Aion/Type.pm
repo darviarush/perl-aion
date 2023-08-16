@@ -57,7 +57,7 @@ sub val_to_str {
 sub stringify {
 	my ($self) = @_;
 	join "", $self->{name}, $self->{args}? ("[", join(", ", map {
-		UNIVERSAL::isa($_, __PACKAGE__)? $_->stringify: $self->val_to_str($_) } @{$self->{args}}), "]") : ();
+		ref($_) && UNIVERSAL::isa($_, __PACKAGE__)? $_->stringify: $self->val_to_str($_) } @{$self->{args}}), "]") : ();
 }
 
 # Тестировать значение в $_
