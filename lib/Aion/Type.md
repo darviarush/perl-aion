@@ -134,7 +134,7 @@ Return message belongs to error.
 ```perl
 my $Int = Aion::Type->new(name => "Int");
 
-$Int->detail(-5, "car") # => Feature car must have the type Int. The same car is -5
+$Int->detail(-5, "Feature car") # => Feature car must have the type Int. The it is -5
 
 my $Num = Aion::Type->new(name => "Num", detail => sub {
     my ($val, $name) = @_;
@@ -157,7 +157,7 @@ my $PositiveInt = Aion::Type->new(
 eval {
     $PositiveInt->validate(-1, "Neg")
 };
-$@   # ~> Neg must have the type PositiveInt. The same Neg is -1
+$@   # ~> Neg must have the type PositiveInt. The it is -1
 ```
 
 ## val_to_str ($element)

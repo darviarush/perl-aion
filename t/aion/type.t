@@ -134,7 +134,7 @@ is scalar do {$PositiveInt->exclude(-6)}, scalar do{1}, '$PositiveInt->exclude(-
 done_testing; }; subtest 'detail ($element, $feature)' => sub { 
 my $Int = Aion::Type->new(name => "Int");
 
-is scalar do {$Int->detail(-5, "car")}, "Feature car must have the type Int. The same car is -5", '$Int->detail(-5, "car") # => Feature car must have the type Int. The same car is -5';
+is scalar do {$Int->detail(-5, "Feature car")}, "Feature car must have the type Int. The it is -5", '$Int->detail(-5, "Feature car") # => Feature car must have the type Int. The it is -5';
 
 my $Num = Aion::Type->new(name => "Num", detail => sub {
     my ($val, $name) = @_;
@@ -157,7 +157,7 @@ my $PositiveInt = Aion::Type->new(
 eval {
     $PositiveInt->validate(-1, "Neg")
 };
-like scalar do {$@}, qr!Feature Neg must have the type PositiveInt. The same Neg is -1!, '$@   # ~> Feature Neg must have the type PositiveInt. The same Neg is -1';
+like scalar do {$@}, qr!Neg must have the type PositiveInt. The it is -1!, '$@   # ~> Neg must have the type PositiveInt. The it is -1';
 
 # 
 # ## val_to_str ($element)

@@ -1,36 +1,35 @@
 # NAME
 
-Aion::Types is library of validators. And it makes new validators
+Aion::Types is library of validators. And it makes new validators.
 
 # SYNOPSIS
 
 ```perl
 use Aion::Types;
 
-# Create validator SpeakOfKitty extends it from validator StrMatch.
 BEGIN {
     subtype SpeakOfKitty => as StrMatch[qr/\bkitty\b/i],
-        message { "Speak not of kitty!" };
+        message { "Speak is'nt included kitty!" };
 }
 
-"Kitty!" ~~ SpeakOfKitty # => 1
+"Kitty!" ~~ SpeakOfKitty # -> 1
+"abc" ~~ SpeakOfKitty 	 # -> ""
 
-eval { SpeakOfKitty->validate("Kitty!") };
-$@ # ~> Speak not of kitty!
+eval { SpeakOfKitty->validate("abc") }; "$@" # ~> Speak is'nt included kitty!
 
 
 BEGIN {
-	subtype IntOrArrayRef => as Int | ArrayRef;
+	subtype IntOrArrayRef => as (Int | ArrayRef);
 }
 
-[] ~~ StrOrArrayRef  # -> 1
-5 ~~ StrOrArrayRef   # -> 1
-"" ~~ StrOrArrayRef  # -> ""
+[] ~~ IntOrArrayRef  # -> 1
+35 ~~ IntOrArrayRef  # -> 1
+"" ~~ IntOrArrayRef  # -> ""
 
 
-coerce StrOrArrayRef, from Num, via { int($_ + .5) };
+coerce IntOrArrayRef, from Num, via { int($_ + .5) };
 
-local $_ = 5.5; StrOrArrayRef->coerce # => 6
+IntOrArrayRef->coerce(5.5) # => 6
 ```
 
 # DESCRIPTION
@@ -152,14 +151,43 @@ Exclude many types.
 5   ~~ Exclude[PositiveInt]    # -> ""
 ```
 
-## Optional[A...]
+## Option[A...]
+
+The optional keys in the `Dict`.
+
+```perl
+{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
+{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
+```
+
+## Slurp[A...]
+
+It extends the `Dict` other dictionaries, and `Tuple` and `CycleTuple` extends other tuples and arrays.
+
+```perl
+{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1
+
+[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
+[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
 
 
-## Slurpy[A...]
-
+```
 
 ## Array`[A]
 
+It use for check what the subroutine return array.
+
+```perl
+sub array123: Isa(Int => Array[Int]) {
+	my ($n) = @_;
+	return $n, $n+1, $n+2;
+}
+
+[ array123(1) ]		# --> [2,3,4]
+
+eval { array123(1.1) }; # ~> 1
+
+```
 
 ## ATuple[A...]
 
@@ -171,6 +199,8 @@ Exclude many types.
 
 
 ## HMap[K, V]
+
+`HMap[K, V]` is equivalent `ACycleTuple[K, V]`.
 
 
 ## Item
@@ -195,9 +225,9 @@ undef ~~ Bool # -> 1
 Enumerate values.
 
 ```perl
-3 ~~ Enum[1,2,3]        # -> 1
-"a" ~~ Enum["a", "b"]   # -> 1
-4 ~~ Enum[1,2,3]        # -> ""
+3 ~~ Enum[1,2,3]        	# -> 1
+"cat" ~~ Enum["cat", "dog"] # -> 1
+4 ~~ Enum[1,2,3]        	# -> ""
 ```
 
 ## Maybe[A]
@@ -484,8 +514,8 @@ Integers.
 127 ~~ Int[1]    # -> 1
 128 ~~ Int[1]    # -> ""
 
-127 ~~ Int[1]    # -> 1
-128 ~~ Int[1]    # -> ""
+-127 ~~ Int[1]    # -> 1
+-128 ~~ Int[1]    # -> ""
 ```
 
 ## PositiveInt`[N]
@@ -501,6 +531,11 @@ Positive integers.
 
 `N` - the number of bytes for limit.
 
+```perl
+255 ~~ PositiveInt[1]    # -> 1
+256 ~~ PositiveInt[1]    # -> ""
+```
+
 ## Nat`[N]
 
 Integers 1+.
@@ -510,238 +545,368 @@ Integers 1+.
 0 ~~ Nat    # -> ""
 ```
 
+```perl
+255 ~~ Nat[1]    # -> 1
+256 ~~ Nat[1]    # -> ""
+```
+
 ## Ref
 
-.
+The value is reference.
 
 ```perl
- ~~ Ref    # -> 1
- ~~ Ref    # -> ""
+\1 ~~ Ref    # -> 1
+1 ~~ Ref     # -> ""
 ```
 
 ## Tied`[A]
 
-.
+The reference on the tied variable.
 
 ```perl
- ~~ Tied`[A]    # -> 1
- ~~ Tied`[A]    # -> ""
+package A {
+
+}
+
+tie my %a, "A";
+my %b;
+
+\%a ~~ Tied    # -> 1
+\%b ~~ Tied    # -> ""
 ```
 
 ## LValueRef
 
-.
+The function allows assignment.
 
 ```perl
- ~~ LValueRef    # -> 1
- ~~ LValueRef    # -> ""
+package As {
+	sub x : lvalue {
+		shift->{x};
+	}
+}
+
+my $x = bless {}, "As";
+$x->x = 10;
+
+$x->x # => 10
+$x->x ~~ LValueRef    # -> 1
+
+sub abc: lvalue { $_ }
+
+abc() = 12;
+$_ # => 12
+\(&abc) ~~ LValueRef	# -> 1
+
+\1 ~~ LValueRef	# -> ""
+
+my $x = "abc";
+substr($x, 1, 1) = 10;
+
+$x # => a10c
+
+LValueRef->include(\substr($x, 1, 1))	# => 1
 ```
 
 ## FormatRef
 
-.
+The format.
 
 ```perl
- ~~ FormatRef    # -> 1
- ~~ FormatRef    # -> ""
+format EXAMPLE_FMT =
+@<<<<<<   @||||||   @>>>>>>
+"left",   "middle", "right"
+.
+
+*EXAMPLE_FMT{FORMAT} ~~ FormatRef   # -> 1
+\1 ~~ FormatRef    			# -> ""
 ```
 
 ## CodeRef
 
-.
+Subroutine.
 
 ```perl
- ~~ CodeRef    # -> 1
- ~~ CodeRef    # -> ""
+sub {} ~~ CodeRef    # -> 1
+\1 ~~ CodeRef        # -> ""
 ```
 
 ## RegexpRef
 
-.
+The regular expression.
 
 ```perl
- ~~ RegexpRef    # -> 1
- ~~ RegexpRef    # -> ""
+qr// ~~ RegexpRef    # -> 1
+\1 ~~ RegexpRef    	 # -> ""
 ```
 
 ## ScalarRef`[A]
 
-.
+The scalar.
 
 ```perl
- ~~ ScalarRef`[A]    # -> 1
- ~~ ScalarRef`[A]    # -> ""
+\12 ~~ ScalarRef     		# -> 1
+\\12 ~~ ScalarRef    		# -> ""
+\-1.2 ~~ ScalarRef[Num]     # -> 1
 ```
 
 ## RefRef`[A]
 
-.
+The ref as ref.
 
 ```perl
- ~~ RefRef`[A]    # -> 1
- ~~ RefRef`[A]    # -> ""
+\\1 ~~ RefRef    # -> 1
+\1 ~~ RefRef     # -> ""
+\\1.3 ~~ RefRef[ScalarRef[Num]]    # -> 1
 ```
 
-## GlobRef`[A]
+## GlobRef
 
-.
+The global.
 
 ```perl
- ~~ GlobRef`[A]    # -> 1
- ~~ GlobRef`[A]    # -> ""
+\*A::a ~~ GlobRef    # -> 1
+*A::a ~~ GlobRef     # -> ""
 ```
 
 ## ArrayRef`[A]
 
-.
+The arrays.
 
 ```perl
- ~~ ArrayRef`[A]    # -> 1
- ~~ ArrayRef`[A]    # -> ""
+[] ~~ ArrayRef    # -> 1
+{} ~~ ArrayRef    # -> ""
+[] ~~ ArrayRef[Num]    # -> 1
+[1, 1.1] ~~ ArrayRef[Num]    # -> 1
+[1, undef] ~~ ArrayRef[Num]    # -> ""
 ```
 
 ## HashRef`[H]
 
-.
+The hashes.
 
 ```perl
- ~~ HashRef`[H]    # -> 1
- ~~ HashRef`[H]    # -> ""
+{} ~~ HashRef    # -> 1
+\1 ~~ HashRef    # -> ""
+
+{x=>1, y=>2}  ~~ HashRef[Int]    # -> 1
+{x=>1, y=>""} ~~ HashRef[Int]    # -> ""
 ```
 
 ## Object`[O]
 
-.
+The blessed values.
 
 ```perl
- ~~ Object`[O]    # -> 1
- ~~ Object`[O]    # -> ""
+bless(\1, "A") ~~ Object    # -> 1
+\1 ~~ Object			    # -> ""
+
+bless(\1, "A") ~~ Object["A"]   # -> 1
+bless(\1, "A") ~~ Object["B"]   # -> ""
 ```
 
 ## Map[K, V]
 
-.
+As `HashRef`, but has type for keys also.
 
 ```perl
- ~~ Map[K, V]    # -> 1
- ~~ Map[K, V]    # -> ""
+{} ~~ Map[Int, Int]    # -> 1
+{5 => 3} ~~ Map[Int, Int]    # -> 1
+{5.5 => 3} ~~ Map[Int, Int]    # -> ""
+{5 => 3.3} ~~ Map[Int, Int]    # -> ""
 ```
 
 ## Tuple[A...]
 
-.
+The tuple.
 
 ```perl
- ~~ Tuple[A...]    # -> 1
- ~~ Tuple[A...]    # -> ""
+["a", 12] ~~ Tuple[Str, Int]    # -> 1
+["a", 12, 1] ~~ Tuple[Str, Int]    # -> ""
+["a", 12.1] ~~ Tuple[Str, Int]    # -> ""
 ```
 
 ## CycleTuple[A...]
 
-.
+The tuple one or more times.
 
 ```perl
- ~~ CycleTuple[A...]    # -> 1
- ~~ CycleTuple[A...]    # -> ""
+["a", -5] ~~ CycleTuple[Str, Int]    # -> 1
+["a", -5, "x"] ~~ CycleTuple[Str, Int]    # -> ""
+["a", -5, "x", -6] ~~ CycleTuple[Str, Int]    # -> 1
+["a", -5, "x", -6.2] ~~ CycleTuple[Str, Int]    # -> ""
 ```
 
 ## Dict[k => A, ...]
 
-.
+The dictionary.
 
 ```perl
- ~~ Dict[k => A, ...]    # -> 1
- ~~ Dict[k => A, ...]    # -> ""
+{a => -1.6, b => "abc"} ~~ Dict[a => Num, b => Str]    # -> 1
+{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> 1
+{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> 1
+```
+
+## HasProp[p...]
+
+The hash has properties.
+
+```perl
+{a => 1, b => 2, c => 3} ~~ HasProp[qw/a b/]    # -> 1
+{a => 1, b => 2} ~~ HasProp[qw/a b/]    # -> 1
+{a => 1, c => 3} ~~ HasProp[qw/a b/]    # -> ""
 ```
 
 ## Like
 
-.
+The object or string.
 
 ```perl
- ~~ Like    # -> 1
- ~~ Like    # -> ""
+"" ~~ Like    	# -> 1
+1 ~~ Like    	# -> 1
+bless({}, "A") ~~ Like    # -> 1
+bless([], "A") ~~ Like    # -> 1
+bless(\"", "A") ~~ Like    # -> 1
+\1 ~~ Like    	# -> ""
 ```
 
 ## HasMethods[m...]
 
-.
+The object or the class has the methods.
 
 ```perl
- ~~ HasMethods[m...]    # -> 1
- ~~ HasMethods[m...]    # -> ""
+package HasMethodsExample {
+	sub x1 {}
+	sub x2 {}
+}
+
+"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    			# -> 1
+bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1 x2/] # -> 1
+bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1/]    # -> 1
+"HasMethodsExample" ~~ HasMethods[qw/x3/]    				# -> ""
+"HasMethodsExample" ~~ HasMethods[qw/x1 x2 x3/]    		# -> ""
+"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    			# -> ""
 ```
 
-## Overload`[m...]
+## Overload`[op...]
 
-.
+The object or the class is overloaded.
 
 ```perl
- ~~ Overload`[m...]    # -> 1
- ~~ Overload`[m...]    # -> ""
+package OverloadExample {
+	use overload '""' => sub { "abc" };
+}
+
+"OverloadExample" ~~ Overload    # -> 1
+bless({}, "OverloadExample") ~~ Overload    # -> 1
+"A" ~~ Overload    				# -> ""
+bless({}, "A") ~~ Overload    	# -> ""
+```
+
+And it has the operators if arguments are specified.
+
+```perl
+"OverloadExample" ~~ Overload['""']   # -> 1
+"OverloadExample" ~~ Overload['|']    # -> ""
 ```
 
 ## InstanceOf[A...]
 
-.
+The class or the object inherits the list of classes.
 
 ```perl
- ~~ InstanceOf[A...]    # -> 1
- ~~ InstanceOf[A...]    # -> ""
+package Animal {}
+package Cat { our @ISA = qw/Animal/ }
+package Tiger { our @ISA = qw/Cat/ }
+
+
+"Tiger" ~~ InstanceOf['Animal', 'Cat']    # -> 1
+"Tiger" ~~ InstanceOf['Tiger']    		# -> ""
+"Tiger" ~~ InstanceOf['Cat', 'Dog']    	# -> ""
 ```
 
 ## ConsumerOf[A...]
 
-.
-
-```perl
- ~~ ConsumerOf[A...]    # -> 1
- ~~ ConsumerOf[A...]    # -> ""
-```
+The class or the object has the roles.
 
 ## StrLike
 
-.
+String or object with overloaded operator `""`.
 
 ```perl
- ~~ StrLike    # -> 1
- ~~ StrLike    # -> ""
+"" ~~ StrLike    							# -> 1
+
+package StrLikeExample {
+	use overload '""' => sub { "abc" };
+}
+
+bless({}, "StrLikeExample") ~~ StrLike    	# -> 1
+
+{} ~~ StrLike    							# -> ""
 ```
 
 ## RegexpLike
 
-.
+The regular expression or the object with overloaded operator `qr`.
 
 ```perl
- ~~ RegexpLike    # -> 1
- ~~ RegexpLike    # -> ""
+qr// ~~ RegexpLike    	# -> 1
+"" ~~ RegexpLike    	# -> ""
+
+package RegexpLikeExample {
+	use overload 'qr' => sub { qr/abc/ };
+}
+
+"RegexpLikeExample" ~~ RegexpLike    # -> 1
 ```
 
 ## CodeLike
 
-.
+The subroutines.
 
 ```perl
- ~~ CodeLike    # -> 1
- ~~ CodeLike    # -> ""
+sub {} ~~ CodeLike    	# -> 1
+\&CodeLike ~~ CodeLike  # -> 1
+{} ~~ CodeLike  		# -> ""
 ```
 
 ## ArrayLike`[A]
 
-.
+The arrays or objects with overloaded operator `@{}`.
 
 ```perl
- ~~ ArrayLike`[A]    # -> 1
- ~~ ArrayLike`[A]    # -> ""
+[] ~~ ArrayLike    	# -> 1
+{} ~~ ArrayLike    	# -> ""
+
+package ArrayLikeExample {
+	use overload '@{}' => sub: lvalue { shift->{shift()} };
+}
+
+my $x = bless {}, 'ArrayLikeExample';
+$x->[1] = 12;
+$x  # --> bless {1 => 12}, 'ArrayLikeExample'
+
+$x ~~ ArrayLike    # -> 1
 ```
 
 ## HashLike`[A]
 
-.
+The hashes or objects with overloaded operator `%{}`.
 
 ```perl
- ~~ HashLike`[A]    # -> 1
- ~~ HashLike`[A]    # -> ""
+{} ~~ HashLike    	# -> 1
+[] ~~ HashLike    	# -> ""
+
+package HashLikeExample {
+	use overload '%{}' => sub: lvalue { shift->[shift()] };
+}
+
+my $x = bless [], 'HashLikeExample';
+$x->{1} = 12;
+$x  # --> bless [undef, 12], 'HashLikeExample'
+
+$x ~~ HashLike    # -> 1
+
 ```
 
 # AUTHOR

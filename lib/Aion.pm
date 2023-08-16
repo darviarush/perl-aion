@@ -5,7 +5,6 @@ use common::sense;
 our $VERSION = "0.01";
 
 use Scalar::Util qw/blessed/;
-use Attribute::Handlers;
 use Aion::Types qw//;
 
 # Когда осуществлять проверки:
@@ -48,31 +47,6 @@ sub import {
     #Aion::Types->import($pkg);
     eval "package $pkg { use Aion::Types; }";
     die if $@;
-}
-
-sub UNIVERSAL::Isa : ATTR(CODE) {
-    my ($pkg, $symbol, $referent, $attr, $data, $phase, $file, $line) = @_;
-    my $args_of_meth = "Arguments of method `" . *{$symbol}{NAME} . "`";
-    my $returns_of_meth = "Returns of method " . *{$symbol}{NAME} . "`";
-
-    $data =~ s/(\w)\s*=>\s*/$1, /g;
-
-    my @signature = eval "package $pkg { [$data] }";
-    my $returns = Aion::Types::Tuple(pop @signature);
-    my $args = Aion::Types::Tuple(\@signature);
-
-    *$symbol = sub {
-        $args->validate(\@_, $args_of_meth);
-        wantarray? do {
-            my @returns = $referent->(@_);
-            $returns->validate(\@returns, $returns_of_meth);
-            @returns
-        }: do {
-            my $return = $referent->(@_);
-            $returns->validate([$return], $returns_of_meth);
-            $return
-        }
-    }
 }
 
 #@category Aspects
