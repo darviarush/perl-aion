@@ -5,7 +5,7 @@ use common::sense;
 use Aion::Type;
 use Attribute::Handlers;
 use Scalar::Util qw//;
-use List::Util qw/all/;
+use List::Util qw/all any/;
 use Exporter qw/import/;
 
 our @EXPORT = our @EXPORT_OK = qw/
@@ -92,9 +92,8 @@ sub UNIVERSAL::Isa : ATTR(CODE) {
     my $args_of_meth = "Arguments of method `" . *{$symbol}{NAME} . "`";
     my $returns_of_meth = "Returns of method " . *{$symbol}{NAME} . "`";
 
-    $data =~ s/(\w)\s*=>\s*/$1, /g;
+	my @signature = map { ref($_)? $_: eval("package $pkg { $_ }") || die } @$data;
 
-    my @signature = eval "package $pkg { [$data] }";
     my $returns = Aion::Types::Tuple([pop @signature]);
     my $args = Aion::Types::Tuple(\@signature);
 
@@ -443,7 +442,7 @@ subtype "Any";
 
 				my $tuple_args = ArrayRef([Object(['Aion::Type'])]);
 				subtype "Tuple[A...]", as &ArrayRef,
-					init_where { warn Carp::longmess("?"); $tuple_args->validate(scalar ARGS, "Arguments Tuple[A...]") }
+					init_where { $tuple_args->validate(scalar ARGS, "Arguments Tuple[A...]") }
 					where {
 						my $ret = _tuple(scalar ARGS, $_, 0);
 						return "" unless defined $ret;
