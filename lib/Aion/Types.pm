@@ -249,13 +249,14 @@ sub _dict {
 			my ($k, $T) = @$types[$i, $i+1];
 			if(exists $hash->{$k}) {
 				return undef if $T->exclude($hash->{$k});
+				$count++;
 			} else {
-				return undef if !exists $T->{$k}->{is_option};
+				return undef if !exists $T->{is_option};
 			}
-
-			$count++;
 		}
 	}
+
+	$count
 }
 
 BEGIN {
@@ -459,11 +460,14 @@ subtype "Any";
 						return 1;
 					};
 
-				my $dict_args = CycleTuple([&Str => Object(['Aion::Type'])]) | Object(['Aion::Type']) & HasProp([qw/is_slurp/]);
+				my $dict_args = CycleTuple([
+					Tuple([&Str => Object(['Aion::Type'])])
+					| Object(['Aion::Type']) & HasProp([qw/is_slurp/])
+				]);
 
 				subtype "Dict[k => A, ...]", as &HashRef,
 					init_where {
-						$dict_args->validate(scalar ARGS, "Dict[k => A, ...]");
+						$dict_args->validate(scalar ARGS, "Arguments Dict[k => A, ...]");
 					}
 					where {
 						my $count = _dict(scalar ARGS, $_);
