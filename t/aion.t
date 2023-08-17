@@ -4,7 +4,7 @@ use common::sense; use open qw/:std :utf8/; use Test::More 0.98; use Carp::Alway
 # 
 # # VERSION
 # 
-# 1.0
+# 0.01
 # 
 # # SYNOPSIS
 # 

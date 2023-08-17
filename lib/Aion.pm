@@ -305,7 +305,7 @@ B<Aion> — A postmodern object system for Perl 5, as C<Moose> and C<Moo>, but w
 
 =head1 VERSION
 
-1.0
+0.01
 
 =head1 SYNOPSIS
 
