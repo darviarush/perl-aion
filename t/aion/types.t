@@ -166,6 +166,7 @@ is scalar do {{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '
 # 
 done_testing; }; subtest 'Slurp[A]' => sub { 
 is scalar do {{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]}, scalar do{1}, '{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1';
+is scalar do {{a => -1, b => -3.14} ~~ Dict[Slurp[ Dict[b => Num] ], a => Int]}, scalar do{1}, '{a => -1, b => -3.14} ~~ Dict[Slurp[ Dict[b => Num] ], a => Int]  # -> 1';
 
 is scalar do {[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ]}, scalar do{1}, '[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1';
 is scalar do {[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ]}, scalar do{1}, '[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1';
