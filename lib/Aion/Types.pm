@@ -196,17 +196,24 @@ sub via(&) { (via => $_[0]) }
 sub _tuple {
 	my ($types, $array, $from) = @_;
 	my $j = 0; my $i = $from;
+
+	use DDP; p my $S=[$types, $array, $from];
+
 	for(; $j < @$types; $j++) {
 		my $item = $array->[$i];
 		my $type = $types->[$j];
 
+		use DDP; p my $z=[$item, $type, $type->{is_slurp}];
+
 		if($type->{is_slurp}) {
 			my ($name, $args) = @{$type->{args}[0]}{qw/name args/};
+			use DDP; p my $y=[$name, $args];
 			if($name eq "ArrayRef") {
 				$i++ while $i < @$array && $args->[0]->include($array->[$i]);
 			}
 			elsif($name eq "Tuple") {
 				my $ret = _tuple($args, $array, $i);
+				use DDP; p my $x=[$args, $array, $i, $ret];
 				return undef unless defined $ret;
 				$i = $ret;
 			}
@@ -280,7 +287,7 @@ subtype "Any";
 				SELF->{is_slurp} = 1;
 				Tuple([Object(["Aion::Type"])])->validate(scalar ARGS, "Slurp[A]")
 			}
-			where { ... };
+			where { A->test };
 
 	subtype "Array`[A]", as &Any,
 		where { $_->[1] = @{$_->[0]}; 1 }
@@ -461,7 +468,7 @@ subtype "Any";
 					};
 
 				my $dict_args = CycleTuple([
-					Tuple([&Str => Object(['Aion::Type'])])
+					Slurp([Tuple([&Str => Object(['Aion::Type'])])])
 					| Object(['Aion::Type']) & HasProp([qw/is_slurp/])
 				]);
 

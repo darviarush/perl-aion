@@ -12,7 +12,8 @@ use overload
 	'""' => \&stringify,									# Отображать тип в трейсбеке в строковом представлении
 	"|" => sub {
 		my ($type1, $type2) = @_;
-		__PACKAGE__->new(name => "Union", args => [$type1, $type2], test => sub { $type1->test || $type2->test });
+		my $self;
+		$self=__PACKAGE__->new(name => "Union", args => [$type1, $type2], test => sub {	$type1->test || $type2->test });
 	},
 	"&" => sub {
 		my ($type1, $type2) = @_;
@@ -56,8 +57,20 @@ sub val_to_str {
 # Строковое представление
 sub stringify {
 	my ($self) = @_;
-	join "", $self->{name}, $self->{args}? ("[", join(", ", map {
-		ref($_) && UNIVERSAL::isa($_, __PACKAGE__)? $_->stringify: $self->val_to_str($_) } @{$self->{args}}), "]") : ();
+
+	my @args = map {
+		ref($_) && UNIVERSAL::isa($_, __PACKAGE__)? 
+			$_->stringify:
+			$self->val_to_str($_)
+	} @{$self->{args}};
+
+	$self->{name} eq "Union"? join "", "( ", join(" | ", @args), " )":
+	$self->{name} eq "Intersection"? join "", "( ", join(" & ", @args), " )":
+	$self->{name} eq "Exclude"? (
+		@args == 1? join "", "~", @args:
+			join "", "~( ", join(" & ", @args), " )"
+	):
+	join("", $self->{name}, @args? ("[", join(", ", @args), "]") : ());
 }
 
 # Тестировать значение в $_
