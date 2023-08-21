@@ -166,6 +166,7 @@ It extends the `Dict` other dictionaries, and `Tuple` and `CycleTuple` extends o
 
 ```perl
 {a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1
+{a => -1, b => -3.14} ~~ Dict[Slurp[ Dict[b => Num] ], a => Int]  # -> 1
 
 [3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
 [3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1

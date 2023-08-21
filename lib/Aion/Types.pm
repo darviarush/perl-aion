@@ -247,6 +247,7 @@ sub _dict {
 				my $ret = _dict($args, $hash);
 				return undef unless defined $ret;
 				$count += $ret;
+				$i--;
 			}
 			else {
 				die "Slurp[$name] is'nt in hash content!"
@@ -673,6 +674,7 @@ The optional keys in the C<Dict>.
 It extends the C<Dict> other dictionaries, and C<Tuple> and C<CycleTuple> extends other tuples and arrays.
 
 	{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1
+	{a => -1, b => -3.14} ~~ Dict[Slurp[ Dict[b => Num] ], a => Int]  # -> 1
 	
 	[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
 	[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
