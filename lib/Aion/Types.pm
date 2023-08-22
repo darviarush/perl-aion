@@ -19,13 +19,7 @@ our @EXPORT = our @EXPORT_OK = qw/
             Intersection
             Exclude
             Option
-            Slurp
 
-        Array
-            ATuple
-            ACycleTuple
-        Hash
-            HMap
         Item
             Bool
             Enum
@@ -188,85 +182,6 @@ sub coerce(@) {
 sub from($) { (from => $_[0]) }
 sub via(&) { (via => $_[0]) }
 
-# $types - arrayref of Aion::Type
-# $array - arrayref
-# $from - from index
-# $times - 0 - 0+, 1 - 1, 2 - 1+
-# returns increment if true or undef if false
-sub _tuple {
-	my ($types, $array, $from) = @_;
-	my $j = 0; my $i = $from;
-
-	use DDP; p my $S=[$types, $array, $from];
-
-	for(; $j < @$types; $j++) {
-		my $item = $array->[$i];
-		my $type = $types->[$j];
-
-		use DDP; p my $z=[$item, $type, $type->{is_slurp}];
-
-		if($type->{is_slurp}) {
-			my ($name, $args) = @{$type->{args}[0]}{qw/name args/};
-			use DDP; p my $y=[$name, $args];
-			if($name eq "ArrayRef") {
-				$i++ while $i < @$array && $args->[0]->include($array->[$i]);
-			}
-			elsif($name eq "Tuple") {
-				my $ret = _tuple($args, $array, $i);
-				use DDP; p my $x=[$args, $array, $i, $ret];
-				return undef unless defined $ret;
-				$i = $ret;
-			}
-			elsif($name eq "CycleTuple") {
-				my $ret = _tuple($args, $array, $i);
-				return undef unless defined $ret;
-				$i = $ret;
-				$i = $ret while defined($ret = _tuple($args, $array, $i));
-			} else {
-				die "Slurp[$name] is'nt valid in array context!";
-			}
-		} else {
-			return undef if $type->exclude($item);
-			$i++;
-		}
-	}
-
-	return $i;
-}
-
-# Проверяет, что есть соответствующие ключи с типами и считает их
-sub _dict {
-	my ($types, $hash) = @_;
-	my $count = 0;
-	for(my $i=0; $i<@$types; $i+=2) {
-		if(UNIVERSAL::isa($types->[$i], 'Aion::Type')) {
-			die "No key for $types->[$i]->{name}!" unless exists $types->[$i]->{is_slurp};
-			my ($name, $args) = @{$types->[$i]{args}[0]}{qw/name args/};
-
-			if($name eq "Dict") {
-				my $ret = _dict($args, $hash);
-				return undef unless defined $ret;
-				$count += $ret;
-				$i--;
-			}
-			else {
-				die "Slurp[$name] is'nt in hash content!"
-			}
-		}
-		else {
-			my ($k, $T) = @$types[$i, $i+1];
-			if(exists $hash->{$k}) {
-				return undef if $T->exclude($hash->{$k});
-				$count++;
-			} else {
-				return undef if !exists $T->{is_option};
-			}
-		}
-	}
-
-	$count
-}
-
 BEGIN {
 
 subtype "Any";
@@ -283,52 +198,6 @@ subtype "Any";
 				Tuple([Object(["Aion::Type"])])->validate(scalar ARGS, "Option[A]")
 			}
 			where { A->test };
-		subtype "Slurp[A]", as &Control,
-			init_where {
-				SELF->{is_slurp} = 1;
-				Tuple([Object(["Aion::Type"])])->validate(scalar ARGS, "Slurp[A]")
-			}
-			where { A->test };
-
-	subtype "Array`[A]", as &Any,
-		where { $_->[1] = @{$_->[0]}; 1 }
-		awhere {
-			my ($i, $a) = @$_; my ($A) = @_;
-			while($i<@$a) { $i++ if $A->include( $a->[$i] ) }
-			$_->[0] = $i;
-			return 1;
-		};
-
-		subtype "ATuple[A...]", as &Array,
-			init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS, "ATuple[A...]") }
-			where {
-				my $T = ARGS;
-				my ($i, $a) = @$_;
-				my $j = 0;
-				for(; $i < @$a && $j < @$T; $j++, $i++) { 
-					last unless $T->[$j]->include($a->[$i]);
-				}
-
-				$_->[0] = $i, return 1 if $j == @$T;
-
-				return 0;
-			};
-
-		subtype "ACycleTuple[A...]", as &Array,
-			init_where { ArrayRef([Object(['Aion::Type'])])->validate(scalar ARGS, "ACycleTuple[A...]") }
-			where {
-				my $A = ATuple $_[1];
-				$A->test or return 0;
-				while($A->test) {}
-				return 1;
-			};
-
-	subtype "Hash`[A]", as &Any,
-		where { ACycleTuple([&Str, &Item])->test }
-		awhere { ACycleTuple([&Str, $_[0]])->test };
-
-		subtype "HMap[K, V]", as &Any,
-		where { ACycleTuple([@_])->test };
 
 	subtype "Item", as &Any;
 		subtype "Bool", as &Item, where { ref $_ eq "" and /^(1|0|)\z/ };
@@ -353,16 +222,15 @@ subtype "Any";
 						init_where { $StrInit->() }
 						awhere { /\S/ && SELF->{min} <= length($_) && length($_) <= SELF->{max} };
 					subtype "Email", as &Str, where { /@/ };
-					subtype "Tel", as &Str, where { /^\+\d{7,}/ };
+					subtype "Tel", as &Str, where { /^\+\d{7,}\z/ };
 					subtype "Url", as &Str, where { /^https?:\/\// };
 					subtype "Path", as &Str, where { /^\// };
 					subtype "Html", as &Str, where { /^\s*<(!doctype|html)\b/i };
 					subtype "StrDate", as &Str, where { /^\d{4}-\d{2}-\d{2}\z/ };
 					subtype "StrDateTime", as &Str, where { /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/ };
 					subtype "StrMatch[qr/.../]", as &Str, where { $_ =~ A };
-					
-					subtype "ClassName", as &Str, where { $_->can('new') };
-					subtype "RoleName", as &Str, where { $_->can('requires') };
+					subtype "ClassName", as &Str, where { !!$_->can('new') };
+					subtype "RoleName", as &Str, where { !!$_->can('requires') };
 					subtype "Numeric", as &Str, where { Scalar::Util::looks_like_number($_) };
 						subtype "Num", as &Numeric, where { /\d\z/ };
 							subtype "PositiveNum", as &Num, where { $_ >= 0 };
@@ -409,9 +277,9 @@ subtype "Any";
 						0
 					) }
 					awhere { my $ref = Scalar::Util::reftype($_);
-						$ref eq "HASH"? A eq tied %$_:
-						$ref eq "ARRAY"? A eq tied @$_:
-						$ref eq "SCALAR"? A eq tied $$_:
+						$ref eq "HASH"? A eq ref tied %$_:
+						$ref eq "ARRAY"? A eq ref tied @$_:
+						$ref eq "SCALAR"? A eq ref tied $$_:
 						""
 					};
 				subtype "LValueRef", as &Ref, where { ref $_ eq "LVALUE" };
@@ -453,40 +321,44 @@ subtype "Any";
 				subtype "Tuple[A...]", as &ArrayRef,
 					init_where { $tuple_args->validate(scalar ARGS, "Arguments Tuple[A...]") }
 					where {
-						my $ret = _tuple(scalar ARGS, $_, 0);
-						return "" unless defined $ret;
-						return 1;
+						my $k = 0;
+						for my $A (ARGS) {
+							return "" if $A->exclude($_->[$k++]);
+						}
+						$k == @$_
 					};
 				subtype "CycleTuple[A...]", as &ArrayRef,
 					init_where { $tuple_args->validate(scalar ARGS, "Arguments CycleTuple[A...]") }
 					where {
-						my $args = ARGS;
-						for(my $i = 0, my $ret; $i < @$_; $i = $ret) {
-							$ret = _tuple($args, $_, $i);
-							return "" unless defined $ret;
+						my $k = 0;
+						while($k < @$_) {
+							for my $A (ARGS) {
+								return "" if $A->exclude($_->[$k++]);
+							}
 						}
-						return 1;
+						$k == @$_
 					};
 
-				my $dict_args = CycleTuple([
-					Slurp([Tuple([&Str => Object(['Aion::Type'])])])
-					| Object(['Aion::Type']) & HasProp([qw/is_slurp/])
-				]);
-
+				my $dict_args = CycleTuple([&Str, Object(['Aion::Type'])]);
 				subtype "Dict[k => A, ...]", as &HashRef,
-					init_where {
-						$dict_args->validate(scalar ARGS, "Arguments Dict[k => A, ...]");
-					}
+					init_where { $dict_args->validate(scalar ARGS, "Arguments Dict[k => A, ...]") }
 					where {
-						my $count = _dict(scalar ARGS, $_);
-						return "" unless defined $count;
-						return "" unless $count == keys %$_;
-						return 1;
+						my $count = 0; my $k;
+						for my $A (ARGS) {
+							$k = $A, next unless ref $A;
+							if(exists $_->{$k}) {
+								return "" if $A->exclude($_->{$k});
+								$count++;
+							} else {
+								return "" if !exists $A->{is_option};
+							}
+						}
+						$count == keys %$_
 					};
 
 			subtype "Like", as (&Str | &Object);
 				subtype "HasMethods[m...]", as &Like,
-					where { my $x = $_; all { $x->can($_) } @{$_[1]} };
+					where { my $x = $_; all { $x->can($_) } ARGS };
 				subtype "Overload`[m...]", as &Like,
 					where { !!overload::Overloaded($_) }
 					awhere { my $x = $_; all { overload::Method($x, $_) } ARGS };
@@ -498,13 +370,15 @@ subtype "Any";
 			subtype "RegexpLike", as (&RegexpRef | Overload(['qr']));
 			subtype "CodeLike", as (&CodeRef | Overload(['&{}']));
 			subtype "ArrayLike`[A]", as &Ref,
-				where { Scalar::Util::reftype($_) eq "ARRAY" || overload::Method($_, '@{}') }
+				where { Scalar::Util::reftype($_) eq "ARRAY" || !!overload::Method($_, '@{}') }
 				awhere { &ArrayLike->test && do { my $A = A; all { $A->test } @$_ }};
 			subtype "HashLike`[A]", as &Ref,
-				where { Scalar::Util::reftype($_) eq "HASH" || overload::Method($_, "%{}") }
+				where { Scalar::Util::reftype($_) eq "HASH" || !!overload::Method($_, "%{}") }
 				awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
 
 	coerce &Str => from &Undef => via { "" };
+	coerce &Int => from &Num => via { int($_+.5) };
+	coerce &Bool => from &Any => via { !!$_ };
 };
 
 1;
@@ -642,7 +516,7 @@ Top-level type in the hierarchy constructors new types from any types.
 
 =head2 Union[A, B...]
 
-Union many types.
+Union many types. It analog operator C<$type1 | $type2>.
 
 	33  ~~ Union[Int, Ref]    # -> 1
 	[]  ~~ Union[Int, Ref]    # -> 1
@@ -650,17 +524,24 @@ Union many types.
 
 =head2 Intersection[A, B...]
 
-Intersection many types.
+Intersection many types. It analog operator C<$type1 & $type2>.
 
 	15 ~~ Intersection[Int, StrMatch[/5/]]    # -> 1
 
 =head2 Exclude[A, B...]
 
-Exclude many types.
+Exclude many types. It analog operator C<~ $type>.
 
 	-5  ~~ Exclude[PositiveInt]    # -> 1
 	"a" ~~ Exclude[PositiveInt]    # -> 1
 	5   ~~ Exclude[PositiveInt]    # -> ""
+	5.5 ~~ Exclude[PositiveInt]    # -> 1
+
+If C<Exclude> has many arguments, then this analog C<~ ($type1 | $type2 ...)>.
+
+	-5  ~~ Exclude[PositiveInt, Enum[-2]]    # -> 1
+	-2  ~~ Exclude[PositiveInt, Enum[-2]]    # -> ""
+	0   ~~ Exclude[PositiveInt, Enum[-2]]    # -> ""
 
 =head2 Option[A]
 
@@ -668,42 +549,6 @@ The optional keys in the C<Dict>.
 
 	{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 	{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
-
-=head2 Slurp[A]
-
-It extends the C<Dict> other dictionaries, and C<Tuple> and C<CycleTuple> extends other tuples and arrays.
-
-	{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1
-	{a => -1, b => -3.14} ~~ Dict[Slurp[ Dict[b => Num] ], a => Int]  # -> 1
-	
-	[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
-	[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
-	
-	
-
-=head2 Array`[A]
-
-It use for check what the subroutine return array.
-
-	sub array123: Isa(Int => Array[Int]) {
-		my ($n) = @_;
-		return $n, $n+1, $n+2;
-	}
-	
-	[ array123(1) ]		# --> [2,3,4]
-	
-	eval { array123(1.1) }; # ~> 1
-	
-
-=head2 ATuple[A...]
-
-=head2 ACycleTuple[A...]
-
-=head2 Hash`[A]
-
-=head2 HMap[K, V]
-
-C<HMap[K, V]> is equivalent C<ACycleTuple[K, V]>.
 
 =head2 Item
 
@@ -822,11 +667,12 @@ Strings with C<@>.
 
 =head2 Tel
 
-Format phones is plus sign and one or many digits.
+Format phones is plus sign and seven or great digits.
 
-	"+1" ~~ Tel    # -> 1
-	"+ 1" ~~ Tel    # -> ""
-	"+1 " ~~ Tel    # -> ""
+	"+1234567" ~~ Tel    # -> 1
+	"+1234568" ~~ Tel    # -> 1
+	"+ 1234567" ~~ Tel    # -> ""
+	"+1234567 " ~~ Tel    # -> ""
 
 =head2 Url
 
@@ -904,7 +750,7 @@ Test scalar with C<Scalar::Util::looks_like_number>. Maybe spaces on end.
 
 The numbers.
 
-	-6.5 ~~ Num       # -> 1
+	-6.5 ~~ Num      # -> 1
 	6.5e-7 ~~ Num    # -> 1
 	"6.5 " ~~ Num    # -> ""
 
@@ -912,8 +758,10 @@ The numbers.
 
 The positive numbers.
 
-	 ~~ PositiveNum    # -> 1
-	 ~~ PositiveNum    # -> ""
+	0 ~~ PositiveNum     # -> 1
+	0.1 ~~ PositiveNum   # -> 1
+	-0.1 ~~ PositiveNum  # -> ""
+	-0 ~~ PositiveNum    # -> 1
 
 =head2 Float
 
@@ -935,16 +783,13 @@ The machine float number is 8 bytes.
 
 =head2 Range[from, to]
 
-Values between C<from> and C<to>.
+Numbers between C<from> and C<to>.
 
 	1 ~~ Range[1, 3]    # -> 1
 	2.5 ~~ Range[1, 3]  # -> 1
 	3 ~~ Range[1, 3]    # -> 1
 	3.1 ~~ Range[1, 3]  # -> ""
 	0.9 ~~ Range[1, 3]  # -> ""
-	"b" ~~ Range["a", "c"]  # -> 1
-	"bc" ~~ Range["a", "c"]  # -> 1
-	"d" ~~ Range["a", "c"]  # -> ""
 
 =head2 Int`[N]
 
@@ -959,8 +804,8 @@ C<N> - the number of bytes for limit.
 	127 ~~ Int[1]    # -> 1
 	128 ~~ Int[1]    # -> ""
 	
-	-127 ~~ Int[1]    # -> 1
-	-128 ~~ Int[1]    # -> ""
+	-128 ~~ Int[1]    # -> 1
+	-129 ~~ Int[1]    # -> ""
 
 =head2 PositiveInt`[N]
 
@@ -980,8 +825,8 @@ C<N> - the number of bytes for limit.
 
 Integers 1+.
 
-	1 ~~ Nat    # -> 1
 	0 ~~ Nat    # -> ""
+	1 ~~ Nat    # -> 1
 
 
 
@@ -999,20 +844,42 @@ The value is reference.
 
 The reference on the tied variable.
 
-	package A {
-	
+	package TiedExample {
+		sub TIEHASH { bless {@_}, shift }
 	}
 	
-	tie my %a, "A";
+	tie my %a, "TiedExample";
 	my %b;
 	
 	\%a ~~ Tied    # -> 1
 	\%b ~~ Tied    # -> ""
+	
+	ref tied %a  # => TiedExample
+	ref tied %{\%a}  # => TiedExample
+	
+	\%a ~~ Tied["TiedExample"]    # -> 1
+	\%a ~~ Tied["TiedExample2"]   # -> ""
 
 =head2 LValueRef
 
 The function allows assignment.
 
+	ref \substr("abc", 1, 2) # => LVALUE
+	ref \vec(42, 1, 2) # => LVALUE
+	
+	\substr("abc", 1, 2) ~~ LValueRef # -> 1
+	\vec(42, 1, 2) ~~ LValueRef # -> 1
+
+But it with C<: lvalue> do'nt working.
+
+	sub abc: lvalue { $_ }
+	
+	abc() = 12;
+	$_ # => 12
+	ref \abc()  # => SCALAR
+	\abc() ~~ LValueRef	# -> ""
+	
+	
 	package As {
 		sub x : lvalue {
 			shift->{x};
@@ -1023,14 +890,13 @@ The function allows assignment.
 	$x->x = 10;
 	
 	$x->x # => 10
-	$x->x ~~ LValueRef    # -> 1
+	$x    # --> bless {x=>10}, "As"
 	
-	sub abc: lvalue { $_ }
-	
-	abc() = 12;
-	$_ # => 12
-	\(&abc) ~~ LValueRef	# -> 1
-	
+	ref \$x->x 			# => SCALAR
+	\$x->x ~~ LValueRef # -> ""
+
+And on the end:
+
 	\1 ~~ LValueRef	# -> ""
 	
 	my $x = "abc";
@@ -1113,20 +979,21 @@ The hashes.
 
 The blessed values.
 
-	bless(\1, "A") ~~ Object    # -> 1
-	\1 ~~ Object			    # -> ""
+	bless(\(my $val=10), "A1") ~~ Object    # -> 1
+	\(my $val=10) ~~ Object			    	# -> ""
 	
-	bless(\1, "A") ~~ Object["A"]   # -> 1
-	bless(\1, "A") ~~ Object["B"]   # -> ""
+	bless(\(my $val=10), "A1") ~~ Object["A1"]   # -> 1
+	bless(\(my $val=10), "A1") ~~ Object["B1"]   # -> ""
 
 =head2 Map[K, V]
 
 As C<HashRef>, but has type for keys also.
 
-	{} ~~ Map[Int, Int]    # -> 1
+	{} ~~ Map[Int, Int]    		 # -> 1
 	{5 => 3} ~~ Map[Int, Int]    # -> 1
-	{5.5 => 3} ~~ Map[Int, Int]    # -> ""
-	{5 => 3.3} ~~ Map[Int, Int]    # -> ""
+	+{5.5 => 3} ~~ Map[Int, Int] # -> ""
+	{5 => 3.3} ~~ Map[Int, Int]  # -> ""
+	{5 => 3, 6 => 7} ~~ Map[Int, Int]  # -> 1
 
 =head2 Tuple[A...]
 
@@ -1150,8 +1017,11 @@ The tuple one or more times.
 The dictionary.
 
 	{a => -1.6, b => "abc"} ~~ Dict[a => Num, b => Str]    # -> 1
-	{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> 1
-	{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> 1
+	
+	{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> ""
+	{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> ""
+	
+	{a => -1.6} ~~ Dict[a => Num, b => Option[Str]]    # -> 1
 
 =head2 HasProp[p...]
 
@@ -1160,6 +1030,8 @@ The hash has properties.
 	{a => 1, b => 2, c => 3} ~~ HasProp[qw/a b/]    # -> 1
 	{a => 1, b => 2} ~~ HasProp[qw/a b/]    # -> 1
 	{a => 1, c => 3} ~~ HasProp[qw/a b/]    # -> ""
+	
+	bless({a => 1, b => 3}, "A") ~~ HasProp[qw/a b/]    # -> 1
 
 =head2 Like
 
@@ -1169,7 +1041,7 @@ The object or string.
 	1 ~~ Like    	# -> 1
 	bless({}, "A") ~~ Like    # -> 1
 	bless([], "A") ~~ Like    # -> 1
-	bless(\"", "A") ~~ Like    # -> 1
+	bless(\(my $str = ""), "A") ~~ Like    # -> 1
 	\1 ~~ Like    	# -> ""
 
 =head2 HasMethods[m...]
@@ -1181,12 +1053,12 @@ The object or the class has the methods.
 		sub x2 {}
 	}
 	
-	"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    			# -> 1
+	"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    		# -> 1
 	bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1 x2/] # -> 1
 	bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1/]    # -> 1
-	"HasMethodsExample" ~~ HasMethods[qw/x3/]    				# -> ""
+	"HasMethodsExample" ~~ HasMethods[qw/x3/]    			# -> ""
 	"HasMethodsExample" ~~ HasMethods[qw/x1 x2 x3/]    		# -> ""
-	"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    			# -> ""
+	"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    		# -> ""
 
 =head2 Overload`[op...]
 
@@ -1215,8 +1087,8 @@ The class or the object inherits the list of classes.
 	package Tiger { our @ISA = qw/Cat/ }
 	
 	
-	"Tiger" ~~ InstanceOf['Animal', 'Cat']    # -> 1
-	"Tiger" ~~ InstanceOf['Tiger']    		# -> ""
+	"Tiger" ~~ InstanceOf['Animal', 'Cat']  # -> 1
+	"Tiger" ~~ InstanceOf['Tiger']    		# -> 1
 	"Tiger" ~~ InstanceOf['Cat', 'Dog']    	# -> ""
 
 =head2 ConsumerOf[A...]
@@ -1266,7 +1138,11 @@ The arrays or objects with overloaded operator C<@{}>.
 	{} ~~ ArrayLike    	# -> ""
 	
 	package ArrayLikeExample {
-		use overload '@{}' => sub: lvalue { shift->{shift()} };
+		use overload '@{}' => sub {
+			use DDP; p @_;
+			my ($self, $key) = @_;
+			$self->{$key}
+		};
 	}
 	
 	my $x = bless {}, 'ArrayLikeExample';

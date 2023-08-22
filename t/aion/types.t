@@ -125,7 +125,7 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # 
 # ## Union[A, B...]
 # 
-# Union many types.
+# Union many types. It analog operator `$type1 | $type2`.
 # 
 done_testing; }; subtest 'Union[A, B...]' => sub { 
 is scalar do {33  ~~ Union[Int, Ref]}, scalar do{1}, '33  ~~ Union[Int, Ref]    # -> 1';
@@ -135,7 +135,7 @@ is scalar do {"a" ~~ Union[Int, Ref]}, scalar do{""}, '"a" ~~ Union[Int, Ref]   
 # 
 # ## Intersection[A, B...]
 # 
-# Intersection many types.
+# Intersection many types. It analog operator `$type1 & $type2`.
 # 
 done_testing; }; subtest 'Intersection[A, B...]' => sub { 
 is scalar do {15 ~~ Intersection[Int, StrMatch[/5/]]}, scalar do{1}, '15 ~~ Intersection[Int, StrMatch[/5/]]    # -> 1';
@@ -143,12 +143,21 @@ is scalar do {15 ~~ Intersection[Int, StrMatch[/5/]]}, scalar do{1}, '15 ~~ Inte
 # 
 # ## Exclude[A, B...]
 # 
-# Exclude many types.
+# Exclude many types. It analog operator `~ $type`.
 # 
 done_testing; }; subtest 'Exclude[A, B...]' => sub { 
 is scalar do {-5  ~~ Exclude[PositiveInt]}, scalar do{1}, '-5  ~~ Exclude[PositiveInt]    # -> 1';
 is scalar do {"a" ~~ Exclude[PositiveInt]}, scalar do{1}, '"a" ~~ Exclude[PositiveInt]    # -> 1';
 is scalar do {5   ~~ Exclude[PositiveInt]}, scalar do{""}, '5   ~~ Exclude[PositiveInt]    # -> ""';
+is scalar do {5.5 ~~ Exclude[PositiveInt]}, scalar do{1}, '5.5 ~~ Exclude[PositiveInt]    # -> 1';
+
+# 
+# If `Exclude` has many arguments, then this analog `~ ($type1 | $type2 ...)`.
+# 
+
+is scalar do {-5  ~~ Exclude[PositiveInt, Enum[-2]]}, scalar do{1}, '-5  ~~ Exclude[PositiveInt, Enum[-2]]    # -> 1';
+is scalar do {-2  ~~ Exclude[PositiveInt, Enum[-2]]}, scalar do{""}, '-2  ~~ Exclude[PositiveInt, Enum[-2]]    # -> ""';
+is scalar do {0   ~~ Exclude[PositiveInt, Enum[-2]]}, scalar do{""}, '0   ~~ Exclude[PositiveInt, Enum[-2]]    # -> ""';
 
 # 
 # ## Option[A]
@@ -159,50 +168,6 @@ done_testing; }; subtest 'Option[A]' => sub {
 is scalar do {{a=>55} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1';
 is scalar do {{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1';
 
-# 
-# ## Slurp[A]
-# 
-# It extends the `Dict` other dictionaries, and `Tuple` and `CycleTuple` extends other tuples and arrays.
-# 
-done_testing; }; subtest 'Slurp[A]' => sub { 
-is scalar do {{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]}, scalar do{1}, '{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1';
-is scalar do {{a => -1, b => -3.14} ~~ Dict[Slurp[ Dict[b => Num] ], a => Int]}, scalar do{1}, '{a => -1, b => -3.14} ~~ Dict[Slurp[ Dict[b => Num] ], a => Int]  # -> 1';
-
-is scalar do {[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ]}, scalar do{1}, '[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1';
-is scalar do {[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ]}, scalar do{1}, '[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1';
-
-
-
-# 
-# ## Array`[A]
-# 
-# It use for check what the subroutine return array.
-# 
-done_testing; }; subtest 'Array`[A]' => sub { 
-sub array123: Isa(Int => Array[Int]) {
-	my ($n) = @_;
-	return $n, $n+1, $n+2;
-}
-
-is_deeply scalar do {[ array123(1) ]}, scalar do {[2,3,4]}, '[ array123(1) ]		# --> [2,3,4]';
-
-like scalar do {eval { array123(1.1) };}, qr!1!, 'eval { array123(1.1) }; # ~> 1';
-
-
-# 
-# ## ATuple[A...]
-# 
-# 
-# ## ACycleTuple[A...]
-# 
-# 
-# ## Hash`[A]
-# 
-# 
-# ## HMap[K, V]
-# 
-# `HMap[K, V]` is equivalent `ACycleTuple[K, V]`.
-# 
 # 
 # ## Item
 # 
@@ -345,12 +310,13 @@ is scalar do {'a.a' ~~ Email}, scalar do{""}, '\'a.a\' ~~ Email    # -> ""';
 # 
 # ## Tel
 # 
-# Format phones is plus sign and one or many digits.
+# Format phones is plus sign and seven or great digits.
 # 
 done_testing; }; subtest 'Tel' => sub { 
-is scalar do {"+1" ~~ Tel}, scalar do{1}, '"+1" ~~ Tel    # -> 1';
-is scalar do {"+ 1" ~~ Tel}, scalar do{""}, '"+ 1" ~~ Tel    # -> ""';
-is scalar do {"+1 " ~~ Tel}, scalar do{""}, '"+1 " ~~ Tel    # -> ""';
+is scalar do {"+1234567" ~~ Tel}, scalar do{1}, '"+1234567" ~~ Tel    # -> 1';
+is scalar do {"+1234568" ~~ Tel}, scalar do{1}, '"+1234568" ~~ Tel    # -> 1';
+is scalar do {"+ 1234567" ~~ Tel}, scalar do{""}, '"+ 1234567" ~~ Tel    # -> ""';
+is scalar do {"+1234567 " ~~ Tel}, scalar do{""}, '"+1234567 " ~~ Tel    # -> ""';
 
 # 
 # ## Url
@@ -448,7 +414,7 @@ is scalar do {"v6.5" ~~ Numeric}, scalar do{""}, '"v6.5" ~~ Numeric    # -> ""';
 # The numbers.
 # 
 done_testing; }; subtest 'Num' => sub { 
-is scalar do {-6.5 ~~ Num}, scalar do{1}, '-6.5 ~~ Num       # -> 1';
+is scalar do {-6.5 ~~ Num}, scalar do{1}, '-6.5 ~~ Num      # -> 1';
 is scalar do {6.5e-7 ~~ Num}, scalar do{1}, '6.5e-7 ~~ Num    # -> 1';
 is scalar do {"6.5 " ~~ Num}, scalar do{""}, '"6.5 " ~~ Num    # -> ""';
 
@@ -458,8 +424,10 @@ is scalar do {"6.5 " ~~ Num}, scalar do{""}, '"6.5 " ~~ Num    # -> ""';
 # The positive numbers.
 # 
 done_testing; }; subtest 'PositiveNum' => sub { 
-is scalar do {~~ PositiveNum}, scalar do{1}, ' ~~ PositiveNum    # -> 1';
-is scalar do {~~ PositiveNum}, scalar do{""}, ' ~~ PositiveNum    # -> ""';
+is scalar do {0 ~~ PositiveNum}, scalar do{1}, '0 ~~ PositiveNum     # -> 1';
+is scalar do {0.1 ~~ PositiveNum}, scalar do{1}, '0.1 ~~ PositiveNum   # -> 1';
+is scalar do {-0.1 ~~ PositiveNum}, scalar do{""}, '-0.1 ~~ PositiveNum  # -> ""';
+is scalar do {-0 ~~ PositiveNum}, scalar do{1}, '-0 ~~ PositiveNum    # -> 1';
 
 # 
 # ## Float
@@ -486,7 +454,7 @@ is scalar do {-1.7976931348623159e+308 ~~ Double}, scalar do{""}, '-1.7976931348
 # 
 # ## Range[from, to]
 # 
-# Values between `from` and `to`.
+# Numbers between `from` and `to`.
 # 
 done_testing; }; subtest 'Range[from, to]' => sub { 
 is scalar do {1 ~~ Range[1, 3]}, scalar do{1}, '1 ~~ Range[1, 3]    # -> 1';
@@ -494,9 +462,6 @@ is scalar do {2.5 ~~ Range[1, 3]}, scalar do{1}, '2.5 ~~ Range[1, 3]  # -> 1';
 is scalar do {3 ~~ Range[1, 3]}, scalar do{1}, '3 ~~ Range[1, 3]    # -> 1';
 is scalar do {3.1 ~~ Range[1, 3]}, scalar do{""}, '3.1 ~~ Range[1, 3]  # -> ""';
 is scalar do {0.9 ~~ Range[1, 3]}, scalar do{""}, '0.9 ~~ Range[1, 3]  # -> ""';
-is scalar do {"b" ~~ Range["a", "c"]}, scalar do{1}, '"b" ~~ Range["a", "c"]  # -> 1';
-is scalar do {"bc" ~~ Range["a", "c"]}, scalar do{1}, '"bc" ~~ Range["a", "c"]  # -> 1';
-is scalar do {"d" ~~ Range["a", "c"]}, scalar do{""}, '"d" ~~ Range["a", "c"]  # -> ""';
 
 # 
 # ## Int`[N]
@@ -515,8 +480,8 @@ is scalar do {5.5 ~~ Int}, scalar do{""}, '5.5 ~~ Int    # -> ""';
 is scalar do {127 ~~ Int[1]}, scalar do{1}, '127 ~~ Int[1]    # -> 1';
 is scalar do {128 ~~ Int[1]}, scalar do{""}, '128 ~~ Int[1]    # -> ""';
 
-is scalar do {-127 ~~ Int[1]}, scalar do{1}, '-127 ~~ Int[1]    # -> 1';
-is scalar do {-128 ~~ Int[1]}, scalar do{""}, '-128 ~~ Int[1]    # -> ""';
+is scalar do {-128 ~~ Int[1]}, scalar do{1}, '-128 ~~ Int[1]    # -> 1';
+is scalar do {-129 ~~ Int[1]}, scalar do{""}, '-129 ~~ Int[1]    # -> ""';
 
 # 
 # ## PositiveInt`[N]
@@ -542,8 +507,8 @@ is scalar do {256 ~~ PositiveInt[1]}, scalar do{""}, '256 ~~ PositiveInt[1]    #
 # Integers 1+.
 # 
 done_testing; }; subtest 'Nat`[N]' => sub { 
-is scalar do {1 ~~ Nat}, scalar do{1}, '1 ~~ Nat    # -> 1';
 is scalar do {0 ~~ Nat}, scalar do{""}, '0 ~~ Nat    # -> ""';
+is scalar do {1 ~~ Nat}, scalar do{1}, '1 ~~ Nat    # -> 1';
 
 # 
 
@@ -565,15 +530,21 @@ is scalar do {1 ~~ Ref}, scalar do{""}, '1 ~~ Ref     # -> ""';
 # The reference on the tied variable.
 # 
 done_testing; }; subtest 'Tied`[A]' => sub { 
-package A {
-
+package TiedExample {
+	sub TIEHASH { bless {@_}, shift }
 }
 
-tie my %a, "A";
+tie my %a, "TiedExample";
 my %b;
 
 is scalar do {\%a ~~ Tied}, scalar do{1}, '\%a ~~ Tied    # -> 1';
 is scalar do {\%b ~~ Tied}, scalar do{""}, '\%b ~~ Tied    # -> ""';
+
+is scalar do {ref tied %a}, "TiedExample", 'ref tied %a  # => TiedExample';
+is scalar do {ref tied %{\%a}}, "TiedExample", 'ref tied %{\%a}  # => TiedExample';
+
+is scalar do {\%a ~~ Tied["TiedExample"]}, scalar do{1}, '\%a ~~ Tied["TiedExample"]    # -> 1';
+is scalar do {\%a ~~ Tied["TiedExample2"]}, scalar do{""}, '\%a ~~ Tied["TiedExample2"]   # -> ""';
 
 # 
 # ## LValueRef
@@ -581,6 +552,24 @@ is scalar do {\%b ~~ Tied}, scalar do{""}, '\%b ~~ Tied    # -> ""';
 # The function allows assignment.
 # 
 done_testing; }; subtest 'LValueRef' => sub { 
+is scalar do {ref \substr("abc", 1, 2)}, "LVALUE", 'ref \substr("abc", 1, 2) # => LVALUE';
+is scalar do {ref \vec(42, 1, 2)}, "LVALUE", 'ref \vec(42, 1, 2) # => LVALUE';
+
+is scalar do {\substr("abc", 1, 2) ~~ LValueRef}, scalar do{1}, '\substr("abc", 1, 2) ~~ LValueRef # -> 1';
+is scalar do {\vec(42, 1, 2) ~~ LValueRef}, scalar do{1}, '\vec(42, 1, 2) ~~ LValueRef # -> 1';
+
+# 
+# But it with `: lvalue` do'nt working.
+# 
+
+sub abc: lvalue { $_ }
+
+abc() = 12;
+is scalar do {$_}, "12", '$_ # => 12';
+is scalar do {ref \abc()}, "SCALAR", 'ref \abc()  # => SCALAR';
+is scalar do {\abc() ~~ LValueRef}, scalar do{""}, '\abc() ~~ LValueRef	# -> ""';
+
+
 package As {
 	sub x : lvalue {
 		shift->{x};
@@ -591,13 +580,14 @@ my $x = bless {}, "As";
 $x->x = 10;
 
 is scalar do {$x->x}, "10", '$x->x # => 10';
-is scalar do {$x->x ~~ LValueRef}, scalar do{1}, '$x->x ~~ LValueRef    # -> 1';
+is_deeply scalar do {$x}, scalar do {bless {x=>10}, "As"}, '$x    # --> bless {x=>10}, "As"';
 
-sub abc: lvalue { $_ }
+is scalar do {ref \$x->x}, "SCALAR", 'ref \$x->x 			# => SCALAR';
+is scalar do {\$x->x ~~ LValueRef}, scalar do{""}, '\$x->x ~~ LValueRef # -> ""';
 
-abc() = 12;
-is scalar do {$_}, "12", '$_ # => 12';
-is scalar do {\(&abc) ~~ LValueRef}, scalar do{1}, '\(&abc) ~~ LValueRef	# -> 1';
+# 
+# And on the end:
+# 
 
 is scalar do {\1 ~~ LValueRef}, scalar do{""}, '\1 ~~ LValueRef	# -> ""';
 
@@ -699,11 +689,11 @@ is scalar do {{x=>1, y=>""} ~~ HashRef[Int]}, scalar do{""}, '{x=>1, y=>""} ~~ H
 # The blessed values.
 # 
 done_testing; }; subtest 'Object`[O]' => sub { 
-is scalar do {bless(\1, "A") ~~ Object}, scalar do{1}, 'bless(\1, "A") ~~ Object    # -> 1';
-is scalar do {\1 ~~ Object}, scalar do{""}, '\1 ~~ Object			    # -> ""';
+is scalar do {bless(\(my $val=10), "A1") ~~ Object}, scalar do{1}, 'bless(\(my $val=10), "A1") ~~ Object    # -> 1';
+is scalar do {\(my $val=10) ~~ Object}, scalar do{""}, '\(my $val=10) ~~ Object			    	# -> ""';
 
-is scalar do {bless(\1, "A") ~~ Object["A"]}, scalar do{1}, 'bless(\1, "A") ~~ Object["A"]   # -> 1';
-is scalar do {bless(\1, "A") ~~ Object["B"]}, scalar do{""}, 'bless(\1, "A") ~~ Object["B"]   # -> ""';
+is scalar do {bless(\(my $val=10), "A1") ~~ Object["A1"]}, scalar do{1}, 'bless(\(my $val=10), "A1") ~~ Object["A1"]   # -> 1';
+is scalar do {bless(\(my $val=10), "A1") ~~ Object["B1"]}, scalar do{""}, 'bless(\(my $val=10), "A1") ~~ Object["B1"]   # -> ""';
 
 # 
 # ## Map[K, V]
@@ -711,10 +701,11 @@ is scalar do {bless(\1, "A") ~~ Object["B"]}, scalar do{""}, 'bless(\1, "A") ~~ 
 # As `HashRef`, but has type for keys also.
 # 
 done_testing; }; subtest 'Map[K, V]' => sub { 
-is scalar do {{} ~~ Map[Int, Int]}, scalar do{1}, '{} ~~ Map[Int, Int]    # -> 1';
+is scalar do {{} ~~ Map[Int, Int]}, scalar do{1}, '{} ~~ Map[Int, Int]    		 # -> 1';
 is scalar do {{5 => 3} ~~ Map[Int, Int]}, scalar do{1}, '{5 => 3} ~~ Map[Int, Int]    # -> 1';
-is scalar do {{5.5 => 3} ~~ Map[Int, Int]}, scalar do{""}, '{5.5 => 3} ~~ Map[Int, Int]    # -> ""';
-is scalar do {{5 => 3.3} ~~ Map[Int, Int]}, scalar do{""}, '{5 => 3.3} ~~ Map[Int, Int]    # -> ""';
+is scalar do {+{5.5 => 3} ~~ Map[Int, Int]}, scalar do{""}, '+{5.5 => 3} ~~ Map[Int, Int] # -> ""';
+is scalar do {{5 => 3.3} ~~ Map[Int, Int]}, scalar do{""}, '{5 => 3.3} ~~ Map[Int, Int]  # -> ""';
+is scalar do {{5 => 3, 6 => 7} ~~ Map[Int, Int]}, scalar do{1}, '{5 => 3, 6 => 7} ~~ Map[Int, Int]  # -> 1';
 
 # 
 # ## Tuple[A...]
@@ -744,8 +735,11 @@ is scalar do {["a", -5, "x", -6.2] ~~ CycleTuple[Str, Int]}, scalar do{""}, '["a
 # 
 done_testing; }; subtest 'Dict[k => A, ...]' => sub { 
 is scalar do {{a => -1.6, b => "abc"} ~~ Dict[a => Num, b => Str]}, scalar do{1}, '{a => -1.6, b => "abc"} ~~ Dict[a => Num, b => Str]    # -> 1';
-is scalar do {{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]}, scalar do{1}, '{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> 1';
-is scalar do {{a => -1.6} ~~ Dict[a => Num, b => Str]}, scalar do{1}, '{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> 1';
+
+is scalar do {{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]}, scalar do{""}, '{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> ""';
+is scalar do {{a => -1.6} ~~ Dict[a => Num, b => Str]}, scalar do{""}, '{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> ""';
+
+is scalar do {{a => -1.6} ~~ Dict[a => Num, b => Option[Str]]}, scalar do{1}, '{a => -1.6} ~~ Dict[a => Num, b => Option[Str]]    # -> 1';
 
 # 
 # ## HasProp[p...]
@@ -757,6 +751,8 @@ is scalar do {{a => 1, b => 2, c => 3} ~~ HasProp[qw/a b/]}, scalar do{1}, '{a =
 is scalar do {{a => 1, b => 2} ~~ HasProp[qw/a b/]}, scalar do{1}, '{a => 1, b => 2} ~~ HasProp[qw/a b/]    # -> 1';
 is scalar do {{a => 1, c => 3} ~~ HasProp[qw/a b/]}, scalar do{""}, '{a => 1, c => 3} ~~ HasProp[qw/a b/]    # -> ""';
 
+is scalar do {bless({a => 1, b => 3}, "A") ~~ HasProp[qw/a b/]}, scalar do{1}, 'bless({a => 1, b => 3}, "A") ~~ HasProp[qw/a b/]    # -> 1';
+
 # 
 # ## Like
 # 
@@ -767,7 +763,7 @@ is scalar do {"" ~~ Like}, scalar do{1}, '"" ~~ Like    	# -> 1';
 is scalar do {1 ~~ Like}, scalar do{1}, '1 ~~ Like    	# -> 1';
 is scalar do {bless({}, "A") ~~ Like}, scalar do{1}, 'bless({}, "A") ~~ Like    # -> 1';
 is scalar do {bless([], "A") ~~ Like}, scalar do{1}, 'bless([], "A") ~~ Like    # -> 1';
-is scalar do {bless(\"", "A") ~~ Like}, scalar do{1}, 'bless(\"", "A") ~~ Like    # -> 1';
+is scalar do {bless(\(my $str = ""), "A") ~~ Like}, scalar do{1}, 'bless(\(my $str = ""), "A") ~~ Like    # -> 1';
 is scalar do {\1 ~~ Like}, scalar do{""}, '\1 ~~ Like    	# -> ""';
 
 # 
@@ -781,12 +777,12 @@ package HasMethodsExample {
 	sub x2 {}
 }
 
-is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]}, scalar do{1}, '"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    			# -> 1';
+is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]}, scalar do{1}, '"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    		# -> 1';
 is scalar do {bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1 x2/]}, scalar do{1}, 'bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1 x2/] # -> 1';
 is scalar do {bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1/]}, scalar do{1}, 'bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1/]    # -> 1';
-is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x3/]}, scalar do{""}, '"HasMethodsExample" ~~ HasMethods[qw/x3/]    				# -> ""';
+is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x3/]}, scalar do{""}, '"HasMethodsExample" ~~ HasMethods[qw/x3/]    			# -> ""';
 is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x1 x2 x3/]}, scalar do{""}, '"HasMethodsExample" ~~ HasMethods[qw/x1 x2 x3/]    		# -> ""';
-is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]}, scalar do{""}, '"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    			# -> ""';
+is scalar do {"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]}, scalar do{""}, '"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    		# -> ""';
 
 # 
 # ## Overload`[op...]
@@ -821,8 +817,8 @@ package Cat { our @ISA = qw/Animal/ }
 package Tiger { our @ISA = qw/Cat/ }
 
 
-is scalar do {"Tiger" ~~ InstanceOf['Animal', 'Cat']}, scalar do{1}, '"Tiger" ~~ InstanceOf[\'Animal\', \'Cat\']    # -> 1';
-is scalar do {"Tiger" ~~ InstanceOf['Tiger']}, scalar do{""}, '"Tiger" ~~ InstanceOf[\'Tiger\']    		# -> ""';
+is scalar do {"Tiger" ~~ InstanceOf['Animal', 'Cat']}, scalar do{1}, '"Tiger" ~~ InstanceOf[\'Animal\', \'Cat\']  # -> 1';
+is scalar do {"Tiger" ~~ InstanceOf['Tiger']}, scalar do{1}, '"Tiger" ~~ InstanceOf[\'Tiger\']    		# -> 1';
 is scalar do {"Tiger" ~~ InstanceOf['Cat', 'Dog']}, scalar do{""}, '"Tiger" ~~ InstanceOf[\'Cat\', \'Dog\']    	# -> ""';
 
 # 
@@ -880,7 +876,11 @@ is scalar do {[] ~~ ArrayLike}, scalar do{1}, '[] ~~ ArrayLike    	# -> 1';
 is scalar do {{} ~~ ArrayLike}, scalar do{""}, '{} ~~ ArrayLike    	# -> ""';
 
 package ArrayLikeExample {
-	use overload '@{}' => sub: lvalue { shift->{shift()} };
+	use overload '@{}' => sub {
+		use DDP; p @_;
+		my ($self, $key) = @_;
+		$self->{$key}
+	};
 }
 
 my $x = bless {}, 'ArrayLikeExample';

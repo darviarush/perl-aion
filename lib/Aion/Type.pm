@@ -12,8 +12,7 @@ use overload
 	'""' => \&stringify,									# Отображать тип в трейсбеке в строковом представлении
 	"|" => sub {
 		my ($type1, $type2) = @_;
-		my $self;
-		$self=__PACKAGE__->new(name => "Union", args => [$type1, $type2], test => sub {	$type1->test || $type2->test });
+		__PACKAGE__->new(name => "Union", args => [$type1, $type2], test => sub { $type1->test || $type2->test });
 	},
 	"&" => sub {
 		my ($type1, $type2) = @_;
@@ -68,7 +67,7 @@ sub stringify {
 	$self->{name} eq "Intersection"? join "", "( ", join(" & ", @args), " )":
 	$self->{name} eq "Exclude"? (
 		@args == 1? join "", "~", @args:
-			join "", "~( ", join(" & ", @args), " )"
+			join "", "~( ", join(" | ", @args), " )"
 	):
 	join("", $self->{name}, @args? ("[", join(", ", @args), "]") : ());
 }

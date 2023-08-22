@@ -125,7 +125,7 @@ Top-level type in the hierarchy constructors new types from any types.
 
 ## Union[A, B...]
 
-Union many types.
+Union many types. It analog operator `$type1 | $type2`.
 
 ```perl
 33  ~~ Union[Int, Ref]    # -> 1
@@ -135,7 +135,7 @@ Union many types.
 
 ## Intersection[A, B...]
 
-Intersection many types.
+Intersection many types. It analog operator `$type1 & $type2`.
 
 ```perl
 15 ~~ Intersection[Int, StrMatch[/5/]]    # -> 1
@@ -143,12 +143,21 @@ Intersection many types.
 
 ## Exclude[A, B...]
 
-Exclude many types.
+Exclude many types. It analog operator `~ $type`.
 
 ```perl
 -5  ~~ Exclude[PositiveInt]    # -> 1
 "a" ~~ Exclude[PositiveInt]    # -> 1
 5   ~~ Exclude[PositiveInt]    # -> ""
+5.5 ~~ Exclude[PositiveInt]    # -> 1
+```
+
+If `Exclude` has many arguments, then this analog `~ ($type1 | $type2 ...)`.
+
+```perl
+-5  ~~ Exclude[PositiveInt, Enum[-2]]    # -> 1
+-2  ~~ Exclude[PositiveInt, Enum[-2]]    # -> ""
+0   ~~ Exclude[PositiveInt, Enum[-2]]    # -> ""
 ```
 
 ## Option[A]
@@ -159,50 +168,6 @@ The optional keys in the `Dict`.
 {a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 {a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 ```
-
-## Slurp[A]
-
-It extends the `Dict` other dictionaries, and `Tuple` and `CycleTuple` extends other tuples and arrays.
-
-```perl
-{a => 1, b => 3.14} ~~ Dict[a => Int, Slurp[ Dict[b => Num] ] ]  # -> 1
-{a => -1, b => -3.14} ~~ Dict[Slurp[ Dict[b => Num] ], a => Int]  # -> 1
-
-[3.3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
-[3.3, 1,2,3, 3.3] ~~ Tuple[Num, Slurp[ ArrayRef[Int] ], Num ] # -> 1
-
-
-```
-
-## Array`[A]
-
-It use for check what the subroutine return array.
-
-```perl
-sub array123: Isa(Int => Array[Int]) {
-	my ($n) = @_;
-	return $n, $n+1, $n+2;
-}
-
-[ array123(1) ]		# --> [2,3,4]
-
-eval { array123(1.1) }; # ~> 1
-
-```
-
-## ATuple[A...]
-
-
-## ACycleTuple[A...]
-
-
-## Hash`[A]
-
-
-## HMap[K, V]
-
-`HMap[K, V]` is equivalent `ACycleTuple[K, V]`.
-
 
 ## Item
 
@@ -345,12 +310,13 @@ Strings with `@`.
 
 ## Tel
 
-Format phones is plus sign and one or many digits.
+Format phones is plus sign and seven or great digits.
 
 ```perl
-"+1" ~~ Tel    # -> 1
-"+ 1" ~~ Tel    # -> ""
-"+1 " ~~ Tel    # -> ""
+"+1234567" ~~ Tel    # -> 1
+"+1234568" ~~ Tel    # -> 1
+"+ 1234567" ~~ Tel    # -> ""
+"+1234567 " ~~ Tel    # -> ""
 ```
 
 ## Url
@@ -448,7 +414,7 @@ Test scalar with `Scalar::Util::looks_like_number`. Maybe spaces on end.
 The numbers.
 
 ```perl
--6.5 ~~ Num       # -> 1
+-6.5 ~~ Num      # -> 1
 6.5e-7 ~~ Num    # -> 1
 "6.5 " ~~ Num    # -> ""
 ```
@@ -458,8 +424,10 @@ The numbers.
 The positive numbers.
 
 ```perl
- ~~ PositiveNum    # -> 1
- ~~ PositiveNum    # -> ""
+0 ~~ PositiveNum     # -> 1
+0.1 ~~ PositiveNum   # -> 1
+-0.1 ~~ PositiveNum  # -> ""
+-0 ~~ PositiveNum    # -> 1
 ```
 
 ## Float
@@ -486,7 +454,7 @@ The machine float number is 8 bytes.
 
 ## Range[from, to]
 
-Values between `from` and `to`.
+Numbers between `from` and `to`.
 
 ```perl
 1 ~~ Range[1, 3]    # -> 1
@@ -494,9 +462,6 @@ Values between `from` and `to`.
 3 ~~ Range[1, 3]    # -> 1
 3.1 ~~ Range[1, 3]  # -> ""
 0.9 ~~ Range[1, 3]  # -> ""
-"b" ~~ Range["a", "c"]  # -> 1
-"bc" ~~ Range["a", "c"]  # -> 1
-"d" ~~ Range["a", "c"]  # -> ""
 ```
 
 ## Int`[N]
@@ -515,8 +480,8 @@ Integers.
 127 ~~ Int[1]    # -> 1
 128 ~~ Int[1]    # -> ""
 
--127 ~~ Int[1]    # -> 1
--128 ~~ Int[1]    # -> ""
+-128 ~~ Int[1]    # -> 1
+-129 ~~ Int[1]    # -> ""
 ```
 
 ## PositiveInt`[N]
@@ -542,8 +507,8 @@ Positive integers.
 Integers 1+.
 
 ```perl
-1 ~~ Nat    # -> 1
 0 ~~ Nat    # -> ""
+1 ~~ Nat    # -> 1
 ```
 
 ```perl
@@ -565,15 +530,21 @@ The value is reference.
 The reference on the tied variable.
 
 ```perl
-package A {
-
+package TiedExample {
+	sub TIEHASH { bless {@_}, shift }
 }
 
-tie my %a, "A";
+tie my %a, "TiedExample";
 my %b;
 
 \%a ~~ Tied    # -> 1
 \%b ~~ Tied    # -> ""
+
+ref tied %a  # => TiedExample
+ref tied %{\%a}  # => TiedExample
+
+\%a ~~ Tied["TiedExample"]    # -> 1
+\%a ~~ Tied["TiedExample2"]   # -> ""
 ```
 
 ## LValueRef
@@ -581,6 +552,24 @@ my %b;
 The function allows assignment.
 
 ```perl
+ref \substr("abc", 1, 2) # => LVALUE
+ref \vec(42, 1, 2) # => LVALUE
+
+\substr("abc", 1, 2) ~~ LValueRef # -> 1
+\vec(42, 1, 2) ~~ LValueRef # -> 1
+```
+
+But it with `: lvalue` do'nt working.
+
+```perl
+sub abc: lvalue { $_ }
+
+abc() = 12;
+$_ # => 12
+ref \abc()  # => SCALAR
+\abc() ~~ LValueRef	# -> ""
+
+
 package As {
 	sub x : lvalue {
 		shift->{x};
@@ -591,14 +580,15 @@ my $x = bless {}, "As";
 $x->x = 10;
 
 $x->x # => 10
-$x->x ~~ LValueRef    # -> 1
+$x    # --> bless {x=>10}, "As"
 
-sub abc: lvalue { $_ }
+ref \$x->x 			# => SCALAR
+\$x->x ~~ LValueRef # -> ""
+```
 
-abc() = 12;
-$_ # => 12
-\(&abc) ~~ LValueRef	# -> 1
+And on the end:
 
+```perl
 \1 ~~ LValueRef	# -> ""
 
 my $x = "abc";
@@ -699,11 +689,11 @@ The hashes.
 The blessed values.
 
 ```perl
-bless(\1, "A") ~~ Object    # -> 1
-\1 ~~ Object			    # -> ""
+bless(\(my $val=10), "A1") ~~ Object    # -> 1
+\(my $val=10) ~~ Object			    	# -> ""
 
-bless(\1, "A") ~~ Object["A"]   # -> 1
-bless(\1, "A") ~~ Object["B"]   # -> ""
+bless(\(my $val=10), "A1") ~~ Object["A1"]   # -> 1
+bless(\(my $val=10), "A1") ~~ Object["B1"]   # -> ""
 ```
 
 ## Map[K, V]
@@ -711,10 +701,11 @@ bless(\1, "A") ~~ Object["B"]   # -> ""
 As `HashRef`, but has type for keys also.
 
 ```perl
-{} ~~ Map[Int, Int]    # -> 1
+{} ~~ Map[Int, Int]    		 # -> 1
 {5 => 3} ~~ Map[Int, Int]    # -> 1
-{5.5 => 3} ~~ Map[Int, Int]    # -> ""
-{5 => 3.3} ~~ Map[Int, Int]    # -> ""
++{5.5 => 3} ~~ Map[Int, Int] # -> ""
+{5 => 3.3} ~~ Map[Int, Int]  # -> ""
+{5 => 3, 6 => 7} ~~ Map[Int, Int]  # -> 1
 ```
 
 ## Tuple[A...]
@@ -744,8 +735,11 @@ The dictionary.
 
 ```perl
 {a => -1.6, b => "abc"} ~~ Dict[a => Num, b => Str]    # -> 1
-{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> 1
-{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> 1
+
+{a => -1.6, b => "abc", c => 3} ~~ Dict[a => Num, b => Str]    # -> ""
+{a => -1.6} ~~ Dict[a => Num, b => Str]    # -> ""
+
+{a => -1.6} ~~ Dict[a => Num, b => Option[Str]]    # -> 1
 ```
 
 ## HasProp[p...]
@@ -756,6 +750,8 @@ The hash has properties.
 {a => 1, b => 2, c => 3} ~~ HasProp[qw/a b/]    # -> 1
 {a => 1, b => 2} ~~ HasProp[qw/a b/]    # -> 1
 {a => 1, c => 3} ~~ HasProp[qw/a b/]    # -> ""
+
+bless({a => 1, b => 3}, "A") ~~ HasProp[qw/a b/]    # -> 1
 ```
 
 ## Like
@@ -767,7 +763,7 @@ The object or string.
 1 ~~ Like    	# -> 1
 bless({}, "A") ~~ Like    # -> 1
 bless([], "A") ~~ Like    # -> 1
-bless(\"", "A") ~~ Like    # -> 1
+bless(\(my $str = ""), "A") ~~ Like    # -> 1
 \1 ~~ Like    	# -> ""
 ```
 
@@ -781,12 +777,12 @@ package HasMethodsExample {
 	sub x2 {}
 }
 
-"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    			# -> 1
+"HasMethodsExample" ~~ HasMethods[qw/x1 x2/]    		# -> 1
 bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1 x2/] # -> 1
 bless({}, "HasMethodsExample") ~~ HasMethods[qw/x1/]    # -> 1
-"HasMethodsExample" ~~ HasMethods[qw/x3/]    				# -> ""
+"HasMethodsExample" ~~ HasMethods[qw/x3/]    			# -> ""
 "HasMethodsExample" ~~ HasMethods[qw/x1 x2 x3/]    		# -> ""
-"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    			# -> ""
+"HasMethodsExample" ~~ HasMethods[qw/x1 x3/]    		# -> ""
 ```
 
 ## Overload`[op...]
@@ -821,8 +817,8 @@ package Cat { our @ISA = qw/Animal/ }
 package Tiger { our @ISA = qw/Cat/ }
 
 
-"Tiger" ~~ InstanceOf['Animal', 'Cat']    # -> 1
-"Tiger" ~~ InstanceOf['Tiger']    		# -> ""
+"Tiger" ~~ InstanceOf['Animal', 'Cat']  # -> 1
+"Tiger" ~~ InstanceOf['Tiger']    		# -> 1
 "Tiger" ~~ InstanceOf['Cat', 'Dog']    	# -> ""
 ```
 
@@ -880,7 +876,11 @@ The arrays or objects with overloaded operator `@{}`.
 {} ~~ ArrayLike    	# -> ""
 
 package ArrayLikeExample {
-	use overload '@{}' => sub: lvalue { shift->{shift()} };
+	use overload '@{}' => sub {
+		use DDP; p @_;
+		my ($self, $key) = @_;
+		$self->{$key}
+	};
 }
 
 my $x = bless {}, 'ArrayLikeExample';
