@@ -71,15 +71,16 @@ sub _isa {
 
     $feature->{isa} = $isa;
 
-    $construct->{get} = "\$self->FEATURE->{$name}{isa}->validate(do{$construct->{get}}, '$name')" if ISA =~ /ro|rw/;
+    $construct->{get} = "\$self->FEATURE->{$name}{isa}->validate(do{$construct->{get}}, 'Get feature `$name`')" if ISA =~ /ro|rw/;
 
-    $construct->{set} = "\$self->FEATURE->{$name}{isa}->validate(\$val, '$name'); $construct->{set}" if ISA =~ /wo|rw/;
+    $construct->{set} = "\$self->FEATURE->{$name}{isa}->validate(\$val, 'Set feature `$name`'); $construct->{set}" if ISA =~ /wo|rw/;
 }
 
 # coerce => 1
 sub _coerce {
     my ($cls, $name, $type, $construct, $feature) = @_;
-    $construct->{set} = "\$val = \$self->FEATURE->{$name}{isa}->coerce(\$val); $construct->{set}"
+    $construct->{coerce} = "\$val = \$self->FEATURE->{$name}{isa}->coerce(\$val); ";
+    $construct->{set} = "%(coerce)s$construct->{set}"
 }
 
 # default => value
@@ -240,9 +241,7 @@ sub _resolv {
 
 # конструктор
 sub new {
-	my $cls = shift;
-	
-	my ($self, @errors) = $cls->create_from_params(@_);
+	my ($self, @errors) = create_from_params(@_);
 
 	die join "", "has:\n\n", map "* $_\n", @errors if @errors;
 
@@ -268,12 +267,12 @@ sub create_from_params {
 			if(!$feature->{not_in_new}) {
 				$val = $feature->{coerce}->coerce($val) if $feature->{coerce};
 
-				push @errors, $feature->{isa}->detail($val, $name)
+				push @errors, $feature->{isa}->detail($val, "Feature $name")
                     if ISA =~ /w/ && $feature->{isa} && !$feature->{isa}->include($val);
 				$self->{$name} = $val;
 			}
 			else {
-				push @errors, "has: feature $name not set in new!";
+				push @errors, "Feature $name not set in new!";
 			}
 		} elsif($feature->{required}) {
             push @required, $name;
@@ -309,27 +308,20 @@ B<Aion> — A postmodern object system for Perl 5, as C<Moose> and C<Moo>, but w
 
 =head1 SYNOPSIS
 
-File lib/Calc.pm:
-
-	package Calc;
+	package Calc {
 	
-	use Aion;
+	    use Aion;
 	
-	has a => (is => 'ro+', isa => Num);
-	has b => (is => 'ro+', isa => Num);
-	has op => (is => 'ro', isa => Enum[qw/+ - * \/ **/], default => '+');
+	    has a => (is => 'ro+', isa => Num);
+	    has b => (is => 'ro+', isa => Num);
+	    has op => (is => 'ro', isa => Enum[qw/+ - * \/ **/], default => '+');
 	
-	sub result {
-	    my ($self) = @_;
-	    eval "${\ $self->a} ${\ $self->op} ${\ $self->b}"
+	    sub result {
+	        my ($self) = @_;
+	        eval "${\ $self->a} ${\ $self->op} ${\ $self->b}"
+	    }
+	
 	}
-	
-	1;
-
-
-
-	use lib "lib";
-	use Calc;
 	
 	Calc->new(a => 1.1, b => 2)->result   # => 3.1
 
@@ -363,15 +355,16 @@ File lib/Animal.pm:
 
 
 
+	use lib "lib";
 	use Animal;
 	
-	eval { Animal->new }; $@    # ~> 123
-	eval { Animal->new(name => 'murka') }; $@    # ~> 123
+	eval { Animal->new }; $@    # ~> Feature type is required!
+	eval { Animal->new(name => 'murka') }; $@    # ~> Feature name not set in new!
 	
 	my $cat = Animal->new(type => 'cat');
 	$cat->type   # => cat
 	
-	eval { $cat->name }; $@   # ~> 123
+	eval { $cat->name }; $@   # ~> Get feature `name` must have the type Str. The it is undef
 	
 	$cat->name("murzik");
 	$cat->name  # => murzik
@@ -420,6 +413,12 @@ Aion add universal attributes.
 
 =head2 Isa (@signature)
 
+Attribute C<Isa> check the signature the function where it called.
+
+B<WARNING>: use atribute C<Isa> slows down the program.
+
+B<TIP>: use aspect C<isa> on features is more than enough to check the correctness of the object data.
+
 	package Anim {
 	    use Aion;
 	
@@ -435,8 +434,8 @@ Aion add universal attributes.
 	$anim->is_cat('dog')    # -> ""
 	
 	
-	eval { Anim->is_cat("cat") }; $@ # ~> 123
-	eval { my @items = $anim->is_cat("cat") }; $@ # ~> 123
+	eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].
+	eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].
 
 =head1 AUTHOR
 

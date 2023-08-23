@@ -8,27 +8,21 @@
 
 # SYNOPSIS
 
-File lib/Calc.pm:
 ```perl
-package Calc;
+package Calc {
 
-use Aion;
+    use Aion;
 
-has a => (is => 'ro+', isa => Num);
-has b => (is => 'ro+', isa => Num);
-has op => (is => 'ro', isa => Enum[qw/+ - * \/ **/], default => '+');
+    has a => (is => 'ro+', isa => Num);
+    has b => (is => 'ro+', isa => Num);
+    has op => (is => 'ro', isa => Enum[qw/+ - * \/ **/], default => '+');
 
-sub result {
-    my ($self) = @_;
-    eval "${\ $self->a} ${\ $self->op} ${\ $self->b}"
+    sub result {
+        my ($self) = @_;
+        eval "${\ $self->a} ${\ $self->op} ${\ $self->b}"
+    }
+
 }
-
-1;
-```
-
-```perl
-use lib "lib";
-use Calc;
 
 Calc->new(a => 1.1, b => 2)->result   # => 3.1
 ```
@@ -63,15 +57,16 @@ has name => (is => 'rw-', isa => Str);
 ```
 
 ```perl
+use lib "lib";
 use Animal;
 
-eval { Animal->new }; $@    # ~> 123
-eval { Animal->new(name => 'murka') }; $@    # ~> 123
+eval { Animal->new }; $@    # ~> Feature type is required!
+eval { Animal->new(name => 'murka') }; $@    # ~> Feature name not set in new!
 
 my $cat = Animal->new(type => 'cat');
 $cat->type   # => cat
 
-eval { $cat->name }; $@   # ~> 123
+eval { $cat->name }; $@   # ~> Get feature `name` must have the type Str. The it is undef
 
 $cat->name("murzik");
 $cat->name  # => murzik
@@ -122,6 +117,12 @@ Aion add universal attributes.
 
 ## Isa (@signature)
 
+Attribute `Isa` check the signature the function where it called.
+
+**WARNING**: use atribute `Isa` slows down the program.
+
+**TIP**: use aspect `isa` on features is more than enough to check the correctness of the object data.
+
 ```perl
 package Anim {
     use Aion;
@@ -138,8 +139,8 @@ $anim->is_cat('cat')    # -> 1
 $anim->is_cat('dog')    # -> ""
 
 
-eval { Anim->is_cat("cat") }; $@ # ~> 123
-eval { my @items = $anim->is_cat("cat") }; $@ # ~> 123
+eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].
+eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].
 ```
 
 # AUTHOR

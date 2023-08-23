@@ -28,7 +28,11 @@ my $Digit = $Int & $Char;
 5   ~~ ~$Int; # -> ""
 ```
 
-## 
+# DESCRIPTION
+
+This is construct for make any validators.
+
+It using in `Aion::Types::subtype`.
 
 # METHODS
 
@@ -56,6 +60,16 @@ my $Int = Aion::Type->new(
 );
 
 $Int->stringify  #=> Int[3, 5]
+
+my $Char = Aion::Type->new(name => "Char");
+
+($Int & $Char)->stringify   # => ( Int[3, 5] & Char )
+($Int | $Char)->stringify   # => ( Int[3, 5] | Char )
+(~$Int)->stringify          # => ~Int[3, 5]
+
+Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify   # => ~( Int[3, 5] | Char )
+Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify   # => ( Int[3, 5] | Char )
+Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify   # => ( Int[3, 5] & Char )
 ```
 
 ## test
@@ -127,6 +141,23 @@ $PositiveInt->exclude(5)  # -> ""
 $PositiveInt->exclude(-6) # -> 1
 ```
 
+## coerce ($value)
+
+Coerce `$value` to the type, if coerce from type and function is in `$self->{coerce}`.
+
+```perl
+my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+\z/ });
+my $Num = Aion::Type->new(name => "Num", test => sub { /^-?\d+(\.\d+)?\z/ });
+my $Bool = Aion::Type->new(name => "Bool", test => sub { /^(1|0|)\z/ });
+
+push @{$Int->{coerce}}, [$Bool, sub { 0+$_ }];
+push @{$Int->{coerce}}, [$Num, sub { int($_+.5) }];
+
+$Int->coerce(5.5)    # => 6
+$Int->coerce(undef)  # => 0
+$Int->coerce("abc")  # => abc
+```
+
 ## detail ($element, $feature)
 
 Return message belongs to error.
@@ -174,10 +205,22 @@ It make subroutine without arguments, who return type.
 
 ```perl
 BEGIN {
-    Aion::Type->new(name=>"Rim", test => sub { /^[IVXLCDM]+$/i })->make;
+    Aion::Type->new(name=>"Rim", test => sub { /^[IVXLCDM]+$/i })->make(__PACKAGE__);
 }
 
 "IX" ~~ Rim     # => 1
+```
+
+Property `init` won't use with `make`.
+
+```perl
+eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@ # ~> init_where won't work in Rim
+```
+
+If subroutine make'nt, then died.
+
+```perl
+eval { Aion::Type->new(name=>"Rim")->make }; $@ # ~> syntax error
 ```
 
 ## make_arg ($pkg)
@@ -188,10 +231,16 @@ It make subroutine with arguments, who return type.
 BEGIN {
     Aion::Type->new(name=>"Len", test => sub {
         $Aion::Type::SELF->{args}[0] <= length($_) <= $Aion::Type::SELF->{args}[1]
-    })->make_arg;
+    })->make_arg(__PACKAGE__);
 }
 
 "IX" ~~ Len[2,2]    # => 1
+```
+
+If subroutine make'nt, then died.
+
+```perl
+eval { Aion::Type->new(name=>"Rim")->make_arg }; $@ # ~> syntax error
 ```
 
 ## make_maybe_arg ($pkg)
@@ -201,15 +250,21 @@ It make subroutine with or without arguments, who return type.
 ```perl
 BEGIN {
     Aion::Type->new(
-        name=>"Enum123",
+        name => "Enum123",
         test => sub { $_ ~~ [1,2,3] },
         a_test => sub { $_ ~~ $Aion::Type::SELF->{args} },
-    )->make_maybe_arg;
+    )->make_maybe_arg(__PACKAGE__);
 }
 
 3 ~~ Enum123            # -> 1
 3 ~~ Enum123[4,5,6]     # -> ""
 5 ~~ Enum123[4,5,6]     # -> 1
+```
+
+If subroutine make'nt, then died.
+
+```perl
+eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@ # ~> syntax error
 ```
 
 # OPERATORS
@@ -270,6 +325,7 @@ my $Digit = $Int & $Char;
 
 7  ~~ $Digit # => 1
 77 ~~ $Digit # -> ""
+"a" ~~ $Digit # -> ""
 ```
 
 ## ~ $a

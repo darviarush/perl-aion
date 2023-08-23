@@ -36,7 +36,7 @@ use overload
 # * coerce (HashRef) — Массив преобразователей в этот тип: TypeName => sub {}.
 sub new {
 	my $cls = shift;
-	bless {@_}, ref $cls || $cls;
+	bless {@_}, $cls;
 }
 
 # Символьное представление значения
@@ -132,11 +132,10 @@ sub coerce {
 sub make {
 	my ($self, $pkg) = @_;
 
-	die "init_where не сработает в $self" if $self->{init};
+	die "init_where won't work in $self" if $self->{init};
 
-	my $pkg = $pkg // caller;
 	my $var = "\$$self->{name}";
-	
+
 	my $code = "package $pkg { 
 	my $var = \$self;
 	sub $self->{name} () { $var } 
@@ -151,7 +150,6 @@ sub make {
 sub make_arg {
 	my ($self, $pkg) = @_;
 
-	my $pkg = $pkg // caller;
 	my $var = "\$$self->{name}";
 	my $init = $self->{init}? "->init": "";
 
@@ -176,7 +174,6 @@ sub make_arg {
 sub make_maybe_arg {
 	my ($self, $pkg) = @_;
 
-	my $pkg = $pkg // caller;
 	my $var = "\$$self->{name}";
 	my $init = $self->{init}? "->init": "";
 
@@ -234,7 +231,11 @@ Aion::Type - class of validators.
 	"a" ~~ ~$Int; # => 1
 	5   ~~ ~$Int; # -> ""
 
-=head2  
+=head1 DESCRIPTION
+
+This is construct for make any validators.
+
+It using in C<Aion::Types::subtype>.
 
 =head1 METHODS
 
@@ -270,6 +271,16 @@ Stringify of object (name with arguments):
 	);
 	
 	$Int->stringify  #=> Int[3, 5]
+	
+	my $Char = Aion::Type->new(name => "Char");
+	
+	($Int & $Char)->stringify   # => ( Int[3, 5] & Char )
+	($Int | $Char)->stringify   # => ( Int[3, 5] | Char )
+	(~$Int)->stringify          # => ~Int[3, 5]
+	
+	Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify   # => ~( Int[3, 5] | Char )
+	Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify   # => ( Int[3, 5] | Char )
+	Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify   # => ( Int[3, 5] & Char )
 
 =head2 test
 
@@ -331,6 +342,21 @@ Checks that the argument does not belong to the class.
 	$PositiveInt->exclude(5)  # -> ""
 	$PositiveInt->exclude(-6) # -> 1
 
+=head2 coerce ($value)
+
+Coerce C<$value> to the type, if coerce from type and function is in C<< $self-E<gt>{coerce} >>.
+
+	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+\z/ });
+	my $Num = Aion::Type->new(name => "Num", test => sub { /^-?\d+(\.\d+)?\z/ });
+	my $Bool = Aion::Type->new(name => "Bool", test => sub { /^(1|0|)\z/ });
+	
+	push @{$Int->{coerce}}, [$Bool, sub { 0+$_ }];
+	push @{$Int->{coerce}}, [$Num, sub { int($_+.5) }];
+	
+	$Int->coerce(5.5)    # => 6
+	$Int->coerce(undef)  # => 0
+	$Int->coerce("abc")  # => abc
+
 =head2 detail ($element, $feature)
 
 Return message belongs to error.
@@ -371,10 +397,18 @@ Translate C<$val> to string.
 It make subroutine without arguments, who return type.
 
 	BEGIN {
-	    Aion::Type->new(name=>"Rim", test => sub { /^[IVXLCDM]+$/i })->make;
+	    Aion::Type->new(name=>"Rim", test => sub { /^[IVXLCDM]+$/i })->make(__PACKAGE__);
 	}
 	
 	"IX" ~~ Rim     # => 1
+
+Property C<init> won't use with C<make>.
+
+	eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@ # ~> init_where won't work in Rim
+
+If subroutine make'nt, then died.
+
+	eval { Aion::Type->new(name=>"Rim")->make }; $@ # ~> syntax error
 
 =head2 make_arg ($pkg)
 
@@ -383,10 +417,14 @@ It make subroutine with arguments, who return type.
 	BEGIN {
 	    Aion::Type->new(name=>"Len", test => sub {
 	        $Aion::Type::SELF->{args}[0] <= length($_) <= $Aion::Type::SELF->{args}[1]
-	    })->make_arg;
+	    })->make_arg(__PACKAGE__);
 	}
 	
 	"IX" ~~ Len[2,2]    # => 1
+
+If subroutine make'nt, then died.
+
+	eval { Aion::Type->new(name=>"Rim")->make_arg }; $@ # ~> syntax error
 
 =head2 make_maybe_arg ($pkg)
 
@@ -394,15 +432,19 @@ It make subroutine with or without arguments, who return type.
 
 	BEGIN {
 	    Aion::Type->new(
-	        name=>"Enum123",
+	        name => "Enum123",
 	        test => sub { $_ ~~ [1,2,3] },
 	        a_test => sub { $_ ~~ $Aion::Type::SELF->{args} },
-	    )->make_maybe_arg;
+	    )->make_maybe_arg(__PACKAGE__);
 	}
 	
 	3 ~~ Enum123            # -> 1
 	3 ~~ Enum123[4,5,6]     # -> ""
 	5 ~~ Enum123[4,5,6]     # -> 1
+
+If subroutine make'nt, then died.
+
+	eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@ # ~> syntax error
 
 =head1 OPERATORS
 
@@ -455,6 +497,7 @@ It make new type as intersection of C<$a> and C<$b>.
 	
 	7  ~~ $Digit # => 1
 	77 ~~ $Digit # -> ""
+	"a" ~~ $Digit # -> ""
 
 =head2 ~ $a
 

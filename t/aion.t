@@ -8,27 +8,21 @@ use common::sense; use open qw/:std :utf8/; use Test::More 0.98; use Carp::Alway
 # 
 # # SYNOPSIS
 # 
-# File lib/Calc.pm:
-#@> lib/Calc.pm
-#>> package Calc;
-#>> 
-#>> use Aion;
-#>> 
-#>> has a => (is => 'ro+', isa => Num);
-#>> has b => (is => 'ro+', isa => Num);
-#>> has op => (is => 'ro', isa => Enum[qw/+ - * \/ **/], default => '+');
-#>> 
-#>> sub result {
-#>>     my ($self) = @_;
-#>>     eval "${\ $self->a} ${\ $self->op} ${\ $self->b}"
-#>> }
-#>> 
-#>> 1;
-#@< EOF
-# 
 subtest 'SYNOPSIS' => sub { 
-use lib "lib";
-use Calc;
+package Calc {
+
+    use Aion;
+
+    has a => (is => 'ro+', isa => Num);
+    has b => (is => 'ro+', isa => Num);
+    has op => (is => 'ro', isa => Enum[qw/+ - * \/ **/], default => '+');
+
+    sub result {
+        my ($self) = @_;
+        eval "${\ $self->a} ${\ $self->op} ${\ $self->b}"
+    }
+
+}
 
 is scalar do {Calc->new(a => 1.1, b => 2)->result}, "3.1", 'Calc->new(a => 1.1, b => 2)->result   # => 3.1';
 
@@ -63,15 +57,16 @@ is scalar do {Calc->new(a => 1.1, b => 2)->result}, "3.1", 'Calc->new(a => 1.1, 
 #@< EOF
 # 
 done_testing; }; subtest 'has ($name, @aspects)' => sub { 
+use lib "lib";
 use Animal;
 
-like scalar do {eval { Animal->new }; $@}, qr!123!, 'eval { Animal->new }; $@    # ~> 123';
-like scalar do {eval { Animal->new(name => 'murka') }; $@}, qr!123!, 'eval { Animal->new(name => \'murka\') }; $@    # ~> 123';
+like scalar do {eval { Animal->new }; $@}, qr!Feature type is required\!!, 'eval { Animal->new }; $@    # ~> Feature type is required!';
+like scalar do {eval { Animal->new(name => 'murka') }; $@}, qr!Feature name not set in new\!!, 'eval { Animal->new(name => \'murka\') }; $@    # ~> Feature name not set in new!';
 
 my $cat = Animal->new(type => 'cat');
 is scalar do {$cat->type}, "cat", '$cat->type   # => cat';
 
-like scalar do {eval { $cat->name }; $@}, qr!123!, 'eval { $cat->name }; $@   # ~> 123';
+like scalar do {eval { $cat->name }; $@}, qr!Get feature `name` must have the type Str. The it is undef!, 'eval { $cat->name }; $@   # ~> Get feature `name` must have the type Str. The it is undef';
 
 $cat->name("murzik");
 is scalar do {$cat->name}, "murzik", '$cat->name  # => murzik';
@@ -122,6 +117,12 @@ is scalar do {$cat->name}, "murzik", '$cat->name  # => murzik';
 # 
 # ## Isa (@signature)
 # 
+# Attribute `Isa` check the signature the function where it called.
+# 
+# **WARNING**: use atribute `Isa` slows down the program.
+# 
+# **TIP**: use aspect `isa` on features is more than enough to check the correctness of the object data.
+# 
 done_testing; }; subtest 'Isa (@signature)' => sub { 
 package Anim {
     use Aion;
@@ -138,8 +139,8 @@ is scalar do {$anim->is_cat('cat')}, scalar do{1}, '$anim->is_cat(\'cat\')    # 
 is scalar do {$anim->is_cat('dog')}, scalar do{""}, '$anim->is_cat(\'dog\')    # -> ""';
 
 
-like scalar do {eval { Anim->is_cat("cat") }; $@}, qr!123!, 'eval { Anim->is_cat("cat") }; $@ # ~> 123';
-like scalar do {eval { my @items = $anim->is_cat("cat") }; $@}, qr!123!, 'eval { my @items = $anim->is_cat("cat") }; $@ # ~> 123';
+like scalar do {eval { Anim->is_cat("cat") }; $@}, qr!Arguments of method `is_cat` must have the type Tuple\[Object, Str\].!, 'eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].';
+like scalar do {eval { my @items = $anim->is_cat("cat") }; $@}, qr!Returns of method `is_cat` must have the type Tuple\[Bool\].!, 'eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].';
 
 # 
 # # AUTHOR

@@ -49,7 +49,7 @@ Any
 		Intersection[A, B...]
 		Exclude[A, B...]
 		Option[A]
-		Slurp[A]
+		Wantarray[A, S]
 	Array`[A]
 		ATuple[A...]
 		ACycleTuple[A...]
@@ -167,6 +167,23 @@ The optional keys in the `Dict`.
 ```perl
 {a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 {a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
+```
+
+## Wantarray[A, S]
+
+if the subroutine returns different values in the context of an array and a scalar, then using type `Wantarray` with type `A` for array context and type `S` for scalar context.
+
+```perl
+sub arr : Isa(PositiveInt => Wantarray[ArrayRef[PositiveInt], PositiveInt]) {
+	my ($n) = @_;
+	wantarray? 1 .. $n: $n
+}
+
+my @a = arr(3);
+my $s = arr(3);
+
+\@a  # --> [1,2,3]
+$s	 # -> 3
 ```
 
 ## Item
@@ -875,17 +892,16 @@ The arrays or objects with overloaded operator `@{}`.
 [] ~~ ArrayLike    	# -> 1
 {} ~~ ArrayLike    	# -> ""
 
+
 package ArrayLikeExample {
 	use overload '@{}' => sub {
-		use DDP; p @_;
-		my ($self, $key) = @_;
-		$self->{$key}
+		shift->{array} //= []
 	};
 }
 
 my $x = bless {}, 'ArrayLikeExample';
 $x->[1] = 12;
-$x  # --> bless {1 => 12}, 'ArrayLikeExample'
+$x->{array}  # --> [undef, 12]
 
 $x ~~ ArrayLike    # -> 1
 ```
@@ -899,15 +915,16 @@ The hashes or objects with overloaded operator `%{}`.
 [] ~~ HashLike    	# -> ""
 
 package HashLikeExample {
-	use overload '%{}' => sub: lvalue { shift->[shift()] };
+	use overload '%{}' => sub {
+		shift->[0] //= {}
+	};
 }
 
 my $x = bless [], 'HashLikeExample';
-$x->{1} = 12;
-$x  # --> bless [undef, 12], 'HashLikeExample'
+$x->{key} = 12;
+$x->[0]  # --> {key => 12}
 
 $x ~~ HashLike    # -> 1
-
 ```
 
 # AUTHOR

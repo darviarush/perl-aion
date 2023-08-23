@@ -19,6 +19,7 @@ our @EXPORT = our @EXPORT_OK = qw/
             Intersection
             Exclude
             Option
+			Wantarray
 
         Item
             Bool
@@ -84,22 +85,26 @@ our @EXPORT = our @EXPORT_OK = qw/
 sub UNIVERSAL::Isa : ATTR(CODE) {
     my ($pkg, $symbol, $referent, $attr, $data, $phase, $file, $line) = @_;
     my $args_of_meth = "Arguments of method `" . *{$symbol}{NAME} . "`";
-    my $returns_of_meth = "Returns of method " . *{$symbol}{NAME} . "`";
+    my $returns_of_meth = "Returns of method `" . *{$symbol}{NAME} . "`";
+    my $return_of_meth = "Return of method `" . *{$symbol}{NAME} . "`";
 
 	my @signature = map { ref($_)? $_: eval("package $pkg { $_ }") || die } @$data;
 
-    my $returns = Aion::Types::Tuple([pop @signature]);
+	my $ret = pop @signature;
+
+    my ($ret_array, $ret_scalar) = exists $ret->{is_wantarray}? @{$ret->{args}}: (Tuple([$ret]), $ret);
+
     my $args = Aion::Types::Tuple(\@signature);
 
     *$symbol = sub {
         $args->validate(\@_, $args_of_meth);
         wantarray? do {
             my @returns = $referent->(@_);
-            $returns->validate(\@returns, $returns_of_meth);
+            $ret_array->validate(\@returns, $returns_of_meth);
             @returns
         }: do {
             my $return = $referent->(@_);
-            $returns->validate([$return], $returns_of_meth);
+            $ret_scalar->validate($return, $return_of_meth);
             $return
         }
     }
@@ -195,9 +200,16 @@ subtype "Any";
 		subtype "Option[A]", as &Control,
 			init_where {
 				SELF->{is_option} = 1;
-				Tuple([Object(["Aion::Type"])])->validate(scalar ARGS, "Option[A]")
+				Tuple([Object(["Aion::Type"])])->validate(scalar ARGS, "Arguments Option[A]")
 			}
 			where { A->test };
+		subtype "Wantarray[A, S]", as &Control,
+			init_where {
+				SELF->{is_wantarray} = 1;
+				Tuple([Object(["Aion::Type"]), Object(["Aion::Type"])])->validate(scalar ARGS, "Arguments Wantarray[A, S]")
+			}
+			where { ... };
+
 
 	subtype "Item", as &Any;
 		subtype "Bool", as &Item, where { ref $_ eq "" and /^(1|0|)\z/ };
@@ -441,7 +453,7 @@ Hierarhy of validators:
 			Intersection[A, B...]
 			Exclude[A, B...]
 			Option[A]
-			Slurp[A]
+			Wantarray[A, S]
 		Array`[A]
 			ATuple[A...]
 			ACycleTuple[A...]
@@ -549,6 +561,21 @@ The optional keys in the C<Dict>.
 
 	{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 	{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
+
+=head2 Wantarray[A, S]
+
+if the subroutine returns different values in the context of an array and a scalar, then using type C<Wantarray> with type C<A> for array context and type C<S> for scalar context.
+
+	sub arr : Isa(PositiveInt => Wantarray[ArrayRef[PositiveInt], PositiveInt]) {
+		my ($n) = @_;
+		wantarray? 1 .. $n: $n
+	}
+	
+	my @a = arr(3);
+	my $s = arr(3);
+	
+	\@a  # --> [1,2,3]
+	$s	 # -> 3
 
 =head2 Item
 
@@ -1137,17 +1164,16 @@ The arrays or objects with overloaded operator C<@{}>.
 	[] ~~ ArrayLike    	# -> 1
 	{} ~~ ArrayLike    	# -> ""
 	
+	
 	package ArrayLikeExample {
 		use overload '@{}' => sub {
-			use DDP; p @_;
-			my ($self, $key) = @_;
-			$self->{$key}
+			shift->{array} //= []
 		};
 	}
 	
 	my $x = bless {}, 'ArrayLikeExample';
 	$x->[1] = 12;
-	$x  # --> bless {1 => 12}, 'ArrayLikeExample'
+	$x->{array}  # --> [undef, 12]
 	
 	$x ~~ ArrayLike    # -> 1
 
@@ -1159,15 +1185,16 @@ The hashes or objects with overloaded operator C<%{}>.
 	[] ~~ HashLike    	# -> ""
 	
 	package HashLikeExample {
-		use overload '%{}' => sub: lvalue { shift->[shift()] };
+		use overload '%{}' => sub {
+			shift->[0] //= {}
+		};
 	}
 	
 	my $x = bless [], 'HashLikeExample';
-	$x->{1} = 12;
-	$x  # --> bless [undef, 12], 'HashLikeExample'
+	$x->{key} = 12;
+	$x->[0]  # --> {key => 12}
 	
 	$x ~~ HashLike    # -> 1
-	
 
 =head1 AUTHOR
 
