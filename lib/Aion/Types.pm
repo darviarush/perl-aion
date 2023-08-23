@@ -88,13 +88,13 @@ sub UNIVERSAL::Isa : ATTR(CODE) {
     my $returns_of_meth = "Returns of method `" . *{$symbol}{NAME} . "`";
     my $return_of_meth = "Return of method `" . *{$symbol}{NAME} . "`";
 
-	my @signature = map { ref($_)? $_: eval("package $pkg { $_ }") || die } @$data;
+	my @signature = map { ref($_)? $_: $pkg->can($_)->() } @$data;
 
 	my $ret = pop @signature;
 
     my ($ret_array, $ret_scalar) = exists $ret->{is_wantarray}? @{$ret->{args}}: (Tuple([$ret]), $ret);
 
-    my $args = Aion::Types::Tuple(\@signature);
+    my $args = Tuple(\@signature);
 
     *$symbol = sub {
         $args->validate(\@_, $args_of_meth);
@@ -437,11 +437,11 @@ This modile export subroutines:
 
 =over
 
-=item * subtype, as, init_where, where, awhere, message — for create validators.
+=item * C<subtype>, C<as>, C<init_where>, C<where>, C<awhere>, C<message> — for create validators.
 
-=item * SELF, ARGS, A, B, C, D — for use in validators has arguments.
+=item * C<SELF>, C<ARGS>, C<A>, C<B>, C<C>, C<D> — for use in validators has arguments.
 
-=item * coerce, from, via — for create coerce, using for translate values from one class to other class.
+=item * C<coerce>, C<from>, C<via> — for create coerce, using for translate values from one class to other class.
 
 =back
 
@@ -515,6 +515,22 @@ Hierarhy of validators:
 				CodeLike
 				ArrayLike`[A]
 				HashLike`[A]
+
+=head1 SUBROUTINES
+
+=head2 subtype ($name, @paraphernalia)
+
+Make new type.
+
+	BEGIN {
+		subtype Ex1 => where { $_ == 1 } message { "Actual 1 only!" };
+	}
+	
+	1 ~~ Ex1 	# -> 1
+	0 ~~ Ex1 	# -> ""
+	eval { Ex1->validate(0) }; $@ # ~> Actual 1 only!
+
+=head2 coerce ($type, $from, $via)
 
 =head1 TYPES
 

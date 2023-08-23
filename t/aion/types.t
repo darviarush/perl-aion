@@ -36,9 +36,9 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # 
 # This modile export subroutines:
 # 
-# * subtype, as, init_where, where, awhere, message — for create validators.
-# * SELF, ARGS, A, B, C, D — for use in validators has arguments.
-# * coerce, from, via — for create coerce, using for translate values from one class to other class.
+# * `subtype`, `as`, `init_where`, `where`, `awhere`, `message` — for create validators.
+# * `SELF`, `ARGS`, `A`, `B`, `C`, `D` — for use in validators has arguments.
+# * `coerce`, `from`, `via` — for create coerce, using for translate values from one class to other class.
 # 
 # Hierarhy of validators:
 # 
@@ -112,6 +112,26 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # 			ArrayLike`[A]
 # 			HashLike`[A]
 
+# 
+# # SUBROUTINES
+# 
+# ## subtype ($name, @paraphernalia)
+# 
+# Make new type.
+# 
+done_testing; }; subtest 'subtype ($name, @paraphernalia)' => sub { 
+BEGIN {
+	subtype Ex1 => where { $_ == 1 } message { "Actual 1 only!" };
+}
+
+is scalar do {1 ~~ Ex1}, scalar do{1}, '1 ~~ Ex1 	# -> 1';
+is scalar do {0 ~~ Ex1}, scalar do{""}, '0 ~~ Ex1 	# -> ""';
+like scalar do {eval { Ex1->validate(0) }; $@}, qr!Actual 1 only\!!, 'eval { Ex1->validate(0) }; $@ # ~> Actual 1 only!';
+
+# 
+# 
+# 
+# ## coerce ($type, $from, $via)
 # 
 # # TYPES
 # 

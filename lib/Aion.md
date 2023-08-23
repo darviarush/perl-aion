@@ -143,7 +143,7 @@ eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the
 eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].
 ```
 
-If use string as type in `@signature`, then .
+If use name of type in `@signature`, then call subroutine with this name from current package.
 
 # AUTHOR
 

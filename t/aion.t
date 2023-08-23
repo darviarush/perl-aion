@@ -143,6 +143,8 @@ like scalar do {eval { Anim->is_cat("cat") }; $@}, qr!Arguments of method `is_ca
 like scalar do {eval { my @items = $anim->is_cat("cat") }; $@}, qr!Returns of method `is_cat` must have the type Tuple\[Bool\].!, 'eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].';
 
 # 
+# If use name of type in `@signature`, then call subroutine with this name from current package.
+# 
 # # AUTHOR
 # 
 # Yaroslav O. Kosmina [dart@cpan.org](mailto:dart@cpan.org)
