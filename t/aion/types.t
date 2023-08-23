@@ -129,9 +129,40 @@ is scalar do {0 ~~ Ex1}, scalar do{""}, '0 ~~ Ex1 	# -> ""';
 like scalar do {eval { Ex1->validate(0) }; $@}, qr!Actual 1 only\!!, 'eval { Ex1->validate(0) }; $@ # ~> Actual 1 only!';
 
 # 
+# ## ARGS
+# 
+# ## A, B, C, D
+# 
+# First, second, third and fifth argument of the type.
+# 
+done_testing; }; subtest 'A, B, C, D' => sub { 
+BEGIN {
+	subtype "Seria[A,B,C,D]", where { A < B < $_ < C < D };
+}
+
+is scalar do {2.5 ~~ Seria[1,2,3,4]}, scalar do{1}, '2.5 ~~ Seria[1,2,3,4]   # -> 1';
+
+# 
+# ## coerce ($type, from => $from, via => $via)
+# 
+# It add new coerce ($via) to `$type` from `$from`-type.
 # 
 # 
-# ## coerce ($type, $from, $via)
+# # ATTRIBUTES
+# 
+# ## Isa
+# 
+# Check the subroutine signature: arguments and returns.
+# 
+done_testing; }; subtest 'Isa' => sub { 
+sub minint($$) :Isa(Int => Int => Int) {
+	my ($x, $y) = @_;
+	$x < $y? $x : $y
+}
+
+is scalar do {minint 6, 5;}, scalar do{5}, 'minint 6, 5; # -> 5';
+like scalar do {eval {minint 5.5, 2}; $@}, qr!Arguments of method `minint` must have the type Tuple\[Int, Int\]\.!, 'eval {minint 5.5, 2}; $@ # ~> Arguments of method `minint` must have the type Tuple\[Int, Int\]\.';
+
 # 
 # # TYPES
 # 

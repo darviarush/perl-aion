@@ -121,17 +121,51 @@ Make new type.
 
 ```perl
 BEGIN {
-	subtype Ex1 => where { $_ == 1 } message { "Actual 1 only!" };
+	subtype One => where { $_ == 1 } message { "Actual 1 only!" };
 }
 
-1 ~~ Ex1 	# -> 1
-0 ~~ Ex1 	# -> ""
-eval { Ex1->validate(0) }; $@ # ~> Actual 1 only!
+1 ~~ One 	# -> 1
+0 ~~ One 	# -> ""
+eval { One->validate(0) }; $@ # ~> Actual 1 only!
 ```
 
+## ARGS
 
+## A, B, C, D
 
-## coerce ($type, $from, $via)
+First, second, third and fifth argument of the type.
+
+```perl
+BEGIN {
+	subtype "Seria[A,B,C,D]", where { A < B < $_ < C < D };
+}
+
+2.5 ~~ Seria[1,2,3,4]   # -> 1
+```
+
+## coerce ($type, from => $from, via => $via)
+
+It add new coerce ($via) to `$type` from `$from`-type.
+
+```perl
+coerce PositiveInt, from Int, via ;
+```
+
+# ATTRIBUTES
+
+## Isa (@signature)
+
+Check the subroutine signature: arguments and returns.
+
+```perl
+sub minint($$) : Isa(Int => Int => Int) {
+	my ($x, $y) = @_;
+	$x < $y? $x : $y
+}
+
+minint 6, 5; # -> 5
+eval {minint 5.5, 2}; $@ # ~> Arguments of method `minint` must have the type Tuple\[Int, Int\]\.
+```
 
 # TYPES
 

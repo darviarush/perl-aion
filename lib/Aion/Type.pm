@@ -1,6 +1,7 @@
 package Aion::Type;
 # Базовый класс для типов и преобразователей
 
+use 5.008001;
 use common::sense;
 
 use Scalar::Util qw/looks_like_number/;

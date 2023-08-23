@@ -1,10 +1,13 @@
 package Aion::Types;
 # Типы-валидаторы для Aion
 
+use 5.008001;
 use common::sense;
+
 use Aion::Type;
 use Attribute::Handlers;
-use Scalar::Util qw//;
+use Scalar::Util qw/looks_like_number reftype blessed/;
+use Sub::Util qw/prototype set_prototype subname set_subname/;
 use List::Util qw/all any/;
 use Exporter qw/import/;
 
@@ -96,7 +99,7 @@ sub UNIVERSAL::Isa : ATTR(CODE) {
 
     my $args = Tuple(\@signature);
 
-    *$symbol = sub {
+    my $sub = sub {
         $args->validate(\@_, $args_of_meth);
         wantarray? do {
             my @returns = $referent->(@_);
@@ -107,7 +110,12 @@ sub UNIVERSAL::Isa : ATTR(CODE) {
             $ret_scalar->validate($return, $return_of_meth);
             $return
         }
-    }
+    };
+
+	set_prototype prototype($referent), $sub;
+	set_subname subname($referent) . "__Isa", $sub;
+
+	*$symbol = $sub
 }
 
 my $SUB1 = sub {1};
@@ -243,7 +251,7 @@ subtype "Any";
 					subtype "StrMatch[qr/.../]", as &Str, where { $_ =~ A };
 					subtype "ClassName", as &Str, where { !!$_->can('new') };
 					subtype "RoleName", as &Str, where { !!$_->can('requires') };
-					subtype "Numeric", as &Str, where { Scalar::Util::looks_like_number($_) };
+					subtype "Numeric", as &Str, where { looks_like_number($_) };
 						subtype "Num", as &Numeric, where { /\d\z/ };
 							subtype "PositiveNum", as &Num, where { $_ >= 0 };
 							subtype "Float", as &Num, where { -3.402823466E+38 <= $_ <= 3.402823466E+38 };
@@ -282,13 +290,13 @@ subtype "Any";
 
 			subtype "Ref", as &Defined, where { "" ne ref $_ };
 				subtype "Tied`[A]", as &Ref,
-					where { my $ref = Scalar::Util::reftype($_); !!(
+					where { my $ref = reftype($_); !!(
 						$ref eq "HASH"? tied %$_:
 						$ref eq "ARRAY"? tied @$_:
 						$ref eq "SCALAR"? tied $$_:
 						0
 					) }
-					awhere { my $ref = Scalar::Util::reftype($_);
+					awhere { my $ref = reftype($_);
 						$ref eq "HASH"? A eq ref tied %$_:
 						$ref eq "ARRAY"? A eq ref tied @$_:
 						$ref eq "SCALAR"? A eq ref tied $$_:
@@ -314,7 +322,7 @@ subtype "Any";
 					awhere { my $A = A; ref $_ eq "HASH" && all { $A->test } values %$_ };
 				subtype "Object`[O]", as &Ref,
 					init_where { eval "require " . A if defined A }
-					where { Scalar::Util::blessed($_) ne "" }
+					where { blessed($_) ne "" }
 					awhere { UNIVERSAL::isa($_, A) };
 				subtype "HasProp[p...]", as &Ref,
 					where { my $x = $_; all { exists $x->{$_} } ARGS };
@@ -382,10 +390,10 @@ subtype "Any";
 			subtype "RegexpLike", as (&RegexpRef | Overload(['qr']));
 			subtype "CodeLike", as (&CodeRef | Overload(['&{}']));
 			subtype "ArrayLike`[A]", as &Ref,
-				where { Scalar::Util::reftype($_) eq "ARRAY" || !!overload::Method($_, '@{}') }
+				where { reftype($_) eq "ARRAY" || !!overload::Method($_, '@{}') }
 				awhere { &ArrayLike->test && do { my $A = A; all { $A->test } @$_ }};
 			subtype "HashLike`[A]", as &Ref,
-				where { Scalar::Util::reftype($_) eq "HASH" || !!overload::Method($_, "%{}") }
+				where { reftype($_) eq "HASH" || !!overload::Method($_, "%{}") }
 				awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
 
 	coerce &Str => from &Undef => via { "" };
@@ -530,7 +538,35 @@ Make new type.
 	0 ~~ Ex1 	# -> ""
 	eval { Ex1->validate(0) }; $@ # ~> Actual 1 only!
 
-=head2 coerce ($type, $from, $via)
+=head2 ARGS
+
+=head2 A, B, C, D
+
+First, second, third and fifth argument of the type.
+
+	BEGIN {
+		subtype "Seria[A,B,C,D]", where { A < B < $_ < C < D };
+	}
+	
+	2.5 ~~ Seria[1,2,3,4]   # -> 1
+
+=head2 coerce ($type, from => $from, via => $via)
+
+It add new coerce ($via) to C<$type> from C<$from>-type.
+
+=head1 ATTRIBUTES
+
+=head2 Isa
+
+Check the subroutine signature: arguments and returns.
+
+	sub minint($$) :Isa(Int => Int => Int) {
+		my ($x, $y) = @_;
+		$x < $y? $x : $y
+	}
+	
+	minint 6, 5; # -> 5
+	eval {minint 5.5, 2}; $@ # ~> Arguments of method `minint` must have the type Tuple\[Int, Int\]\.
 
 =head1 TYPES
 
