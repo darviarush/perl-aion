@@ -531,14 +531,76 @@ Hierarhy of validators:
 Make new type.
 
 	BEGIN {
-		subtype Ex1 => where { $_ == 1 } message { "Actual 1 only!" };
+		subtype One => where { $_ == 1 } message { "Actual 1 only!" };
 	}
 	
-	1 ~~ Ex1 	# -> 1
-	0 ~~ Ex1 	# -> ""
-	eval { Ex1->validate(0) }; $@ # ~> Actual 1 only!
+	1 ~~ One 	# -> 1
+	0 ~~ One 	# -> ""
+	eval { One->validate(0) }; $@ # ~> Actual 1 only!
+
+=head2 as ($parenttype)
+
+Use with C<subtype> for extended create type of C<$parenttype>.
+
+=head2 init_where ($code)
+
+Initialize type with new arguments. Use with C<subtype>.
+
+	BEGIN {
+		subtype 'LessThen[A]',
+			init_where { Num->validate(A, "Argument LessThen[A]") }
+			where { $_ < A };
+	}
+	
+	eval { LessThen["string"] }; $@  # ~> Argument LessThen\[A\]
+	
+	5 ~~ LessThen[5]  # -> ""
+
+=head2 where ($code)
+
+Set in type C<$code> as test. Value for test set in C<$_>.
+
+	BEGIN {
+		subtype 'Two',
+			where { $_ == 2 };
+	}
+	
+	2 ~~ Two # -> 1
+	3 ~~ Two # -> ""
+
+Use with C<subtype>. Need if is the required arguments.
+
+	eval { subtype 'Ex[A]' }; $@  # ~> subtype Ex\[A\]: needs a where
+
+=head2 awhere ($code)
+
+If type maybe with and without arguments, then use for set test with arguments, and C<where> - without.
+
+	BEGIN {
+		subtype 'GreatThen`[A]',
+			where { $_ > 0 }
+			awhere { $_ > A }
+		;
+	}
+	
+	0 ~~ GreatThen    # -> ""
+	1 ~~ GreatThen    # -> 1
+	
+	3 ~~ GreatThen[3] # -> ""
+	4 ~~ GreatThen[3] # -> 1
+
+Use with C<subtype>. Need if arguments is optional.
+
+	eval { subtype 'Ex`[A]', where {} }; $@  # ~> subtype Ex`\[A\]: needs a awhere
+	eval { subtype 'Ex', awhere {} }; $@  # ~> subtype Ex: awhere is excess
+
+=head2 SELF
+
+The current type. C<SELF> use in C<init_where>, C<where> and C<awhere>.
 
 =head2 ARGS
+
+Arguments of the current type. In scalar context returns array ref on the its. And in array context returns its. Use in C<init_where>, C<where> and C<awhere>.
 
 =head2 A, B, C, D
 
@@ -550,17 +612,31 @@ First, second, third and fifth argument of the type.
 	
 	2.5 ~~ Seria[1,2,3,4]   # -> 1
 
+Use in C<init_where>, C<where> and C<awhere>.
+
+=head2 message ($code)
+
+Use with C<subtype> for make the message on error, if the value excluded the type. In C<$code> use subroutine: C<SELF> - the current type, C<ARGS>, C<A>, C<B>, C<C>, C<D> - arguments of type (if is), and the testing value in C<$_>. It can be stringified using C<< SELF-E<gt>val_to_str($_) >>.
+
 =head2 coerce ($type, from => $from, via => $via)
 
 It add new coerce ($via) to C<$type> from C<$from>-type.
 
+=head2 from ($type)
+
+Syntax sugar for C<coerce>.
+
+=head2 via ($code)
+
+Syntax sugar for C<coerce>.
+
 =head1 ATTRIBUTES
 
-=head2 Isa
+=head2 Isa (@signature)
 
 Check the subroutine signature: arguments and returns.
 
-	sub minint($$) :Isa(Int => Int => Int) {
+	sub minint($$) : Isa(Int => Int => Int) {
 		my ($x, $y) = @_;
 		$x < $y? $x : $y
 	}

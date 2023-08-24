@@ -121,15 +121,87 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # 
 done_testing; }; subtest 'subtype ($name, @paraphernalia)' => sub { 
 BEGIN {
-	subtype Ex1 => where { $_ == 1 } message { "Actual 1 only!" };
+	subtype One => where { $_ == 1 } message { "Actual 1 only!" };
 }
 
-is scalar do {1 ~~ Ex1}, scalar do{1}, '1 ~~ Ex1 	# -> 1';
-is scalar do {0 ~~ Ex1}, scalar do{""}, '0 ~~ Ex1 	# -> ""';
-like scalar do {eval { Ex1->validate(0) }; $@}, qr!Actual 1 only\!!, 'eval { Ex1->validate(0) }; $@ # ~> Actual 1 only!';
+is scalar do {1 ~~ One}, scalar do{1}, '1 ~~ One 	# -> 1';
+is scalar do {0 ~~ One}, scalar do{""}, '0 ~~ One 	# -> ""';
+like scalar do {eval { One->validate(0) }; $@}, qr!Actual 1 only\!!, 'eval { One->validate(0) }; $@ # ~> Actual 1 only!';
 
 # 
+# ## as ($parenttype)
+# 
+# Use with `subtype` for extended create type of `$parenttype`.
+# 
+# ## init_where ($code)
+# 
+# Initialize type with new arguments. Use with `subtype`.
+# 
+done_testing; }; subtest 'init_where ($code)' => sub { 
+BEGIN {
+	subtype 'LessThen[A]',
+		init_where { Num->validate(A, "Argument LessThen[A]") }
+		where { $_ < A };
+}
+
+like scalar do {eval { LessThen["string"] }; $@}, qr!Argument LessThen\[A\]!, 'eval { LessThen["string"] }; $@  # ~> Argument LessThen\[A\]';
+
+is scalar do {5 ~~ LessThen[5]}, scalar do{""}, '5 ~~ LessThen[5]  # -> ""';
+
+# 
+# ## where ($code)
+# 
+# Set in type `$code` as test. Value for test set in `$_`.
+# 
+done_testing; }; subtest 'where ($code)' => sub { 
+BEGIN {
+	subtype 'Two',
+		where { $_ == 2 };
+}
+
+is scalar do {2 ~~ Two}, scalar do{1}, '2 ~~ Two # -> 1';
+is scalar do {3 ~~ Two}, scalar do{""}, '3 ~~ Two # -> ""';
+
+# 
+# Use with `subtype`. Need if is the required arguments.
+# 
+
+like scalar do {eval { subtype 'Ex[A]' }; $@}, qr!subtype Ex\[A\]: needs a where!, 'eval { subtype \'Ex[A]\' }; $@  # ~> subtype Ex\[A\]: needs a where';
+
+# 
+# ## awhere ($code)
+# 
+# If type maybe with and without arguments, then use for set test with arguments, and `where` - without.
+# 
+done_testing; }; subtest 'awhere ($code)' => sub { 
+BEGIN {
+	subtype 'GreatThen`[A]',
+		where { $_ > 0 }
+		awhere { $_ > A }
+	;
+}
+
+is scalar do {0 ~~ GreatThen}, scalar do{""}, '0 ~~ GreatThen    # -> ""';
+is scalar do {1 ~~ GreatThen}, scalar do{1}, '1 ~~ GreatThen    # -> 1';
+
+is scalar do {3 ~~ GreatThen[3]}, scalar do{""}, '3 ~~ GreatThen[3] # -> ""';
+is scalar do {4 ~~ GreatThen[3]}, scalar do{1}, '4 ~~ GreatThen[3] # -> 1';
+
+# 
+# Use with `subtype`. Need if arguments is optional.
+# 
+
+like scalar do {eval { subtype 'Ex`[A]', where {} }; $@}, qr!subtype Ex`\[A\]: needs a awhere!, 'eval { subtype \'Ex`[A]\', where {} }; $@  # ~> subtype Ex`\[A\]: needs a awhere';
+like scalar do {eval { subtype 'Ex', awhere {} }; $@}, qr!subtype Ex: awhere is excess!, 'eval { subtype \'Ex\', awhere {} }; $@  # ~> subtype Ex: awhere is excess';
+
+# 
+# ## SELF
+# 
+# The current type. `SELF` use in `init_where`, `where` and `awhere`.
+# 
 # ## ARGS
+# 
+# Arguments of the current type. In scalar context returns array ref on the its. And in array context returns its. Use in `init_where`, `where` and `awhere`.
 # 
 # ## A, B, C, D
 # 
@@ -143,19 +215,32 @@ BEGIN {
 is scalar do {2.5 ~~ Seria[1,2,3,4]}, scalar do{1}, '2.5 ~~ Seria[1,2,3,4]   # -> 1';
 
 # 
+# Use in `init_where`, `where` and `awhere`.
+# 
+# ## message ($code)
+# 
+# Use with `subtype` for make the message on error, if the value excluded the type. In `$code` use subroutine: `SELF` - the current type, `ARGS`, `A`, `B`, `C`, `D` - arguments of type (if is), and the testing value in `$_`. It can be stringified using `SELF->val_to_str($_)`.
+# 
 # ## coerce ($type, from => $from, via => $via)
 # 
 # It add new coerce ($via) to `$type` from `$from`-type.
 # 
+# ## from ($type)
+# 
+# Syntax sugar for `coerce`.
+# 
+# ## via ($code)
+# 
+# Syntax sugar for `coerce`.
 # 
 # # ATTRIBUTES
 # 
-# ## Isa
+# ## Isa (@signature)
 # 
 # Check the subroutine signature: arguments and returns.
 # 
-done_testing; }; subtest 'Isa' => sub { 
-sub minint($$) :Isa(Int => Int => Int) {
+done_testing; }; subtest 'Isa (@signature)' => sub { 
+sub minint($$) : Isa(Int => Int => Int) {
 	my ($x, $y) = @_;
 	$x < $y? $x : $y
 }

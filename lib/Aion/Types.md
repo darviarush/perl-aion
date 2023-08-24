@@ -129,7 +129,79 @@ BEGIN {
 eval { One->validate(0) }; $@ # ~> Actual 1 only!
 ```
 
+## as ($parenttype)
+
+Use with `subtype` for extended create type of `$parenttype`.
+
+## init_where ($code)
+
+Initialize type with new arguments. Use with `subtype`.
+
+```perl
+BEGIN {
+	subtype 'LessThen[A]',
+		init_where { Num->validate(A, "Argument LessThen[A]") }
+		where { $_ < A };
+}
+
+eval { LessThen["string"] }; $@  # ~> Argument LessThen\[A\]
+
+5 ~~ LessThen[5]  # -> ""
+```
+
+## where ($code)
+
+Set in type `$code` as test. Value for test set in `$_`.
+
+```perl
+BEGIN {
+	subtype 'Two',
+		where { $_ == 2 };
+}
+
+2 ~~ Two # -> 1
+3 ~~ Two # -> ""
+```
+
+Use with `subtype`. Need if is the required arguments.
+
+```perl
+eval { subtype 'Ex[A]' }; $@  # ~> subtype Ex\[A\]: needs a where
+```
+
+## awhere ($code)
+
+If type maybe with and without arguments, then use for set test with arguments, and `where` - without.
+
+```perl
+BEGIN {
+	subtype 'GreatThen`[A]',
+		where { $_ > 0 }
+		awhere { $_ > A }
+	;
+}
+
+0 ~~ GreatThen    # -> ""
+1 ~~ GreatThen    # -> 1
+
+3 ~~ GreatThen[3] # -> ""
+4 ~~ GreatThen[3] # -> 1
+```
+
+Use with `subtype`. Need if arguments is optional.
+
+```perl
+eval { subtype 'Ex`[A]', where {} }; $@  # ~> subtype Ex`\[A\]: needs a awhere
+eval { subtype 'Ex', awhere {} }; $@  # ~> subtype Ex: awhere is excess
+```
+
+## SELF
+
+The current type. `SELF` use in `init_where`, `where` and `awhere`.
+
 ## ARGS
+
+Arguments of the current type. In scalar context returns array ref on the its. And in array context returns its. Use in `init_where`, `where` and `awhere`.
 
 ## A, B, C, D
 
@@ -143,13 +215,23 @@ BEGIN {
 2.5 ~~ Seria[1,2,3,4]   # -> 1
 ```
 
+Use in `init_where`, `where` and `awhere`.
+
+## message ($code)
+
+Use with `subtype` for make the message on error, if the value excluded the type. In `$code` use subroutine: `SELF` - the current type, `ARGS`, `A`, `B`, `C`, `D` - arguments of type (if is), and the testing value in `$_`. It can be stringified using `SELF->val_to_str($_)`.
+
 ## coerce ($type, from => $from, via => $via)
 
 It add new coerce ($via) to `$type` from `$from`-type.
 
-```perl
-coerce PositiveInt, from Int, via ;
-```
+## from ($type)
+
+Syntax sugar for `coerce`.
+
+## via ($code)
+
+Syntax sugar for `coerce`.
 
 # ATTRIBUTES
 
