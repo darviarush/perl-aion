@@ -37,7 +37,7 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # This modile export subroutines:
 # 
 # * `subtype`, `as`, `init_where`, `where`, `awhere`, `message` — for create validators.
-# * `SELF`, `ARGS`, `A`, `B`, `C`, `D` — for use in validators has arguments.
+# * `SELF`, `ARGS`, `A`, `B`, `C`, `D`, `M`, `N` — for use in validators has arguments.
 # * `coerce`, `from`, `via` — for create coerce, using for translate values from one class to other class.
 # 
 # Hierarhy of validators:
@@ -50,11 +50,6 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # 		Exclude[A, B...]
 # 		Option[A]
 # 		Wantarray[A, S]
-# 	Array`[A]
-# 		ATuple[A...]
-# 		ACycleTuple[A...]
-# 	Hash`[A]
-# 		HMap[K, V]
 # 	Item
 # 		Bool
 # 		Enum[A...]
@@ -63,10 +58,12 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # 		Defined
 # 			Value
 # 				Version
-# 				Str`[A, B?]
+# 				Str
 # 					Uni
-# 					Bin`[A, B?]
-# 					NonEmptyStr`[A, B?]
+# 					Bin
+# 					NonEmptyStr
+# 					StartsWith
+# 					EndsWith
 # 					Email
 # 					Tel
 # 					Url
@@ -101,16 +98,19 @@ is scalar do {IntOrArrayRef->coerce(5.5)}, "6", 'IntOrArrayRef->coerce(5.5) # =>
 # 				Tuple[A...]
 # 				CycleTuple[A...]
 # 				Dict[k => A, ...]
-# 			Like
+# 				RegexpLike
+# 				CodeLike
+# 				ArrayLike`[A]
+# 					Lim[A, B?]
+# 				HashLike`[A]
+# 					HasProp[p...]
+# 			Like: Str | Object
 # 				HasMethods[m...]
 # 				Overload`[m...]
 # 				InstanceOf[A...]
 # 				ConsumerOf[A...]
-# 			StrLike
-# 			RegexpLike
-# 			CodeLike
-# 			ArrayLike`[A]
-# 			HashLike`[A]
+# 				StrLike
+# 					Len[A, B?]
 
 # 
 # # SUBROUTINES
@@ -127,6 +127,20 @@ BEGIN {
 is scalar do {1 ~~ One}, scalar do{1}, '1 ~~ One 	# -> 1';
 is scalar do {0 ~~ One}, scalar do{""}, '0 ~~ One 	# -> ""';
 like scalar do {eval { One->validate(0) }; $@}, qr!Actual 1 only\!!, 'eval { One->validate(0) }; $@ # ~> Actual 1 only!';
+
+# 
+# `where` and `message` is syntax sugar, and `subtype` can be used without them.
+# 
+
+BEGIN {
+	subtype Many => (where => sub { $_ > 1 });
+}
+
+is scalar do {2 ~~ Many}, scalar do{1}, '2 ~~ Many  # -> 1';
+
+like scalar do {eval { subtype Many => (where1 => sub { $_ > 1 }) }; $@}, qr!subtype Many unused keys left: where1!, 'eval { subtype Many => (where1 => sub { $_ > 1 }) }; $@ # ~> subtype Many unused keys left: where1';
+
+like scalar do {eval { subtype 'Many' }; $@}, qr!subtype Many: main::Many exists\!!, 'eval { subtype \'Many\' }; $@ # ~> subtype Many: main::Many exists!';
 
 # 
 # ## as ($parenttype)
@@ -171,6 +185,8 @@ like scalar do {eval { subtype 'Ex[A]' }; $@}, qr!subtype Ex\[A\]: needs a where
 # 
 # ## awhere ($code)
 # 
+# Use with `subtype`. 
+# 
 # If type maybe with and without arguments, then use for set test with arguments, and `where` - without.
 # 
 done_testing; }; subtest 'awhere ($code)' => sub { 
@@ -188,11 +204,20 @@ is scalar do {3 ~~ GreatThen[3]}, scalar do{""}, '3 ~~ GreatThen[3] # -> ""';
 is scalar do {4 ~~ GreatThen[3]}, scalar do{1}, '4 ~~ GreatThen[3] # -> 1';
 
 # 
-# Use with `subtype`. Need if arguments is optional.
+# Need if arguments is optional.
 # 
 
 like scalar do {eval { subtype 'Ex`[A]', where {} }; $@}, qr!subtype Ex`\[A\]: needs a awhere!, 'eval { subtype \'Ex`[A]\', where {} }; $@  # ~> subtype Ex`\[A\]: needs a awhere';
 like scalar do {eval { subtype 'Ex', awhere {} }; $@}, qr!subtype Ex: awhere is excess!, 'eval { subtype \'Ex\', awhere {} }; $@  # ~> subtype Ex: awhere is excess';
+
+BEGIN {
+	subtype 'MyEnum`[A...]',
+		as Str,
+		awhere { $_ ~~ scalar ARGS }
+	;
+}
+
+is scalar do {"ab" ~~ MyEnum[qw/ab cd/]}, scalar do{1}, '"ab" ~~ MyEnum[qw/ab cd/] # -> 1';
 
 # 
 # ## SELF
@@ -217,6 +242,28 @@ is scalar do {2.5 ~~ Seria[1,2,3,4]}, scalar do{1}, '2.5 ~~ Seria[1,2,3,4]   # -
 # 
 # Use in `init_where`, `where` and `awhere`.
 # 
+# ## M, N
+# 
+# `M` and `N` is the reduction for `SELF->{M}` and `SELF->{N}`.
+# 
+done_testing; }; subtest 'M, N' => sub { 
+BEGIN {
+	subtype "BeginAndEnd[A, B]",
+		init_where {
+			N = qr/^${\ quotemeta A}/;
+			M = qr/${\ quotemeta B}$/;
+		}
+		where { $_ =~ N && $_ =~ M };
+}
+
+is scalar do {"Hi, my dear!" ~~ BeginAndEnd["Hi,", "!"]}, scalar do{1}, '"Hi, my dear!" ~~ BeginAndEnd["Hi,", "!"]   # -> 1';
+is scalar do {"Hi my dear!" ~~ BeginAndEnd["Hi,", "!"]}, scalar do{""}, '"Hi my dear!" ~~ BeginAndEnd["Hi,", "!"]   # -> ""';
+
+is scalar do {BeginAndEnd["Hi,", "!"]}, "BeginAndEnd['Hi,', '!']", 'BeginAndEnd["Hi,", "!"]   # => BeginAndEnd[\'Hi,\', \'!\']';
+
+# 
+# 
+# 
 # ## message ($code)
 # 
 # Use with `subtype` for make the message on error, if the value excluded the type. In `$code` use subroutine: `SELF` - the current type, `ARGS`, `A`, `B`, `C`, `D` - arguments of type (if is), and the testing value in `$_`. It can be stringified using `SELF->val_to_str($_)`.
@@ -224,6 +271,50 @@ is scalar do {2.5 ~~ Seria[1,2,3,4]}, scalar do{1}, '2.5 ~~ Seria[1,2,3,4]   # -
 # ## coerce ($type, from => $from, via => $via)
 # 
 # It add new coerce ($via) to `$type` from `$from`-type.
+# 
+done_testing; }; subtest 'coerce ($type, from => $from, via => $via)' => sub { 
+BEGIN {subtype Four => where {4 eq $_}}
+
+is scalar do {"4a" ~~ Four}, scalar do{""}, '"4a" ~~ Four	# -> ""';
+
+is scalar do {Four->coerce("4a")}, scalar do{"4a"}, 'Four->coerce("4a")	# -> "4a"';
+
+coerce Four, from Str, via { 0+$_ };
+
+is scalar do {Four->coerce("4a")}, scalar do{4}, 'Four->coerce("4a")	# -> 4';
+
+coerce Four, from ArrayRef, via { scalar @$_ };
+
+is scalar do {Four->coerce([1,2,3])}, scalar do{3}, 'Four->coerce([1,2,3])	# -> 3';
+is scalar do {Four->coerce([1,2,3]) ~~ Four}, scalar do{""}, 'Four->coerce([1,2,3]) ~~ Four	# -> ""';
+is scalar do {Four->coerce([1,2,3,4]) ~~ Four}, scalar do{1}, 'Four->coerce([1,2,3,4]) ~~ Four	# -> 1';
+
+# 
+# `coerce` throws exeptions:
+# 
+
+like scalar do {eval {coerce Int, via1 => 1}; $@}, qr!coerce Int unused keys left: via1!, 'eval {coerce Int, via1 => 1}; $@  # ~> coerce Int unused keys left: via1';
+like scalar do {eval {coerce "x"}; $@}, qr!coerce x not Aion::Type\!!, 'eval {coerce "x"}; $@  # ~> coerce x not Aion::Type!';
+like scalar do {eval {coerce Int}; $@}, qr!coerce Int: from is'nt Aion::Type\!!, 'eval {coerce Int}; $@  # ~> coerce Int: from is\'nt Aion::Type!';
+like scalar do {eval {coerce Int, from "x"}; $@}, qr!coerce Int: from is'nt Aion::Type\!!, 'eval {coerce Int, from "x"}; $@  # ~> coerce Int: from is\'nt Aion::Type!';
+like scalar do {eval {coerce Int, from Num}; $@}, qr!coerce Int: via is not subroutine\!!, 'eval {coerce Int, from Num}; $@  # ~> coerce Int: via is not subroutine!';
+like scalar do {eval {coerce Int, (from=>Num, via=>"x")}; $@}, qr!coerce Int: via is not subroutine\!!, 'eval {coerce Int, (from=>Num, via=>"x")}; $@  # ~> coerce Int: via is not subroutine!';
+
+# 
+# Standart coerces:
+# 
+
+# Str from Undef — empty string
+is scalar do {Str->coerce(undef)}, scalar do{""}, 'Str->coerce(undef) # -> ""';
+
+# Int from Num — rounded integer
+is scalar do {Int->coerce(2.5)}, scalar do{3}, 'Int->coerce(2.5) # -> 3';
+is scalar do {Int->coerce(-2.5)}, scalar do{-3}, 'Int->coerce(-2.5) # -> -3';
+
+# Bool from Any — 1 or ""
+is scalar do {Bool->coerce([])}, scalar do{1}, 'Bool->coerce([])	# -> 1';
+is scalar do {Bool->coerce(0)}, scalar do{""}, 'Bool->coerce(0)		# -> ""';
+
 # 
 # ## from ($type)
 # 
@@ -247,6 +338,26 @@ sub minint($$) : Isa(Int => Int => Int) {
 
 is scalar do {minint 6, 5;}, scalar do{5}, 'minint 6, 5; # -> 5';
 like scalar do {eval {minint 5.5, 2}; $@}, qr!Arguments of method `minint` must have the type Tuple\[Int, Int\]\.!, 'eval {minint 5.5, 2}; $@ # ~> Arguments of method `minint` must have the type Tuple\[Int, Int\]\.';
+
+# 
+# Attribute `Isa` is subroutine `UNIVERSAL::Isa`.
+# 
+
+sub half($) {
+	my ($x) = @_;
+	$x / 2
+}
+
+UNIVERSAL::Isa(
+	__PACKAGE__,
+	*half,
+	\&half,
+	undef,
+	[Int => Int],
+);
+
+is scalar do {half 4;}, scalar do{2}, 'half 4; # -> 2';
+like scalar do {eval {half 5}; $@}, qr!Return of method `half` must have the type Int. The it is 2.5!, 'eval {half 5}; $@ # ~> Return of method `half` must have the type Int. The it is 2.5';
 
 # 
 # # TYPES
@@ -303,6 +414,7 @@ is scalar do {0   ~~ Exclude[PositiveInt, Enum[-2]]}, scalar do{""}, '0   ~~ Exc
 done_testing; }; subtest 'Option[A]' => sub { 
 is scalar do {{a=>55} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '{a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1';
 is scalar do {{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{1}, '{a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1';
+is scalar do {{a=>55, b=>31.5} ~~ Dict[a=>Int, b => Option[Int]]}, scalar do{""}, '{a=>55, b=>31.5} ~~ Dict[a=>Int, b => Option[Int]] # -> ""';
 
 # 
 # ## Wantarray[A, S]
@@ -337,6 +449,7 @@ is scalar do {undef ~~ Bool}, scalar do{1}, 'undef ~~ Bool # -> 1';
 is scalar do {"" ~~ Bool}, scalar do{1}, '"" ~~ Bool    # -> 1';
 
 is scalar do {2 ~~ Bool}, scalar do{""}, '2 ~~ Bool     # -> ""';
+is scalar do {[] ~~ Bool}, scalar do{""}, '[] ~~ Bool    # -> ""';
 
 # 
 # ## Enum[A...]
@@ -387,6 +500,20 @@ is scalar do {\3 ~~ Value}, scalar do{""}, '\3 ~~ Value       # -> ""';
 is scalar do {undef ~~ Value}, scalar do{""}, 'undef ~~ Value    # -> ""';
 
 # 
+# ## Len[A, B?]
+# 
+# Defines the length value from `A` to `B`, or from 0 to `A` if `B` is'nt present.
+# 
+done_testing; }; subtest 'Len[A, B?]' => sub { 
+is scalar do {"1234" ~~ Len[3]}, scalar do{""}, '"1234" ~~ Len[3]   # -> ""';
+is scalar do {"123" ~~ Len[3]}, scalar do{1}, '"123" ~~ Len[3]    # -> 1';
+is scalar do {"12" ~~ Len[3]}, scalar do{1}, '"12" ~~ Len[3]     # -> 1';
+is scalar do {"" ~~ Len[1, 2]}, scalar do{""}, '"" ~~ Len[1, 2]    # -> ""';
+is scalar do {"1" ~~ Len[1, 2]}, scalar do{1}, '"1" ~~ Len[1, 2]   # -> 1';
+is scalar do {"12" ~~ Len[1, 2]}, scalar do{1}, '"12" ~~ Len[1, 2]  # -> 1';
+is scalar do {"123" ~~ Len[1, 2]}, scalar do{""}, '"123" ~~ Len[1, 2] # -> ""';
+
+# 
 # ## Version
 # 
 # Perl versions.
@@ -394,61 +521,69 @@ is scalar do {undef ~~ Value}, scalar do{""}, 'undef ~~ Value    # -> ""';
 done_testing; }; subtest 'Version' => sub { 
 is scalar do {1.1.0 ~~ Version}, scalar do{1}, '1.1.0 ~~ Version    # -> 1';
 is scalar do {v1.1.0 ~~ Version}, scalar do{1}, 'v1.1.0 ~~ Version   # -> 1';
+is scalar do {v1.1 ~~ Version}, scalar do{1}, 'v1.1 ~~ Version     # -> 1';
+is scalar do {v1 ~~ Version}, scalar do{1}, 'v1 ~~ Version       # -> 1';
 is scalar do {1.1 ~~ Version}, scalar do{""}, '1.1 ~~ Version      # -> ""';
 is scalar do {"1.1.0" ~~ Version}, scalar do{""}, '"1.1.0" ~~ Version  # -> ""';
 
 # 
-# ## Str`[A, B?]
+# ## Str
 # 
 # Strings, include numbers.
-# It maybe define maximal, or minimal and maximal length.
 # 
-done_testing; }; subtest 'Str`[A, B?]' => sub { 
+done_testing; }; subtest 'Str' => sub { 
 is scalar do {1.1 ~~ Str}, scalar do{1}, '1.1 ~~ Str         # -> 1';
 is scalar do {"" ~~ Str}, scalar do{1}, '"" ~~ Str          # -> 1';
 is scalar do {1.1.0 ~~ Str}, scalar do{""}, '1.1.0 ~~ Str       # -> ""';
-is scalar do {"1234" ~~ Str[3]}, scalar do{""}, '"1234" ~~ Str[3]   # -> ""';
-is scalar do {"123" ~~ Str[3]}, scalar do{1}, '"123" ~~ Str[3]    # -> 1';
-is scalar do {"12" ~~ Str[3]}, scalar do{1}, '"12" ~~ Str[3]     # -> 1';
-is scalar do {"" ~~ Str[1, 2]}, scalar do{""}, '"" ~~ Str[1, 2]    # -> ""';
-is scalar do {"1" ~~ Str[1, 2]}, scalar do{1}, '"1" ~~ Str[1, 2]   # -> 1';
-is scalar do {"12" ~~ Str[1, 2]}, scalar do{1}, '"12" ~~ Str[1, 2]   # -> 1';
-is scalar do {"123" ~~ Str[1, 2]}, scalar do{""}, '"123" ~~ Str[1, 2]   # -> ""';
 
 # 
 # ## Uni
 # 
-# Unicode strings: with utf8-flag or characters with numbers less then 128.
+# Unicode strings: with utf8-flag or decode to utf8 without error.
 # 
 done_testing; }; subtest 'Uni' => sub { 
 is scalar do {"↭" ~~ Uni}, scalar do{1}, '"↭" ~~ Uni    # -> 1';
-is scalar do {123 ~~ Uni}, scalar do{1}, '123 ~~ Uni    # -> 1';
-is scalar do {do {no utf8; "↭" ~~ Uni}}, scalar do{""}, 'do {no utf8; "↭" ~~ Uni}    # -> ""';
+is scalar do {123 ~~ Uni}, scalar do{""}, '123 ~~ Uni    # -> ""';
+is scalar do {do {no utf8; "↭" ~~ Uni}}, scalar do{1}, 'do {no utf8; "↭" ~~ Uni}    # -> 1';
 
 # 
-# ## Bin`[A, B?]
+# ## Bin
 # 
-# Binary strings: without utf8-flag.
-# It maybe define maximal, or minimal and maximal length.
+# Binary strings: without utf8-flag and octets with numbers less then 128.
 # 
-done_testing; }; subtest 'Bin`[A, B?]' => sub { 
+done_testing; }; subtest 'Bin' => sub { 
 is scalar do {123 ~~ Bin}, scalar do{1}, '123 ~~ Bin    # -> 1';
 is scalar do {"z" ~~ Bin}, scalar do{1}, '"z" ~~ Bin    # -> 1';
-is scalar do {do {no utf8; "↭" ~~ Bin }}, scalar do{1}, 'do {no utf8; "↭" ~~ Bin }   # -> 1';
+is scalar do {"↭" ~~ Bin}, scalar do{""}, '"↭" ~~ Bin    # -> ""';
+is scalar do {do {no utf8; "↭" ~~ Bin }}, scalar do{""}, 'do {no utf8; "↭" ~~ Bin }   # -> ""';
 
 # 
-# ## NonEmptyStr`[A, B?]
+# ## StartsWith\[S]
+# 
+# The string starts with `S`.
+# 
+done_testing; }; subtest 'StartsWith\[S]' => sub { 
+is scalar do {"Hi, world!" ~~ StartsWith["Hi,"]}, scalar do{1}, '"Hi, world!" ~~ StartsWith["Hi,"]	# -> 1';
+is scalar do {"Hi world!" ~~ StartsWith["Hi,"]}, scalar do{""}, '"Hi world!" ~~ StartsWith["Hi,"]	# -> ""';
+
+# 
+# ## EndsWith\[S]
+# 
+# The string ends with `S`.
+# 
+done_testing; }; subtest 'EndsWith\[S]' => sub { 
+is scalar do {"Hi, world!" ~~ EndsWith["world!"]}, scalar do{1}, '"Hi, world!" ~~ EndsWith["world!"]	# -> 1';
+is scalar do {"Hi, world" ~~ EndsWith["world!"]}, scalar do{""}, '"Hi, world" ~~ EndsWith["world!"]	# -> ""';
+
+# 
+# ## NonEmptyStr
 # 
 # String with one or many non-space characters.
 # 
-done_testing; }; subtest 'NonEmptyStr`[A, B?]' => sub { 
+done_testing; }; subtest 'NonEmptyStr' => sub { 
 is scalar do {" " ~~ NonEmptyStr}, scalar do{""}, '" " ~~ NonEmptyStr        # -> ""';
 is scalar do {" S " ~~ NonEmptyStr}, scalar do{1}, '" S " ~~ NonEmptyStr      # -> 1';
-is scalar do {" S " ~~ NonEmptyStr[2]}, scalar do{""}, '" S " ~~ NonEmptyStr[2]   # -> ""';
-is scalar do {" S" ~~ NonEmptyStr[2]}, scalar do{1}, '" S" ~~ NonEmptyStr[2]    # -> 1';
-is scalar do {" S" ~~ NonEmptyStr[1,2]}, scalar do{1}, '" S" ~~ NonEmptyStr[1,2]  # -> 1';
-is scalar do {" S " ~~ NonEmptyStr[1,2]}, scalar do{""}, '" S " ~~ NonEmptyStr[1,2] # -> ""';
-is scalar do {"S" ~~ NonEmptyStr[2,3]}, scalar do{""}, '"S" ~~ NonEmptyStr[2,3]   # -> ""';
+is scalar do {" S " ~~ (NonEmptyStr & Len[2])}, scalar do{""}, '" S " ~~ (NonEmptyStr & Len[2])   # -> ""';
 
 # 
 # ## Email
@@ -630,11 +765,26 @@ is scalar do {5.5 ~~ Int}, scalar do{""}, '5.5 ~~ Int    # -> ""';
 # `N` - the number of bytes for limit.
 # 
 
-is scalar do {127 ~~ Int[1]}, scalar do{1}, '127 ~~ Int[1]    # -> 1';
-is scalar do {128 ~~ Int[1]}, scalar do{""}, '128 ~~ Int[1]    # -> ""';
-
-is scalar do {-128 ~~ Int[1]}, scalar do{1}, '-128 ~~ Int[1]    # -> 1';
 is scalar do {-129 ~~ Int[1]}, scalar do{""}, '-129 ~~ Int[1]    # -> ""';
+is scalar do {-128 ~~ Int[1]}, scalar do{1}, '-128 ~~ Int[1]    # -> 1';
+is scalar do {127 ~~ Int[1]}, scalar do{1}, '127 ~~ Int[1]     # -> 1';
+is scalar do {128 ~~ Int[1]}, scalar do{""}, '128 ~~ Int[1]     # -> ""';
+
+# 2 bits power of (8 bits * 8 bytes - 1)
+my $N = 1 << (8*8-1);
+is scalar do {(-$N-1) ~~ Int[8]}, scalar do{""}, '(-$N-1) ~~ Int[8]   # -> ""';
+is scalar do {(-$N) ~~ Int[8]}, scalar do{1}, '(-$N) ~~ Int[8]     # -> 1';
+is scalar do {($N-1) ~~ Int[8]}, scalar do{1}, '($N-1) ~~ Int[8]  	# -> 1';
+is scalar do {$N ~~ Int[8]}, scalar do{""}, '$N ~~ Int[8]      	# -> ""';
+
+require Math::BigInt;
+
+my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
+
+is scalar do {((-$N17-1) . "") ~~ Int[17]}, scalar do{""}, '((-$N17-1) . "") ~~ Int[17]  # -> ""';
+is scalar do {(-$N17 . "") ~~ Int[17]}, scalar do{1}, '(-$N17 . "") ~~ Int[17]  # -> 1';
+is scalar do {(($N17-1) . "") ~~ Int[17]}, scalar do{1}, '(($N17-1) . "") ~~ Int[17]  # -> 1';
+is scalar do {($N17 . "") ~~ Int[17]}, scalar do{""}, '($N17 . "") ~~ Int[17]  # -> ""';
 
 # 
 # ## PositiveInt`[N]
@@ -651,8 +801,22 @@ is scalar do {-1 ~~ PositiveInt}, scalar do{""}, '-1 ~~ PositiveInt    # -> ""';
 # `N` - the number of bytes for limit.
 # 
 
+is scalar do {-1 ~~ PositiveInt[1]}, scalar do{""}, '-1 ~~ PositiveInt[1]    # -> ""';
+is scalar do {0 ~~ PositiveInt[1]}, scalar do{1}, '0 ~~ PositiveInt[1]    # -> 1';
 is scalar do {255 ~~ PositiveInt[1]}, scalar do{1}, '255 ~~ PositiveInt[1]    # -> 1';
 is scalar do {256 ~~ PositiveInt[1]}, scalar do{""}, '256 ~~ PositiveInt[1]    # -> ""';
+
+is scalar do {-1 ~~ PositiveInt[8]}, scalar do{""}, '-1 ~~ PositiveInt[8] # -> ""';
+is scalar do {1.01 ~~ PositiveInt[8]}, scalar do{""}, '1.01 ~~ PositiveInt[8] # -> ""';
+is scalar do {0 ~~ PositiveInt[8]}, scalar do{1}, '0 ~~ PositiveInt[8] # -> 1';
+
+my $N8 = 2 ** (8*Math::BigInt->new(8)) - 1;
+
+is scalar do {$N8 . "" ~~ PositiveInt[8]}, scalar do{1}, '$N8 . "" ~~ PositiveInt[8] # -> 1';
+is scalar do {($N8+1) . "" ~~ PositiveInt[8]}, scalar do{""}, '($N8+1) . "" ~~ PositiveInt[8] # -> ""';
+
+is scalar do {-1 ~~ PositiveInt[17]}, scalar do{""}, '-1 ~~ PositiveInt[17] # -> ""';
+is scalar do {0 ~~ PositiveInt[17]}, scalar do{1}, '0 ~~ PositiveInt[17] # -> 1';
 
 # 
 # ## Nat`[N]
@@ -664,7 +828,11 @@ is scalar do {0 ~~ Nat}, scalar do{""}, '0 ~~ Nat    # -> ""';
 is scalar do {1 ~~ Nat}, scalar do{1}, '1 ~~ Nat    # -> 1';
 
 # 
+# `N` - the number of bytes for limit.
+# 
 
+is scalar do {0 ~~ Nat[1]}, scalar do{""}, '0 ~~ Nat[1]      # -> ""';
+is scalar do {1 ~~ Nat[1]}, scalar do{1}, '1 ~~ Nat[1]      # -> 1';
 is scalar do {255 ~~ Nat[1]}, scalar do{1}, '255 ~~ Nat[1]    # -> 1';
 is scalar do {256 ~~ Nat[1]}, scalar do{""}, '256 ~~ Nat[1]    # -> ""';
 
@@ -683,21 +851,37 @@ is scalar do {1 ~~ Ref}, scalar do{""}, '1 ~~ Ref     # -> ""';
 # The reference on the tied variable.
 # 
 done_testing; }; subtest 'Tied`[A]' => sub { 
-package TiedExample {
-	sub TIEHASH { bless {@_}, shift }
-}
+package TiedHash { sub TIEHASH { bless {@_}, shift } }
+package TiedArray { sub TIEARRAY { bless {@_}, shift } }
+package TiedScalar { sub TIESCALAR { bless {@_}, shift } }
 
-tie my %a, "TiedExample";
-my %b;
+tie my %a, "TiedHash";
+tie my @a, "TiedArray";
+tie my $a, "TiedScalar";
+my %b; my @b; my $b;
 
 is scalar do {\%a ~~ Tied}, scalar do{1}, '\%a ~~ Tied    # -> 1';
+is scalar do {\@a ~~ Tied}, scalar do{1}, '\@a ~~ Tied    # -> 1';
+is scalar do {\$a ~~ Tied}, scalar do{1}, '\$a ~~ Tied    # -> 1';
+
 is scalar do {\%b ~~ Tied}, scalar do{""}, '\%b ~~ Tied    # -> ""';
+is scalar do {\@b ~~ Tied}, scalar do{""}, '\@b ~~ Tied    # -> ""';
+is scalar do {\$b ~~ Tied}, scalar do{""}, '\$b ~~ Tied    # -> ""';
+is scalar do {\\$b ~~ Tied}, scalar do{""}, '\\$b ~~ Tied    # -> ""';
 
-is scalar do {ref tied %a}, "TiedExample", 'ref tied %a  # => TiedExample';
-is scalar do {ref tied %{\%a}}, "TiedExample", 'ref tied %{\%a}  # => TiedExample';
+is scalar do {ref tied %a}, "TiedHash", 'ref tied %a  # => TiedHash';
+is scalar do {ref tied %{\%a}}, "TiedHash", 'ref tied %{\%a}  # => TiedHash';
 
-is scalar do {\%a ~~ Tied["TiedExample"]}, scalar do{1}, '\%a ~~ Tied["TiedExample"]    # -> 1';
-is scalar do {\%a ~~ Tied["TiedExample2"]}, scalar do{""}, '\%a ~~ Tied["TiedExample2"]   # -> ""';
+is scalar do {\%a ~~ Tied["TiedHash"]}, scalar do{1}, '\%a ~~ Tied["TiedHash"]     # -> 1';
+is scalar do {\@a ~~ Tied["TiedArray"]}, scalar do{1}, '\@a ~~ Tied["TiedArray"]    # -> 1';
+is scalar do {\$a ~~ Tied["TiedScalar"]}, scalar do{1}, '\$a ~~ Tied["TiedScalar"]   # -> 1';
+
+is scalar do {\%a ~~ Tied["TiedArray"]}, scalar do{""}, '\%a ~~ Tied["TiedArray"]    # -> ""';
+is scalar do {\@a ~~ Tied["TiedScalar"]}, scalar do{""}, '\@a ~~ Tied["TiedScalar"]   # -> ""';
+is scalar do {\$a ~~ Tied["TiedHash"]}, scalar do{""}, '\$a ~~ Tied["TiedHash"]     # -> ""';
+is scalar do {\\$a ~~ Tied["TiedScalar"]}, scalar do{""}, '\\$a ~~ Tied["TiedScalar"]     # -> ""';
+
+
 
 # 
 # ## LValueRef
@@ -792,6 +976,7 @@ done_testing; }; subtest 'ScalarRef`[A]' => sub {
 is scalar do {\12 ~~ ScalarRef}, scalar do{1}, '\12 ~~ ScalarRef     		# -> 1';
 is scalar do {\\12 ~~ ScalarRef}, scalar do{""}, '\\12 ~~ ScalarRef    		# -> ""';
 is scalar do {\-1.2 ~~ ScalarRef[Num]}, scalar do{1}, '\-1.2 ~~ ScalarRef[Num]     # -> 1';
+is scalar do {\\-1.2 ~~ ScalarRef[Num]}, scalar do{""}, '\\-1.2 ~~ ScalarRef[Num]     # -> ""';
 
 # 
 # ## RefRef`[A]
@@ -802,6 +987,7 @@ done_testing; }; subtest 'RefRef`[A]' => sub {
 is scalar do {\\1 ~~ RefRef}, scalar do{1}, '\\1 ~~ RefRef    # -> 1';
 is scalar do {\1 ~~ RefRef}, scalar do{""}, '\1 ~~ RefRef     # -> ""';
 is scalar do {\\1.3 ~~ RefRef[ScalarRef[Num]]}, scalar do{1}, '\\1.3 ~~ RefRef[ScalarRef[Num]]    # -> 1';
+is scalar do {\1.3 ~~ RefRef[ScalarRef[Num]]}, scalar do{""}, '\1.3 ~~ RefRef[ScalarRef[Num]]    # -> ""';
 
 # 
 # ## GlobRef
@@ -821,8 +1007,25 @@ done_testing; }; subtest 'ArrayRef`[A]' => sub {
 is scalar do {[] ~~ ArrayRef}, scalar do{1}, '[] ~~ ArrayRef    # -> 1';
 is scalar do {{} ~~ ArrayRef}, scalar do{""}, '{} ~~ ArrayRef    # -> ""';
 is scalar do {[] ~~ ArrayRef[Num]}, scalar do{1}, '[] ~~ ArrayRef[Num]    # -> 1';
+is scalar do {{} ~~ ArrayRef[Num]}, scalar do{''}, '{} ~~ ArrayRef[Num]    # -> \'\'';
 is scalar do {[1, 1.1] ~~ ArrayRef[Num]}, scalar do{1}, '[1, 1.1] ~~ ArrayRef[Num]    # -> 1';
 is scalar do {[1, undef] ~~ ArrayRef[Num]}, scalar do{""}, '[1, undef] ~~ ArrayRef[Num]    # -> ""';
+
+# 
+# ## Lim[A, B?]
+# 
+# Limit arrays from `A` to `B`, or from 0 to `A`, if `B` is'nt present.
+# 
+done_testing; }; subtest 'Lim[A, B?]' => sub { 
+is scalar do {[] ~~ Lim[5]}, scalar do{1}, '[] ~~ Lim[5] # -> 1';
+is scalar do {[1..5] ~~ Lim[5]}, scalar do{1}, '[1..5] ~~ Lim[5] # -> 1';
+is scalar do {[1..6] ~~ Lim[5]}, scalar do{""}, '[1..6] ~~ Lim[5] # -> ""';
+
+is scalar do {[1..5] ~~ Lim[1,5]}, scalar do{1}, '[1..5] ~~ Lim[1,5] # -> 1';
+is scalar do {[1..6] ~~ Lim[1,5]}, scalar do{""}, '[1..6] ~~ Lim[1,5] # -> ""';
+
+is scalar do {[1] ~~ Lim[1,5]}, scalar do{1}, '[1] ~~ Lim[1,5] # -> 1';
+is scalar do {[] ~~ Lim[1,5]}, scalar do{""}, '[] ~~ Lim[1,5] # -> ""';
 
 # 
 # ## HashRef`[H]
@@ -833,6 +1036,7 @@ done_testing; }; subtest 'HashRef`[H]' => sub {
 is scalar do {{} ~~ HashRef}, scalar do{1}, '{} ~~ HashRef    # -> 1';
 is scalar do {\1 ~~ HashRef}, scalar do{""}, '\1 ~~ HashRef    # -> ""';
 
+is scalar do {[]  ~~ HashRef[Int]}, scalar do{""}, '[]  ~~ HashRef[Int]    # -> ""';
 is scalar do {{x=>1, y=>2}  ~~ HashRef[Int]}, scalar do{1}, '{x=>1, y=>2}  ~~ HashRef[Int]    # -> 1';
 is scalar do {{x=>1, y=>""} ~~ HashRef[Int]}, scalar do{""}, '{x=>1, y=>""} ~~ HashRef[Int]    # -> ""';
 
@@ -897,9 +1101,11 @@ is scalar do {{a => -1.6} ~~ Dict[a => Num, b => Option[Str]]}, scalar do{1}, '{
 # 
 # ## HasProp[p...]
 # 
-# The hash has properties.
+# The hash has the properties.
 # 
 done_testing; }; subtest 'HasProp[p...]' => sub { 
+is scalar do {[0, 1] ~~ HasProp[qw/0 1/]}, scalar do{""}, '[0, 1] ~~ HasProp[qw/0 1/]	# -> ""';
+
 is scalar do {{a => 1, b => 2, c => 3} ~~ HasProp[qw/a b/]}, scalar do{1}, '{a => 1, b => 2, c => 3} ~~ HasProp[qw/a b/]    # -> 1';
 is scalar do {{a => 1, b => 2} ~~ HasProp[qw/a b/]}, scalar do{1}, '{a => 1, b => 2} ~~ HasProp[qw/a b/]    # -> 1';
 is scalar do {{a => 1, c => 3} ~~ HasProp[qw/a b/]}, scalar do{""}, '{a => 1, c => 3} ~~ HasProp[qw/a b/]    # -> ""';
@@ -979,6 +1185,19 @@ is scalar do {"Tiger" ~~ InstanceOf['Cat', 'Dog']}, scalar do{""}, '"Tiger" ~~ I
 # 
 # The class or the object has the roles.
 # 
+# The presence of the role is checked by the `does` method.
+# 
+done_testing; }; subtest 'ConsumerOf[A...]' => sub { 
+package NoneExample {}
+package RoleExample { sub does { $_[1] ~~ [qw/Role1 Role2/] } }
+
+is scalar do {'RoleExample' ~~ ConsumerOf[qw/Role1/]}, scalar do{1}, '\'RoleExample\' ~~ ConsumerOf[qw/Role1/] # -> 1';
+is scalar do {'RoleExample' ~~ ConsumerOf[qw/Role2 Role1/]}, scalar do{1}, '\'RoleExample\' ~~ ConsumerOf[qw/Role2 Role1/] # -> 1';
+is scalar do {bless({}, 'RoleExample') ~~ ConsumerOf[qw/Role3 Role2 Role1/]}, scalar do{""}, 'bless({}, \'RoleExample\') ~~ ConsumerOf[qw/Role3 Role2 Role1/] # -> ""';
+
+is scalar do {'NoneExample' ~~ ConsumerOf[qw/Role1/]}, scalar do{""}, '\'NoneExample\' ~~ ConsumerOf[qw/Role1/]	# -> ""';
+
+# 
 # ## StrLike
 # 
 # String or object with overloaded operator `""`.
@@ -1000,6 +1219,13 @@ is scalar do {{} ~~ StrLike}, scalar do{""}, '{} ~~ StrLike    							# -> ""';
 # The regular expression or the object with overloaded operator `qr`.
 # 
 done_testing; }; subtest 'RegexpLike' => sub { 
+is scalar do {ref(qr//)}, "Regexp", 'ref(qr//)  # => Regexp';
+is scalar do {Scalar::Util::reftype(qr//)}, "REGEXP", 'Scalar::Util::reftype(qr//)  # => REGEXP';
+
+my $regex = bless qr//, "A";
+is scalar do {Scalar::Util::reftype($regex)}, "REGEXP", 'Scalar::Util::reftype($regex) # => REGEXP';
+
+is scalar do {$regex ~~ RegexpLike}, scalar do{1}, '$regex ~~ RegexpLike    # -> 1';
 is scalar do {qr// ~~ RegexpLike}, scalar do{1}, 'qr// ~~ RegexpLike    	# -> 1';
 is scalar do {"" ~~ RegexpLike}, scalar do{""}, '"" ~~ RegexpLike    	# -> ""';
 
@@ -1007,7 +1233,8 @@ package RegexpLikeExample {
 	use overload 'qr' => sub { qr/abc/ };
 }
 
-is scalar do {"RegexpLikeExample" ~~ RegexpLike}, scalar do{1}, '"RegexpLikeExample" ~~ RegexpLike    # -> 1';
+is scalar do {"RegexpLikeExample" ~~ RegexpLike}, scalar do{""}, '"RegexpLikeExample" ~~ RegexpLike    # -> ""';
+is scalar do {bless({}, "RegexpLikeExample") ~~ RegexpLike}, scalar do{1}, 'bless({}, "RegexpLikeExample") ~~ RegexpLike    # -> 1';
 
 # 
 # ## CodeLike
@@ -1022,12 +1249,13 @@ is scalar do {{} ~~ CodeLike}, scalar do{""}, '{} ~~ CodeLike  		# -> ""';
 # 
 # ## ArrayLike`[A]
 # 
-# The arrays or objects with overloaded operator `@{}`.
+# The arrays or objects with  or overloaded operator `@{}`.
 # 
 done_testing; }; subtest 'ArrayLike`[A]' => sub { 
-is scalar do {[] ~~ ArrayLike}, scalar do{1}, '[] ~~ ArrayLike    	# -> 1';
-is scalar do {{} ~~ ArrayLike}, scalar do{""}, '{} ~~ ArrayLike    	# -> ""';
+is scalar do {{} ~~ ArrayLike}, scalar do{""}, '{} ~~ ArrayLike    		# -> ""';
+is scalar do {{} ~~ ArrayLike[Int]}, scalar do{""}, '{} ~~ ArrayLike[Int]    # -> ""';
 
+is scalar do {[] ~~ ArrayLike}, scalar do{1}, '[] ~~ ArrayLike    	# -> 1';
 
 package ArrayLikeExample {
 	use overload '@{}' => sub {
@@ -1041,6 +1269,11 @@ is_deeply scalar do {$x->{array}}, scalar do {[undef, 12]}, '$x->{array}  # --> 
 
 is scalar do {$x ~~ ArrayLike}, scalar do{1}, '$x ~~ ArrayLike    # -> 1';
 
+is scalar do {$x ~~ ArrayLike[Int]}, scalar do{""}, '$x ~~ ArrayLike[Int]    # -> ""';
+
+$x->[0] = 13;
+is scalar do {$x ~~ ArrayLike[Int]}, scalar do{1}, '$x ~~ ArrayLike[Int]    # -> 1';
+
 # 
 # ## HashLike`[A]
 # 
@@ -1049,6 +1282,7 @@ is scalar do {$x ~~ ArrayLike}, scalar do{1}, '$x ~~ ArrayLike    # -> 1';
 done_testing; }; subtest 'HashLike`[A]' => sub { 
 is scalar do {{} ~~ HashLike}, scalar do{1}, '{} ~~ HashLike    	# -> 1';
 is scalar do {[] ~~ HashLike}, scalar do{""}, '[] ~~ HashLike    	# -> ""';
+is scalar do {[] ~~ HashLike[Int]}, scalar do{""}, '[] ~~ HashLike[Int] # -> ""';
 
 package HashLikeExample {
 	use overload '%{}' => sub {
@@ -1057,10 +1291,12 @@ package HashLikeExample {
 }
 
 my $x = bless [], 'HashLikeExample';
-$x->{key} = 12;
-is_deeply scalar do {$x->[0]}, scalar do {{key => 12}}, '$x->[0]  # --> {key => 12}';
+$x->{key} = 12.3;
+is_deeply scalar do {$x->[0]}, scalar do {{key => 12.3}}, '$x->[0]  # --> {key => 12.3}';
 
-is scalar do {$x ~~ HashLike}, scalar do{1}, '$x ~~ HashLike    # -> 1';
+is scalar do {$x ~~ HashLike}, scalar do{1}, '$x ~~ HashLike    	   # -> 1';
+is scalar do {$x ~~ HashLike[Int]}, scalar do{""}, '$x ~~ HashLike[Int]    # -> ""';
+is scalar do {$x ~~ HashLike[Num]}, scalar do{1}, '$x ~~ HashLike[Num]    # -> 1';
 
 # 
 # # AUTHOR

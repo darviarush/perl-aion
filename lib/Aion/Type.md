@@ -26,6 +26,8 @@ my $Digit = $Int & $Char;
 
 "a" ~~ ~$Int; # => 1
 5   ~~ ~$Int; # -> ""
+
+eval { $Int->validate("a", "..Eval..") }; $@    # ~> ..Eval.. must have the type Int. The it is 'a'
 ```
 
 # DESCRIPTION

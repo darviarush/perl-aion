@@ -37,7 +37,7 @@ IntOrArrayRef->coerce(5.5) # => 6
 This modile export subroutines:
 
 * `subtype`, `as`, `init_where`, `where`, `awhere`, `message` — for create validators.
-* `SELF`, `ARGS`, `A`, `B`, `C`, `D` — for use in validators has arguments.
+* `SELF`, `ARGS`, `A`, `B`, `C`, `D`, `M`, `N` — for use in validators has arguments.
 * `coerce`, `from`, `via` — for create coerce, using for translate values from one class to other class.
 
 Hierarhy of validators:
@@ -50,11 +50,6 @@ Any
 		Exclude[A, B...]
 		Option[A]
 		Wantarray[A, S]
-	Array`[A]
-		ATuple[A...]
-		ACycleTuple[A...]
-	Hash`[A]
-		HMap[K, V]
 	Item
 		Bool
 		Enum[A...]
@@ -63,10 +58,12 @@ Any
 		Defined
 			Value
 				Version
-				Str`[A, B?]
+				Str
 					Uni
-					Bin`[A, B?]
-					NonEmptyStr`[A, B?]
+					Bin
+					NonEmptyStr
+					StartsWith
+					EndsWith
 					Email
 					Tel
 					Url
@@ -101,16 +98,19 @@ Any
 				Tuple[A...]
 				CycleTuple[A...]
 				Dict[k => A, ...]
-			Like
+				RegexpLike
+				CodeLike
+				ArrayLike`[A]
+					Lim[A, B?]
+				HashLike`[A]
+					HasProp[p...]
+			Like: Str | Object
 				HasMethods[m...]
 				Overload`[m...]
 				InstanceOf[A...]
 				ConsumerOf[A...]
-			StrLike
-			RegexpLike
-			CodeLike
-			ArrayLike`[A]
-			HashLike`[A]
+				StrLike
+					Len[A, B?]
 ```
 
 # SUBROUTINES
@@ -127,6 +127,20 @@ BEGIN {
 1 ~~ One 	# -> 1
 0 ~~ One 	# -> ""
 eval { One->validate(0) }; $@ # ~> Actual 1 only!
+```
+
+`where` and `message` is syntax sugar, and `subtype` can be used without them.
+
+```perl
+BEGIN {
+	subtype Many => (where => sub { $_ > 1 });
+}
+
+2 ~~ Many  # -> 1
+
+eval { subtype Many => (where1 => sub { $_ > 1 }) }; $@ # ~> subtype Many unused keys left: where1
+
+eval { subtype 'Many' }; $@ # ~> subtype Many: main::Many exists!
 ```
 
 ## as ($parenttype)
@@ -171,6 +185,8 @@ eval { subtype 'Ex[A]' }; $@  # ~> subtype Ex\[A\]: needs a where
 
 ## awhere ($code)
 
+Use with `subtype`. 
+
 If type maybe with and without arguments, then use for set test with arguments, and `where` - without.
 
 ```perl
@@ -188,11 +204,20 @@ BEGIN {
 4 ~~ GreatThen[3] # -> 1
 ```
 
-Use with `subtype`. Need if arguments is optional.
+Need if arguments is optional.
 
 ```perl
 eval { subtype 'Ex`[A]', where {} }; $@  # ~> subtype Ex`\[A\]: needs a awhere
 eval { subtype 'Ex', awhere {} }; $@  # ~> subtype Ex: awhere is excess
+
+BEGIN {
+	subtype 'MyEnum`[A...]',
+		as Str,
+		awhere { $_ ~~ scalar ARGS }
+	;
+}
+
+"ab" ~~ MyEnum[qw/ab cd/] # -> 1
 ```
 
 ## SELF
@@ -217,6 +242,28 @@ BEGIN {
 
 Use in `init_where`, `where` and `awhere`.
 
+## M, N
+
+`M` and `N` is the reduction for `SELF->{M}` and `SELF->{N}`.
+
+```perl
+BEGIN {
+	subtype "BeginAndEnd[A, B]",
+		init_where {
+			N = qr/^${\ quotemeta A}/;
+			M = qr/${\ quotemeta B}$/;
+		}
+		where { $_ =~ N && $_ =~ M };
+}
+
+"Hi, my dear!" ~~ BeginAndEnd["Hi,", "!"]   # -> 1
+"Hi my dear!" ~~ BeginAndEnd["Hi,", "!"]   # -> ""
+
+BeginAndEnd["Hi,", "!"]   # => BeginAndEnd['Hi,', '!']
+```
+
+
+
 ## message ($code)
 
 Use with `subtype` for make the message on error, if the value excluded the type. In `$code` use subroutine: `SELF` - the current type, `ARGS`, `A`, `B`, `C`, `D` - arguments of type (if is), and the testing value in `$_`. It can be stringified using `SELF->val_to_str($_)`.
@@ -224,6 +271,50 @@ Use with `subtype` for make the message on error, if the value excluded the type
 ## coerce ($type, from => $from, via => $via)
 
 It add new coerce ($via) to `$type` from `$from`-type.
+
+```perl
+BEGIN {subtype Four => where {4 eq $_}}
+
+"4a" ~~ Four	# -> ""
+
+Four->coerce("4a")	# -> "4a"
+
+coerce Four, from Str, via { 0+$_ };
+
+Four->coerce("4a")	# -> 4
+
+coerce Four, from ArrayRef, via { scalar @$_ };
+
+Four->coerce([1,2,3])	# -> 3
+Four->coerce([1,2,3]) ~~ Four	# -> ""
+Four->coerce([1,2,3,4]) ~~ Four	# -> 1
+```
+
+`coerce` throws exeptions:
+
+```perl
+eval {coerce Int, via1 => 1}; $@  # ~> coerce Int unused keys left: via1
+eval {coerce "x"}; $@  # ~> coerce x not Aion::Type!
+eval {coerce Int}; $@  # ~> coerce Int: from is'nt Aion::Type!
+eval {coerce Int, from "x"}; $@  # ~> coerce Int: from is'nt Aion::Type!
+eval {coerce Int, from Num}; $@  # ~> coerce Int: via is not subroutine!
+eval {coerce Int, (from=>Num, via=>"x")}; $@  # ~> coerce Int: via is not subroutine!
+```
+
+Standart coerces:
+
+```perl
+# Str from Undef — empty string
+Str->coerce(undef) # -> ""
+
+# Int from Num — rounded integer
+Int->coerce(2.5) # -> 3
+Int->coerce(-2.5) # -> -3
+
+# Bool from Any — 1 or ""
+Bool->coerce([])	# -> 1
+Bool->coerce(0)		# -> ""
+```
 
 ## from ($type)
 
@@ -247,6 +338,26 @@ sub minint($$) : Isa(Int => Int => Int) {
 
 minint 6, 5; # -> 5
 eval {minint 5.5, 2}; $@ # ~> Arguments of method `minint` must have the type Tuple\[Int, Int\]\.
+```
+
+Attribute `Isa` is subroutine `UNIVERSAL::Isa`.
+
+```perl
+sub half($) {
+	my ($x) = @_;
+	$x / 2
+}
+
+UNIVERSAL::Isa(
+	__PACKAGE__,
+	*half,
+	\&half,
+	undef,
+	[Int => Int],
+);
+
+half 4; # -> 2
+eval {half 5}; $@ # ~> Return of method `half` must have the type Int. The it is 2.5
 ```
 
 # TYPES
@@ -303,6 +414,7 @@ The optional keys in the `Dict`.
 ```perl
 {a=>55} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
 {a=>55, b=>31} ~~ Dict[a=>Int, b => Option[Int]] # -> 1
+{a=>55, b=>31.5} ~~ Dict[a=>Int, b => Option[Int]] # -> ""
 ```
 
 ## Wantarray[A, S]
@@ -337,6 +449,7 @@ undef ~~ Bool # -> 1
 "" ~~ Bool    # -> 1
 
 2 ~~ Bool     # -> ""
+[] ~~ Bool    # -> ""
 ```
 
 ## Enum[A...]
@@ -387,6 +500,20 @@ Defined unreference values.
 undef ~~ Value    # -> ""
 ```
 
+## Len[A, B?]
+
+Defines the length value from `A` to `B`, or from 0 to `A` if `B` is'nt present.
+
+```perl
+"1234" ~~ Len[3]   # -> ""
+"123" ~~ Len[3]    # -> 1
+"12" ~~ Len[3]     # -> 1
+"" ~~ Len[1, 2]    # -> ""
+"1" ~~ Len[1, 2]   # -> 1
+"12" ~~ Len[1, 2]  # -> 1
+"123" ~~ Len[1, 2] # -> ""
+```
+
 ## Version
 
 Perl versions.
@@ -394,61 +521,69 @@ Perl versions.
 ```perl
 1.1.0 ~~ Version    # -> 1
 v1.1.0 ~~ Version   # -> 1
+v1.1 ~~ Version     # -> 1
+v1 ~~ Version       # -> 1
 1.1 ~~ Version      # -> ""
 "1.1.0" ~~ Version  # -> ""
 ```
 
-## Str`[A, B?]
+## Str
 
 Strings, include numbers.
-It maybe define maximal, or minimal and maximal length.
 
 ```perl
 1.1 ~~ Str         # -> 1
 "" ~~ Str          # -> 1
 1.1.0 ~~ Str       # -> ""
-"1234" ~~ Str[3]   # -> ""
-"123" ~~ Str[3]    # -> 1
-"12" ~~ Str[3]     # -> 1
-"" ~~ Str[1, 2]    # -> ""
-"1" ~~ Str[1, 2]   # -> 1
-"12" ~~ Str[1, 2]   # -> 1
-"123" ~~ Str[1, 2]   # -> ""
 ```
 
 ## Uni
 
-Unicode strings: with utf8-flag or characters with numbers less then 128.
+Unicode strings: with utf8-flag or decode to utf8 without error.
 
 ```perl
 "↭" ~~ Uni    # -> 1
-123 ~~ Uni    # -> 1
-do {no utf8; "↭" ~~ Uni}    # -> ""
+123 ~~ Uni    # -> ""
+do {no utf8; "↭" ~~ Uni}    # -> 1
 ```
 
-## Bin`[A, B?]
+## Bin
 
-Binary strings: without utf8-flag.
-It maybe define maximal, or minimal and maximal length.
+Binary strings: without utf8-flag and octets with numbers less then 128.
 
 ```perl
 123 ~~ Bin    # -> 1
 "z" ~~ Bin    # -> 1
-do {no utf8; "↭" ~~ Bin }   # -> 1
+"↭" ~~ Bin    # -> ""
+do {no utf8; "↭" ~~ Bin }   # -> ""
 ```
 
-## NonEmptyStr`[A, B?]
+## StartsWith\[S]
+
+The string starts with `S`.
+
+```perl
+"Hi, world!" ~~ StartsWith["Hi,"]	# -> 1
+"Hi world!" ~~ StartsWith["Hi,"]	# -> ""
+```
+
+## EndsWith\[S]
+
+The string ends with `S`.
+
+```perl
+"Hi, world!" ~~ EndsWith["world!"]	# -> 1
+"Hi, world" ~~ EndsWith["world!"]	# -> ""
+```
+
+## NonEmptyStr
 
 String with one or many non-space characters.
 
 ```perl
 " " ~~ NonEmptyStr        # -> ""
 " S " ~~ NonEmptyStr      # -> 1
-" S " ~~ NonEmptyStr[2]   # -> ""
-" S" ~~ NonEmptyStr[2]    # -> 1
-" S" ~~ NonEmptyStr[1,2]  # -> 1
-" S " ~~ NonEmptyStr[1,2] # -> ""
-"S" ~~ NonEmptyStr[2,3]   # -> ""
+" S " ~~ (NonEmptyStr & Len[2])   # -> ""
 ```
 
 ## Email
@@ -630,11 +765,26 @@ Integers.
 `N` - the number of bytes for limit.
 
 ```perl
-127 ~~ Int[1]    # -> 1
-128 ~~ Int[1]    # -> ""
-
--128 ~~ Int[1]    # -> 1
 -129 ~~ Int[1]    # -> ""
+-128 ~~ Int[1]    # -> 1
+127 ~~ Int[1]     # -> 1
+128 ~~ Int[1]     # -> ""
+
+# 2 bits power of (8 bits * 8 bytes - 1)
+my $N = 1 << (8*8-1);
+(-$N-1) ~~ Int[8]   # -> ""
+(-$N) ~~ Int[8]     # -> 1
+($N-1) ~~ Int[8]  	# -> 1
+$N ~~ Int[8]      	# -> ""
+
+require Math::BigInt;
+
+my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
+
+((-$N17-1) . "") ~~ Int[17]  # -> ""
+(-$N17 . "") ~~ Int[17]  # -> 1
+(($N17-1) . "") ~~ Int[17]  # -> 1
+($N17 . "") ~~ Int[17]  # -> ""
 ```
 
 ## PositiveInt`[N]
@@ -651,8 +801,22 @@ Positive integers.
 `N` - the number of bytes for limit.
 
 ```perl
+-1 ~~ PositiveInt[1]    # -> ""
+0 ~~ PositiveInt[1]    # -> 1
 255 ~~ PositiveInt[1]    # -> 1
 256 ~~ PositiveInt[1]    # -> ""
+
+-1 ~~ PositiveInt[8] # -> ""
+1.01 ~~ PositiveInt[8] # -> ""
+0 ~~ PositiveInt[8] # -> 1
+
+my $N8 = 2 ** (8*Math::BigInt->new(8)) - 1;
+
+$N8 . "" ~~ PositiveInt[8] # -> 1
+($N8+1) . "" ~~ PositiveInt[8] # -> ""
+
+-1 ~~ PositiveInt[17] # -> ""
+0 ~~ PositiveInt[17] # -> 1
 ```
 
 ## Nat`[N]
@@ -664,7 +828,11 @@ Integers 1+.
 1 ~~ Nat    # -> 1
 ```
 
+`N` - the number of bytes for limit.
+
 ```perl
+0 ~~ Nat[1]      # -> ""
+1 ~~ Nat[1]      # -> 1
 255 ~~ Nat[1]    # -> 1
 256 ~~ Nat[1]    # -> ""
 ```
@@ -683,21 +851,37 @@ The value is reference.
 The reference on the tied variable.
 
 ```perl
-package TiedExample {
-	sub TIEHASH { bless {@_}, shift }
-}
+package TiedHash { sub TIEHASH { bless {@_}, shift } }
+package TiedArray { sub TIEARRAY { bless {@_}, shift } }
+package TiedScalar { sub TIESCALAR { bless {@_}, shift } }
 
-tie my %a, "TiedExample";
-my %b;
+tie my %a, "TiedHash";
+tie my @a, "TiedArray";
+tie my $a, "TiedScalar";
+my %b; my @b; my $b;
 
 \%a ~~ Tied    # -> 1
+\@a ~~ Tied    # -> 1
+\$a ~~ Tied    # -> 1
+
 \%b ~~ Tied    # -> ""
+\@b ~~ Tied    # -> ""
+\$b ~~ Tied    # -> ""
+\\$b ~~ Tied    # -> ""
 
-ref tied %a  # => TiedExample
-ref tied %{\%a}  # => TiedExample
+ref tied %a  # => TiedHash
+ref tied %{\%a}  # => TiedHash
 
-\%a ~~ Tied["TiedExample"]    # -> 1
-\%a ~~ Tied["TiedExample2"]   # -> ""
+\%a ~~ Tied["TiedHash"]     # -> 1
+\@a ~~ Tied["TiedArray"]    # -> 1
+\$a ~~ Tied["TiedScalar"]   # -> 1
+
+\%a ~~ Tied["TiedArray"]    # -> ""
+\@a ~~ Tied["TiedScalar"]   # -> ""
+\$a ~~ Tied["TiedHash"]     # -> ""
+\\$a ~~ Tied["TiedScalar"]     # -> ""
+
+
 ```
 
 ## LValueRef
@@ -792,6 +976,7 @@ The scalar.
 \12 ~~ ScalarRef     		# -> 1
 \\12 ~~ ScalarRef    		# -> ""
 \-1.2 ~~ ScalarRef[Num]     # -> 1
+\\-1.2 ~~ ScalarRef[Num]     # -> ""
 ```
 
 ## RefRef`[A]
@@ -802,6 +987,7 @@ The ref as ref.
 \\1 ~~ RefRef    # -> 1
 \1 ~~ RefRef     # -> ""
 \\1.3 ~~ RefRef[ScalarRef[Num]]    # -> 1
+\1.3 ~~ RefRef[ScalarRef[Num]]    # -> ""
 ```
 
 ## GlobRef
@@ -821,8 +1007,25 @@ The arrays.
 [] ~~ ArrayRef    # -> 1
 {} ~~ ArrayRef    # -> ""
 [] ~~ ArrayRef[Num]    # -> 1
+{} ~~ ArrayRef[Num]    # -> ''
 [1, 1.1] ~~ ArrayRef[Num]    # -> 1
 [1, undef] ~~ ArrayRef[Num]    # -> ""
+```
+
+## Lim[A, B?]
+
+Limit arrays from `A` to `B`, or from 0 to `A`, if `B` is'nt present.
+
+```perl
+[] ~~ Lim[5] # -> 1
+[1..5] ~~ Lim[5] # -> 1
+[1..6] ~~ Lim[5] # -> ""
+
+[1..5] ~~ Lim[1,5] # -> 1
+[1..6] ~~ Lim[1,5] # -> ""
+
+[1] ~~ Lim[1,5] # -> 1
+[] ~~ Lim[1,5] # -> ""
 ```
 
 ## HashRef`[H]
@@ -833,6 +1036,7 @@ The hashes.
 {} ~~ HashRef    # -> 1
 \1 ~~ HashRef    # -> ""
 
+[]  ~~ HashRef[Int]    # -> ""
 {x=>1, y=>2}  ~~ HashRef[Int]    # -> 1
 {x=>1, y=>""} ~~ HashRef[Int]    # -> ""
 ```
@@ -897,9 +1101,11 @@ The dictionary.
 
 ## HasProp[p...]
 
-The hash has properties.
+The hash has the properties.
 
 ```perl
+[0, 1] ~~ HasProp[qw/0 1/]	# -> ""
+
 {a => 1, b => 2, c => 3} ~~ HasProp[qw/a b/]    # -> 1
 {a => 1, b => 2} ~~ HasProp[qw/a b/]    # -> 1
 {a => 1, c => 3} ~~ HasProp[qw/a b/]    # -> ""
@@ -979,6 +1185,19 @@ package Tiger { our @ISA = qw/Cat/ }
 
 The class or the object has the roles.
 
+The presence of the role is checked by the `does` method.
+
+```perl
+package NoneExample {}
+package RoleExample { sub does { $_[1] ~~ [qw/Role1 Role2/] } }
+
+'RoleExample' ~~ ConsumerOf[qw/Role1/] # -> 1
+'RoleExample' ~~ ConsumerOf[qw/Role2 Role1/] # -> 1
+bless({}, 'RoleExample') ~~ ConsumerOf[qw/Role3 Role2 Role1/] # -> ""
+
+'NoneExample' ~~ ConsumerOf[qw/Role1/]	# -> ""
+```
+
 ## StrLike
 
 String or object with overloaded operator `""`.
@@ -1000,6 +1219,13 @@ bless({}, "StrLikeExample") ~~ StrLike    	# -> 1
 The regular expression or the object with overloaded operator `qr`.
 
 ```perl
+ref(qr//)  # => Regexp
+Scalar::Util::reftype(qr//)  # => REGEXP
+
+my $regex = bless qr//, "A";
+Scalar::Util::reftype($regex) # => REGEXP
+
+$regex ~~ RegexpLike    # -> 1
 qr// ~~ RegexpLike    	# -> 1
 "" ~~ RegexpLike    	# -> ""
 
@@ -1007,7 +1233,8 @@ package RegexpLikeExample {
 	use overload 'qr' => sub { qr/abc/ };
 }
 
-"RegexpLikeExample" ~~ RegexpLike    # -> 1
+"RegexpLikeExample" ~~ RegexpLike    # -> ""
+bless({}, "RegexpLikeExample") ~~ RegexpLike    # -> 1
 ```
 
 ## CodeLike
@@ -1022,12 +1249,13 @@ sub {} ~~ CodeLike    	# -> 1
 
 ## ArrayLike`[A]
 
-The arrays or objects with overloaded operator `@{}`.
+The arrays or objects with  or overloaded operator `@{}`.
 
 ```perl
-[] ~~ ArrayLike    	# -> 1
-{} ~~ ArrayLike    	# -> ""
+{} ~~ ArrayLike    		# -> ""
+{} ~~ ArrayLike[Int]    # -> ""
 
+[] ~~ ArrayLike    	# -> 1
 
 package ArrayLikeExample {
 	use overload '@{}' => sub {
@@ -1040,6 +1268,11 @@ $x->[1] = 12;
 $x->{array}  # --> [undef, 12]
 
 $x ~~ ArrayLike    # -> 1
+
+$x ~~ ArrayLike[Int]    # -> ""
+
+$x->[0] = 13;
+$x ~~ ArrayLike[Int]    # -> 1
 ```
 
 ## HashLike`[A]
@@ -1049,6 +1282,7 @@ The hashes or objects with overloaded operator `%{}`.
 ```perl
 {} ~~ HashLike    	# -> 1
 [] ~~ HashLike    	# -> ""
+[] ~~ HashLike[Int] # -> ""
 
 package HashLikeExample {
 	use overload '%{}' => sub {
@@ -1057,10 +1291,12 @@ package HashLikeExample {
 }
 
 my $x = bless [], 'HashLikeExample';
-$x->{key} = 12;
-$x->[0]  # --> {key => 12}
+$x->{key} = 12.3;
+$x->[0]  # --> {key => 12.3}
 
-$x ~~ HashLike    # -> 1
+$x ~~ HashLike    	   # -> 1
+$x ~~ HashLike[Int]    # -> ""
+$x ~~ HashLike[Num]    # -> 1
 ```
 
 # AUTHOR

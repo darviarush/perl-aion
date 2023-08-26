@@ -27,6 +27,8 @@ is scalar do {77 ~~ $Digit}, scalar do{""}, '77 ~~ $Digit # -> ""';
 is scalar do {"a" ~~ ~$Int;}, "1", '"a" ~~ ~$Int; # => 1';
 is scalar do {5   ~~ ~$Int;}, scalar do{""}, '5   ~~ ~$Int; # -> ""';
 
+like scalar do {eval { $Int->validate("a", "..Eval..") }; $@}, qr!..Eval.. must have the type Int. The it is 'a'!, 'eval { $Int->validate("a", "..Eval..") }; $@    # ~> ..Eval.. must have the type Int. The it is \'a\'';
+
 # 
 # # DESCRIPTION
 # 

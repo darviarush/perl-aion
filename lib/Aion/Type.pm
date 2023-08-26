@@ -9,8 +9,11 @@ require DDP;
 
 use overload
 	"fallback" => 1,
-	"&{}" => sub { my ($self) = @_; sub { $self->test } },	# Чтобы тип мог быть выполнен
-	'""' => \&stringify,									# Отображать тип в трейсбеке в строковом представлении
+	"&{}" => sub {
+		my ($self) = @_;
+		sub { $self->test }
+	},	# Чтобы тип мог быть выполнен, как функция
+	'""' => "stringify",									# Отображать тип в трейсбеке в строковом представлении
 	"|" => sub {
 		my ($type1, $type2) = @_;
 		__PACKAGE__->new(name => "Union", args => [$type1, $type2], test => sub { $type1->test || $type2->test });
@@ -23,10 +26,8 @@ use overload
 		my ($type1) = @_;
 		__PACKAGE__->new(name => "Exclude", args => [$type1], test => sub { !$type1->test });
 	},
-	"~~" => sub {
-		(my $type, local $_) = @_;
-		$type->test
-	};
+	"~~" => "include",
+;
 
 # конструктор
 # * args (ArrayRef) — Список аргументов.
@@ -231,6 +232,8 @@ Aion::Type - class of validators.
 	
 	"a" ~~ ~$Int; # => 1
 	5   ~~ ~$Int; # -> ""
+	
+	eval { $Int->validate("a", "..Eval..") }; $@    # ~> ..Eval.. must have the type Int. The it is 'a'
 
 =head1 DESCRIPTION
 
