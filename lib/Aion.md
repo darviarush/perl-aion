@@ -29,7 +29,7 @@ Calc->new(a => 1.1, b => 2)->result   # => 3.1
 
 # DESCRIPTION
 
-Aion — OOP 
+Aion — OOP framework for create classes with **features**, has **aspects**, **roles** and so on.
 
 Properties declared via `has` are called **features**.
 
@@ -76,15 +76,129 @@ $cat->name  # => murzik
 
 Add to module roles. It call on each the role method `import_with`.
 
+File lib/Role/Keys/Stringify.pm:
+```perl
+package Role::Keys::Stringify;
+
+use Aion -role;
+
+sub keysify {
+    my ($self) = @_;
+    join ", ", sort keys %$self;
+}
+
+1;
+```
+
+File lib/Role/Values/Stringify.pm:
+```perl
+package Role::Values::Stringify;
+
+use Aion -role;
+
+sub valsify {
+    my ($self) = @_;
+    join ", ", map $self->{$_}, sort keys %$self;
+}
+
+1;
+```
+
+File lib/Class/All/Stringify.pm:
+```perl
+package Class::All::Stringify;
+
+use Aion;
+
+with qw/Role::Keys::Stringify Role::Values::Stringify/;
+
+has [qw/key1 key2/] => (is => 'rw', isa => Str);
+
+1;
+```
+
+```perl
+use lib "lib";
+use Class::All::Stringify;
+
+my $s = Class::All::Stringify->new(key1=>"a", key2=>"b");
+
+$s->keysify     # => key1, key2
+$s->valsify     # => a, b
+```
+
+## isa ($package)
+
+Check `$package` is the class what extended this class.
+
+```perl
+package Ex::X { use Aion; }
+package Ex::A { use Aion; extends qw/Ex::X/; }
+package Ex::B { use Aion; }
+package Ex::C { use Aion; extends qw/Ex::A Ex::B/ }
+
+Ex::C->isa("Ex::A") # -> 1
+Ex::C->isa("Ex::B") # -> 1
+Ex::C->isa("Ex::X") # -> 1
+Ex::C->isa("Ex::X1") # -> ""
+Ex::A->isa("Ex::X") # -> 1
+Ex::A->isa("Ex::A") # -> 1
+Ex::X->isa("Ex::X") # -> 1
+```
+
+## does ($package)
+
+Check `$package` is the role what extended this class.
+
+```perl
+package Role::X { use Aion -role; }
+package Role::A { use Aion; with qw/Role::X/; }
+package Role::B { use Aion; }
+package Ex::Z { use Aion; with qw/Role::A Role::B/ }
+
+Ex::Z->does("Role::A") # -> 1
+Ex::Z->does("Role::B") # -> 1
+Ex::Z->does("Role::X") # -> 1
+Role::A->does("Role::X") # -> 1
+Role::A->does("Role::X1") # -> ""
+Ex::Z->does("Ex::Z") # -> ""
+```
+
 ## aspect ($aspect => sub { ... })
 
-It add aspect to this class or role, and to the classes, who use this role, if it role.
+It add aspect to `has` in this class or role, and to the classes, who use this role, if it role.
+
+```perl
+package Role::Calls {
+    use Aion -role;
+
+    has counters => (is => "ro", default => Copy {});
+
+    aspect count => sub {
+        my ($cls, $name, $value, $construct, $feature) = @_;
+
+        $construct->{get} = "$construct->{get}";
+    };
+}
+
+package Role::Earth {
+    use Aion;
+
+    with qw/Role::Calls/;
+
+    has moon => (is => "rw", count => 1);
+}
+```
 
 # SUBROUTINES IN CLASSES
 
 ## extends (@superclasses)
 
 Extends package other package. It call on each the package method `import_with` if it exists.
+
+## new (%params)
+
+Constructor.
 
 # SUBROUTINES IN ROLES
 

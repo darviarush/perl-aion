@@ -14,45 +14,53 @@ use Aion::Types qw//;
 #   no - никогда не проверять
 use config ISA => 'rw';
 
+sub export($@);
+
 # вызывается из другого пакета, для импорта данного
 sub import {
 	my ($cls, $attr) = @_;
 	my ($pkg, $path) = caller;
 
+	*{"${pkg}::isa"} = \&isa if \&isa != $pkg->can('isa');
+
     if($attr ne '-role') {  # Класс
-	    *{"${pkg}::new"} = \&new;
-        *{"${pkg}::extends"} = \&extends;
+		export $pkg, qw/new extends/;
     } else {    # Роль
-        *{"${pkg}::requires"} = \&requires;
+		export $pkg, qw/requires/;
     }
 
-	*{"${pkg}::with"} = \&with;
-	*{"${pkg}::upgrade"} = \&upgrade;
-	*{"${pkg}::has"} = \&has;
-	*{"${pkg}::aspect"} = \&aspect;
-	*{"${pkg}::does"} = \&does;
-	*{"${pkg}::clear"} = \&clear;
+	export $pkg, qw/with upgrade has aspect does clear/;
 
     # Свойства объекта
-	constant->import("${pkg}::FEATURE" => {});
-
-    # Атрибуты для has
-	constant->import("${pkg}::ASPECT" => {
-        is => \&_is,
-        isa => \&_isa,
-        coerce => \&_coerce,
-        default => \&_default,
-    });
+	constant->import("${pkg}::META" => {
+		feature => {},
+		aspect => {
+			is => \&is_aspect,
+			isa => \&isa_aspect,
+			coerce => \&coerce_aspect,
+			default => \&default_aspect,
+		}
+	});
 
     #Aion::Types->import($pkg);
     eval "package $pkg { use Aion::Types; }";
     die if $@;
 }
 
+# Экспортирует функции в пакет, если их там ещё нет
+sub export($@) {
+	my $pkg = shift;
+	for my $sub (@_) {
+		my $can = $pkg->can($sub);
+		die "$pkg can $sub!" if $can && $can != \&$sub;
+		*{"${pkg}::$sub"} = \&$sub unless $can;
+	}
+}
+
 #@category Aspects
 
 # ro, rw, + и -
-sub _is {
+sub is_aspect {
     my ($cls, $name, $is, $construct, $feature) = @_;
     die "Use is => '(ro|rw|wo|no)[+-]?'" if $is !~ /^(ro|rw|wo|no)[+-]?\z/;
 
@@ -64,27 +72,30 @@ sub _is {
 }
 
 # isa => Type
-sub _isa {
+sub isa_aspect {
     my ($cls, $name, $isa, $construct, $feature) = @_;
     die "has: $name - isa maybe Aion::Type"
         if !UNIVERSAL::isa($isa, 'Aion::Type');
 
     $feature->{isa} = $isa;
 
-    $construct->{get} = "\$self->FEATURE->{$name}{isa}->validate(do{$construct->{get}}, 'Get feature `$name`')" if ISA =~ /ro|rw/;
+    $construct->{get} = "\$self->META->{feature}{$name}{isa}->validate(do{$construct->{get}}, 'Get feature `$name`')" if ISA =~ /ro|rw/;
 
-    $construct->{set} = "\$self->FEATURE->{$name}{isa}->validate(\$val, 'Set feature `$name`'); $construct->{set}" if ISA =~ /wo|rw/;
+    $construct->{set} = "\$self->META->{feature}{$name}{isa}->validate(\$val, 'Set feature `$name`'); $construct->{set}" if ISA =~ /wo|rw/;
 }
 
 # coerce => 1
-sub _coerce {
+sub coerce_aspect {
     my ($cls, $name, $type, $construct, $feature) = @_;
-    $construct->{coerce} = "\$val = \$self->FEATURE->{$name}{isa}->coerce(\$val); ";
+
+	die "coerce: isa not present!" unless $feature->{isa};
+
+    $construct->{coerce} = "\$val = \$self->META->{feature}{$name}{isa}->coerce(\$val); ";
     $construct->{set} = "%(coerce)s$construct->{set}"
 }
 
 # default => value
-sub _default {
+sub default_aspect {
     my ($cls, $name, $default, $construct, $feature) = @_;
 
     if(ref $default eq "CODE") {
@@ -97,32 +108,33 @@ sub _default {
     }
 }
 
-# Расширяет
-sub _extends {
+# Расширяет класс или роль
+sub inherits {
     my $pkg = shift; my $with = shift;
 
-    my $FEATURE = $pkg->FEATURE;
-    my $ASPECT = $pkg->ASPECT;
+    my $FEATURE = $pkg->META->{feature};
+    my $ASPECT = $pkg->META->{aspect};
 
     # Добавляем наследуемые свойства и атрибуты
-	for(@_) {
-        eval "require $_";
-		die if $@;
+	for my $module (@_) {
+        eval "require $module" or die unless $module->can('with') || $module->can('new');
 
-		%$FEATURE = (%$FEATURE, %{$_->FEATURE}) if $_->can("FEATURE");
-		%$ASPECT = (%$ASPECT, %{$_->ASPECT}) if $_->can("ASPECT");
+		if($module->can("META")) {
+			%$FEATURE = (%$FEATURE, %{$module->META->{feature}}) ;
+			%$ASPECT = (%$ASPECT, %{$module->META->{aspect}});
+		}
 	}
 
     my $import_name = $with? 'import_with': 'import_extends';
-    for my $mod (@_) {
-        my $import = $mod->can($import_name);
-        $import->($mod, $pkg) if $import;
-    }
+    for my $module (@_) {
+        my $import = $module->can($import_name);
+        $import->($module, $pkg) if $import;
 
-    if($with) {
-        for my $required (@{"${pkg}::REQUIRES"}) {
-            die "Requires `$required` !" if !$pkg->can($required);
-        }
+		if($with && $module->can("META") && $module->META->{requires}) {
+			for my $require (@{$module->META->{requires}}) {
+				die "Requires `$require`!" if !$pkg->can($require);
+			}
+		}
     }
 
     return;
@@ -132,27 +144,47 @@ sub _extends {
 sub extends {
 	my $pkg = caller;
 
-	@{"${pkg}::ISA"} = @_;
+	push @{"${pkg}::ISA"}, @_;
+	push @{$pkg->META->{extends}}, @_;
 
     unshift @_, $pkg, 0;
-    goto &_extends;
+    goto &inherits;
 }
 
 # Расширение ролями
 sub with {
 	my $pkg = caller;
 
-    @{"${pkg}::DOES"} = @_;
+	push @{"${pkg}::ISA"}, @_;
+	push @{$pkg->META->{with}}, @_;
 
     unshift @_, $pkg, 1;
-    goto &_extends;
+    goto &inherits;
 }
 
 # Требуются подпрограммы
 sub requires {
     my $pkg = caller;
-    push @{"${pkg}::REQUIRES"}, @_;
+    push @{$pkg->META->{requires}}, @_;
     return;
+}
+
+# Определяет - расширен ли класс
+sub isa {
+    my ($self, $class) = @_;
+
+    my $pkg = ref $self || $self;
+
+	return 1 if $class eq $pkg;
+
+    my $extends = pkg->META->{extends} // return "";
+
+    return 1 if $class ~~ $extends;
+    for(@$extends) {
+        return 1 if $_->isa($class);
+    }
+
+    return "";
 }
 
 # Определяет - подключена ли роль
@@ -160,7 +192,7 @@ sub does {
     my ($self, $role) = @_;
 
     my $pkg = ref $self || $self;
-    my $does = \@{"${pkg}::DOES"};
+	my $does = pkg->META->{with} // return "";
 
     return 1 if $role ~~ $does;
     for(@$does) {
@@ -185,6 +217,7 @@ sub has(@) {
 
 	my $pkg = caller;
     my %opt = @_;
+	my $meta = $pkg->META;
 
 	# атрибуты
 	for my $name (ref $property? @$property: $property) {
@@ -212,7 +245,7 @@ sub has(@) {
             construct => \%construct,
         };
 
-        my $ASPECT = $pkg->ASPECT;
+        my $ASPECT = $meta->{aspect};
         for(my $i=0; $i<@_; $i+=2) {
             my ($aspect, $value) = @_[$i, $i+1];
             my $aspect_sub = $ASPECT->{$aspect};
@@ -225,7 +258,7 @@ sub has(@) {
 		die if $@;
 
         $feature->{sub} = $sub;
-		$pkg->FEATURE->{$name} = $feature;
+		$meta->{feature}{$name} = $feature;
 	}
 	return;
 }
@@ -257,7 +290,7 @@ sub create_from_params {
 
 	my @required;
 	my @errors;
-    my $FEATURE = $cls->FEATURE;
+    my $FEATURE = $cls->META->{feature};
 
 	while(my ($name, $feature) = each %$FEATURE) {
 
@@ -327,7 +360,7 @@ B<Aion> — A postmodern object system for Perl 5, as C<Moose> and C<Moo>, but w
 
 =head1 DESCRIPTION
 
-Aion — OOP 
+Aion — OOP framework for create classes with B<features>, has B<aspects>, B<roles> and so on.
 
 Properties declared via C<has> are called B<features>.
 
@@ -372,6 +405,87 @@ File lib/Animal.pm:
 =head2 with
 
 Add to module roles. It call on each the role method C<import_with>.
+
+File lib/Role/Keys/Stringify.pm:
+
+	package Role::Keys::Stringify;
+	
+	use Aion -role;
+	
+	sub keysify {
+	    my ($self) = @_;
+	    join ", ", sort keys %$self;
+	}
+	
+	1;
+
+File lib/Role/Values/Stringify.pm:
+
+	package Role::Values::Stringify;
+	
+	use Aion -role;
+	
+	sub valsify {
+	    my ($self) = @_;
+	    join ", ", map $self->{$_}, sort keys %$self;
+	}
+	
+	1;
+
+File lib/Class/All/Stringify.pm:
+
+	package Class::All::Stringify;
+	
+	use Aion;
+	
+	with qw/Role::Keys::Stringify Role::Values::Stringify/;
+	
+	has [qw/key1 key2/] => (is => 'rw', isa => Str);
+	
+	1;
+
+
+
+	use lib "lib";
+	use Class::All::Stringify;
+	
+	my $s = Class::All::Stringify->new(key1=>"a", key2=>"b");
+	
+	$s->keysify     # => key1, key2
+	$s->valsify     # => a, b
+
+=head2 isa ($package)
+
+Check C<$package> is the class what extended this class.
+
+	package Ex::X { use Aion; }
+	package Ex::A { use Aion; extends qw/Ex::X/; }
+	package Ex::B { use Aion; }
+	package Ex::C { use Aion; extends qw/Ex::A Ex::B/ }
+	
+	Ex::C->isa("Ex::A") # -> 1
+	Ex::C->isa("Ex::B") # -> 1
+	Ex::C->isa("Ex::X") # -> 1
+	Ex::C->isa("Ex::X1") # -> ""
+	Ex::A->isa("Ex::X") # -> 1
+	Ex::A->isa("Ex::A") # -> 1
+	Ex::X->isa("Ex::X") # -> 1
+
+=head2 does ($package)
+
+Check C<$package> is the role what extended this class.
+
+	package Role::X { use Aion -role; }
+	package Role::A { use Aion; with qw/Role::X/; }
+	package Role::B { use Aion; }
+	package Ex::Z { use Aion; with qw/Role::A Role::B/ }
+	
+	Ex::Z->does("Role::A") # -> 1
+	Ex::Z->does("Role::B") # -> 1
+	Ex::Z->does("Role::X") # -> 1
+	Role::A->does("Role::X") # -> 1
+	Role::A->does("Role::X1") # -> ""
+	Ex::Z->does("Ex::Z") # -> ""
 
 =head2 aspect ($aspect => sub { ... })
 
