@@ -109,7 +109,7 @@ sub default_aspect {
 }
 
 # Расширяет класс или роль
-sub inherits {
+sub inherits($$@) {
     my $pkg = shift; my $with = shift;
 
     my $FEATURE = $pkg->META->{feature};
@@ -141,7 +141,7 @@ sub inherits {
 }
 
 # Наследование классов
-sub extends {
+sub extends(@) {
 	my $pkg = caller;
 
 	push @{"${pkg}::ISA"}, @_;
@@ -152,7 +152,7 @@ sub extends {
 }
 
 # Расширение ролями
-sub with {
+sub with(@) {
 	my $pkg = caller;
 
 	push @{"${pkg}::ISA"}, @_;
@@ -163,9 +163,19 @@ sub with {
 }
 
 # Требуются подпрограммы
-sub requires {
+sub requires(@) {
     my $pkg = caller;
     push @{$pkg->META->{requires}}, @_;
+    return;
+}
+
+# Требуются подпрограммы
+sub aspect($$) {
+	my ($name, $sub) = @_;
+    my $pkg = caller;
+	my $ASPECT = $pkg->META->{aspect};
+	die "Aspect `$name` exists!" if exists $ASPECT->{$name};
+    $ASPECT->{$name} = $sub;
     return;
 }
 
@@ -177,11 +187,11 @@ sub isa {
 
 	return 1 if $class eq $pkg;
 
-    my $extends = pkg->META->{extends} // return "";
+    my $extends = $pkg->META->{extends} // return "";
 
     return 1 if $class ~~ $extends;
-    for(@$extends) {
-        return 1 if $_->isa($class);
+    for my $extender (@$extends) {
+        return 1 if $extender->isa($class);
     }
 
     return "";
@@ -192,11 +202,11 @@ sub does {
     my ($self, $role) = @_;
 
     my $pkg = ref $self || $self;
-	my $does = pkg->META->{with} // return "";
+	my $does = $pkg->META->{with} // return "";
 
     return 1 if $role ~~ $does;
-    for(@$does) {
-        return 1 if $_->can("does") && $_->does($role);
+    for my $doeser (@$does) {
+        return 1 if $doeser->can("does") && $doeser->does($role);
     }
 
     return "";
@@ -228,12 +238,19 @@ sub has(@) {
         my %construct = (
             pkg => $pkg,
             name => $name,
-            sub => 'package %(pkg)s {
-                sub %(name)s {
-                    my ($self, $val) = @_;
-				    if(@_>1) { %(set)s } else { %(get)s }
-                }
-            }',
+			attr => '',
+			eval => 'package %(pkg)s {
+	%(sub)s
+}',
+            sub => 'sub %(name)s%(attr)s {
+		if(@_>1) {
+			my ($self, $val) = @_;
+			%(set)s
+		} else {
+			my ($self) = @_;
+			%(get)s
+		}
+	}',
             get => '$self->{%(name)s}',
             set => '$self->{%(name)s} = $val; $self',
         );
@@ -253,7 +270,7 @@ sub has(@) {
             $aspect_sub->($pkg, $name, $value, \%construct, $feature);
         }
 
-        my $sub = _resolv($construct{sub}, \%construct);
+        my $sub = _resolv($construct{eval}, \%construct);
 		eval $sub;
 		die if $@;
 
@@ -489,13 +506,105 @@ Check C<$package> is the role what extended this class.
 
 =head2 aspect ($aspect => sub { ... })
 
-It add aspect to this class or role, and to the classes, who use this role, if it role.
+It add aspect to C<has> in this class or role, and to the classes, who use this role, if it role.
+
+	package Example::Earth {
+	    use Aion;
+	
+	    aspect lvalue => sub {
+	        my ($cls, $name, $value, $construct, $feature) = @_;
+	
+	        $construct->{attr} .= ":lvalue";
+	    };
+	
+	    has moon => (is => "rw", lvalue => 1);
+	}
+	
+	my $earth = Example::Earth->new;
+	
+	$earth->moon = "Mars";
+	
+	$earth->moon # => Mars
+
+Aspect is called every time it is specified in C<has>.
+
+Aspect handler has parameters:
+
+=over
+
+=item * C<$cls> — the package with the C<has>.
+
+=item * C<$name> — the feature name.
+
+=item * C<$value> — the aspect value.
+
+=item * C<$construct> — the hash with code fragments for join to the feature method.
+
+=item * C<$feature> — the hash present feature.
+
+=back
+
+	package Example::Mars {
+	    use Aion;
+	
+	    aspect lvalue => sub {
+	        my ($cls, $name, $value, $construct, $feature) = @_;
+	
+	        $construct->{attr} .= ":lvalue";
+	
+	        $cls # => Example::Mars
+	        $name # => moon
+	        $value # -> 1
+	        [sort keys %$construct] # --> [qw/attr eval get name pkg set sub/]
+	        [sort keys %$feature] # --> [qw/construct has name opt/]
+	
+	        my $_construct = {
+	            pkg => $cls,
+	            name => $name,
+				attr => ':lvalue',
+				eval => 'package %(pkg)s {
+		%(sub)s
+	}',
+	            sub => 'sub %(name)s%(attr)s {
+			if(@_>1) {
+				my ($self, $val) = @_;
+				%(set)s
+			} else {
+				my ($self) = @_;
+				%(get)s
+			}
+		}',
+	            get => '$self->{%(name)s}',
+	            set => '$self->{%(name)s} = $val; $self',
+	        };
+	
+	        $construct # --> $_construct
+	
+	        my $_feature = {
+	            has => [is => "rw", lvalue => 1],
+	            opt => {
+	                is => "rw",
+	                lvalue => 1,
+	            },
+	            name => $name,
+	            construct => $_construct,
+	        };
+	
+	        $feature # --> $_feature
+	    };
+	
+	    has moon => (is => "rw", lvalue => 1);
+	}
 
 =head1 SUBROUTINES IN CLASSES
 
 =head2 extends (@superclasses)
 
 Extends package other package. It call on each the package method C<import_with> if it exists.
+
+=head2 new (%params)
+
+Constructor.
 
 =head1 SUBROUTINES IN ROLES
 

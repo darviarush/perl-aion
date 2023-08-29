@@ -24,7 +24,7 @@ package Calc {
 
 }
 
-is scalar do {Calc->new(a => 1.1, b => 2)->result}, "3.1", 'Calc->new(a => 1.1, b => 2)->result   # => 3.1';
+::is scalar do {Calc->new(a => 1.1, b => 2)->result}, "3.1", 'Calc->new(a => 1.1, b => 2)->result   # => 3.1';
 
 # 
 # # DESCRIPTION
@@ -60,16 +60,16 @@ done_testing; }; subtest 'has ($name, @aspects)' => sub {
 use lib "lib";
 use Animal;
 
-like scalar do {eval { Animal->new }; $@}, qr!Feature type is required\!!, 'eval { Animal->new }; $@    # ~> Feature type is required!';
-like scalar do {eval { Animal->new(name => 'murka') }; $@}, qr!Feature name not set in new\!!, 'eval { Animal->new(name => \'murka\') }; $@    # ~> Feature name not set in new!';
+::like scalar do {eval { Animal->new }; $@}, qr!Feature type is required\!!, 'eval { Animal->new }; $@    # ~> Feature type is required!';
+::like scalar do {eval { Animal->new(name => 'murka') }; $@}, qr!Feature name not set in new\!!, 'eval { Animal->new(name => \'murka\') }; $@    # ~> Feature name not set in new!';
 
 my $cat = Animal->new(type => 'cat');
-is scalar do {$cat->type}, "cat", '$cat->type   # => cat';
+::is scalar do {$cat->type}, "cat", '$cat->type   # => cat';
 
-like scalar do {eval { $cat->name }; $@}, qr!Get feature `name` must have the type Str. The it is undef!, 'eval { $cat->name }; $@   # ~> Get feature `name` must have the type Str. The it is undef';
+::like scalar do {eval { $cat->name }; $@}, qr!Get feature `name` must have the type Str. The it is undef!, 'eval { $cat->name }; $@   # ~> Get feature `name` must have the type Str. The it is undef';
 
 $cat->name("murzik");
-is scalar do {$cat->name}, "murzik", '$cat->name  # => murzik';
+::is scalar do {$cat->name}, "murzik", '$cat->name  # => murzik';
 
 # 
 # ## with
@@ -123,8 +123,8 @@ use Class::All::Stringify;
 
 my $s = Class::All::Stringify->new(key1=>"a", key2=>"b");
 
-is scalar do {$s->keysify}, "key1, key2", '$s->keysify     # => key1, key2';
-is scalar do {$s->valsify}, "a, b", '$s->valsify     # => a, b';
+::is scalar do {$s->keysify}, "key1, key2", '$s->keysify     # => key1, key2';
+::is scalar do {$s->valsify}, "a, b", '$s->valsify     # => a, b';
 
 # 
 # ## isa ($package)
@@ -137,13 +137,13 @@ package Ex::A { use Aion; extends qw/Ex::X/; }
 package Ex::B { use Aion; }
 package Ex::C { use Aion; extends qw/Ex::A Ex::B/ }
 
-is scalar do {Ex::C->isa("Ex::A")}, scalar do{1}, 'Ex::C->isa("Ex::A") # -> 1';
-is scalar do {Ex::C->isa("Ex::B")}, scalar do{1}, 'Ex::C->isa("Ex::B") # -> 1';
-is scalar do {Ex::C->isa("Ex::X")}, scalar do{1}, 'Ex::C->isa("Ex::X") # -> 1';
-is scalar do {Ex::C->isa("Ex::X1")}, scalar do{""}, 'Ex::C->isa("Ex::X1") # -> ""';
-is scalar do {Ex::A->isa("Ex::X")}, scalar do{1}, 'Ex::A->isa("Ex::X") # -> 1';
-is scalar do {Ex::A->isa("Ex::A")}, scalar do{1}, 'Ex::A->isa("Ex::A") # -> 1';
-is scalar do {Ex::X->isa("Ex::X")}, scalar do{1}, 'Ex::X->isa("Ex::X") # -> 1';
+::is scalar do {Ex::C->isa("Ex::A")}, scalar do{1}, 'Ex::C->isa("Ex::A") # -> 1';
+::is scalar do {Ex::C->isa("Ex::B")}, scalar do{1}, 'Ex::C->isa("Ex::B") # -> 1';
+::is scalar do {Ex::C->isa("Ex::X")}, scalar do{1}, 'Ex::C->isa("Ex::X") # -> 1';
+::is scalar do {Ex::C->isa("Ex::X1")}, scalar do{""}, 'Ex::C->isa("Ex::X1") # -> ""';
+::is scalar do {Ex::A->isa("Ex::X")}, scalar do{1}, 'Ex::A->isa("Ex::X") # -> 1';
+::is scalar do {Ex::A->isa("Ex::A")}, scalar do{1}, 'Ex::A->isa("Ex::A") # -> 1';
+::is scalar do {Ex::X->isa("Ex::X")}, scalar do{1}, 'Ex::X->isa("Ex::X") # -> 1';
 
 # 
 # ## does ($package)
@@ -156,23 +156,111 @@ package Role::A { use Aion; with qw/Role::X/; }
 package Role::B { use Aion; }
 package Ex::Z { use Aion; with qw/Role::A Role::B/ }
 
-is scalar do {Ex::Z->does("Role::A")}, scalar do{1}, 'Ex::Z->does("Role::A") # -> 1';
-is scalar do {Ex::Z->does("Role::B")}, scalar do{1}, 'Ex::Z->does("Role::B") # -> 1';
-is scalar do {Ex::Z->does("Role::X")}, scalar do{1}, 'Ex::Z->does("Role::X") # -> 1';
-is scalar do {Role::A->does("Role::X")}, scalar do{1}, 'Role::A->does("Role::X") # -> 1';
-is scalar do {Role::A->does("Role::X1")}, scalar do{""}, 'Role::A->does("Role::X1") # -> ""';
-is scalar do {Ex::Z->does("Ex::Z")}, scalar do{""}, 'Ex::Z->does("Ex::Z") # -> ""';
+::is scalar do {Ex::Z->does("Role::A")}, scalar do{1}, 'Ex::Z->does("Role::A") # -> 1';
+::is scalar do {Ex::Z->does("Role::B")}, scalar do{1}, 'Ex::Z->does("Role::B") # -> 1';
+::is scalar do {Ex::Z->does("Role::X")}, scalar do{1}, 'Ex::Z->does("Role::X") # -> 1';
+::is scalar do {Role::A->does("Role::X")}, scalar do{1}, 'Role::A->does("Role::X") # -> 1';
+::is scalar do {Role::A->does("Role::X1")}, scalar do{""}, 'Role::A->does("Role::X1") # -> ""';
+::is scalar do {Ex::Z->does("Ex::Z")}, scalar do{""}, 'Ex::Z->does("Ex::Z") # -> ""';
 
 # 
 # ## aspect ($aspect => sub { ... })
 # 
-# It add aspect to this class or role, and to the classes, who use this role, if it role.
+# It add aspect to `has` in this class or role, and to the classes, who use this role, if it role.
+# 
+done_testing; }; subtest 'aspect ($aspect => sub { ... })' => sub { 
+package Example::Earth {
+    use Aion;
+
+    aspect lvalue => sub {
+        my ($cls, $name, $value, $construct, $feature) = @_;
+
+        $construct->{attr} .= ":lvalue";
+    };
+
+    has moon => (is => "rw", lvalue => 1);
+}
+
+my $earth = Example::Earth->new;
+
+$earth->moon = "Mars";
+
+::is scalar do {$earth->moon}, "Mars", '$earth->moon # => Mars';
+
+# 
+# Aspect is called every time it is specified in `has`.
+# 
+# Aspect handler has parameters:
+# 
+# * `$cls` — the package with the `has`.
+# * `$name` — the feature name.
+# * `$value` — the aspect value.
+# * `$construct` — the hash with code fragments for join to the feature method.
+# * `$feature` — the hash present feature.
+# 
+
+package Example::Mars {
+    use Aion;
+
+    aspect lvalue => sub {
+        my ($cls, $name, $value, $construct, $feature) = @_;
+
+        $construct->{attr} .= ":lvalue";
+
+::is scalar do {$cls}, "Example::Mars", '        $cls # => Example::Mars';
+::is scalar do {$name}, "moon", '        $name # => moon';
+::is scalar do {$value}, scalar do{1}, '        $value # -> 1';
+::is_deeply scalar do {[sort keys %$construct]}, scalar do {[qw/attr eval get name pkg set sub/]}, '        [sort keys %$construct] # --> [qw/attr eval get name pkg set sub/]';
+::is_deeply scalar do {[sort keys %$feature]}, scalar do {[qw/construct has name opt/]}, '        [sort keys %$feature] # --> [qw/construct has name opt/]';
+
+        my $_construct = {
+            pkg => $cls,
+            name => $name,
+			attr => ':lvalue',
+			eval => 'package %(pkg)s {
+	%(sub)s
+}',
+            sub => 'sub %(name)s%(attr)s {
+		if(@_>1) {
+			my ($self, $val) = @_;
+			%(set)s
+		} else {
+			my ($self) = @_;
+			%(get)s
+		}
+	}',
+            get => '$self->{%(name)s}',
+            set => '$self->{%(name)s} = $val; $self',
+        };
+
+::is_deeply scalar do {$construct}, scalar do {$_construct}, '        $construct # --> $_construct';
+
+        my $_feature = {
+            has => [is => "rw", lvalue => 1],
+            opt => {
+                is => "rw",
+                lvalue => 1,
+            },
+            name => $name,
+            construct => $_construct,
+        };
+
+::is_deeply scalar do {$feature}, scalar do {$_feature}, '        $feature # --> $_feature';
+    };
+
+    has moon => (is => "rw", lvalue => 1);
+}
+
 # 
 # # SUBROUTINES IN CLASSES
 # 
 # ## extends (@superclasses)
 # 
 # Extends package other package. It call on each the package method `import_with` if it exists.
+# 
+# ## new (%params)
+# 
+# Constructor.
 # 
 # # SUBROUTINES IN ROLES
 # 
@@ -223,12 +311,12 @@ package Anim {
 
 my $anim = Anim->new;
 
-is scalar do {$anim->is_cat('cat')}, scalar do{1}, '$anim->is_cat(\'cat\')    # -> 1';
-is scalar do {$anim->is_cat('dog')}, scalar do{""}, '$anim->is_cat(\'dog\')    # -> ""';
+::is scalar do {$anim->is_cat('cat')}, scalar do{1}, '$anim->is_cat(\'cat\')    # -> 1';
+::is scalar do {$anim->is_cat('dog')}, scalar do{""}, '$anim->is_cat(\'dog\')    # -> ""';
 
 
-like scalar do {eval { Anim->is_cat("cat") }; $@}, qr!Arguments of method `is_cat` must have the type Tuple\[Object, Str\].!, 'eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].';
-like scalar do {eval { my @items = $anim->is_cat("cat") }; $@}, qr!Returns of method `is_cat` must have the type Tuple\[Bool\].!, 'eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].';
+::like scalar do {eval { Anim->is_cat("cat") }; $@}, qr!Arguments of method `is_cat` must have the type Tuple\[Object, Str\].!, 'eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].';
+::like scalar do {eval { my @items = $anim->is_cat("cat") }; $@}, qr!Returns of method `is_cat` must have the type Tuple\[Bool\].!, 'eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].';
 
 # 
 # If use name of type in `@signature`, then call subroutine with this name from current package.

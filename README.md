@@ -166,13 +166,101 @@ Ex::Z->does("Ex::Z") # -> ""
 
 ## aspect ($aspect => sub { ... })
 
-It add aspect to this class or role, and to the classes, who use this role, if it role.
+It add aspect to `has` in this class or role, and to the classes, who use this role, if it role.
+
+```perl
+package Example::Earth {
+    use Aion;
+
+    aspect lvalue => sub {
+        my ($cls, $name, $value, $construct, $feature) = @_;
+
+        $construct->{attr} .= ":lvalue";
+    };
+
+    has moon => (is => "rw", lvalue => 1);
+}
+
+my $earth = Example::Earth->new;
+
+$earth->moon = "Mars";
+
+$earth->moon # => Mars
+```
+
+Aspect is called every time it is specified in `has`.
+
+Aspect handler has parameters:
+
+* `$cls` — the package with the `has`.
+* `$name` — the feature name.
+* `$value` — the aspect value.
+* `$construct` — the hash with code fragments for join to the feature method.
+* `$feature` — the hash present feature.
+
+```perl
+package Example::Mars {
+    use Aion;
+
+    aspect lvalue => sub {
+        my ($cls, $name, $value, $construct, $feature) = @_;
+
+        $construct->{attr} .= ":lvalue";
+
+        $cls # => Example::Mars
+        $name # => moon
+        $value # -> 1
+        [sort keys %$construct] # --> [qw/attr eval get name pkg set sub/]
+        [sort keys %$feature] # --> [qw/construct has name opt/]
+
+        my $_construct = {
+            pkg => $cls,
+            name => $name,
+			attr => ':lvalue',
+			eval => 'package %(pkg)s {
+	%(sub)s
+}',
+            sub => 'sub %(name)s%(attr)s {
+		if(@_>1) {
+			my ($self, $val) = @_;
+			%(set)s
+		} else {
+			my ($self) = @_;
+			%(get)s
+		}
+	}',
+            get => '$self->{%(name)s}',
+            set => '$self->{%(name)s} = $val; $self',
+        };
+
+        $construct # --> $_construct
+
+        my $_feature = {
+            has => [is => "rw", lvalue => 1],
+            opt => {
+                is => "rw",
+                lvalue => 1,
+            },
+            name => $name,
+            construct => $_construct,
+        };
+
+        $feature # --> $_feature
+    };
+
+    has moon => (is => "rw", lvalue => 1);
+}
+```
 
 # SUBROUTINES IN CLASSES
 
 ## extends (@superclasses)
 
 Extends package other package. It call on each the package method `import_with` if it exists.
+
+## new (%params)
+
+Constructor.
 
 # SUBROUTINES IN ROLES
 
