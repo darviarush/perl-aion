@@ -51,7 +51,7 @@ package Animal;
 use Aion;
 
 has type => (is => 'ro+', isa => Str);
-has name => (is => 'rw-', isa => Str);
+has name => (is => 'rw-', isa => Str, default => 'murka');
 
 1;
 ```
@@ -60,16 +60,13 @@ has name => (is => 'rw-', isa => Str);
 use lib "lib";
 use Animal;
 
-eval { Animal->new }; $@    # ~> Feature type is required!
-eval { Animal->new(name => 'murka') }; $@    # ~> Feature name not set in new!
-
 my $cat = Animal->new(type => 'cat');
-$cat->type   # => cat
 
-eval { $cat->name }; $@   # ~> Get feature `name` must have the type Str. The it is undef
+$cat->type   # => cat
+$cat->name   # => murka
 
 $cat->name("murzik");
-$cat->name  # => murzik
+$cat->name   # => murzik
 ```
 
 ## with
@@ -256,17 +253,87 @@ package Example::Mars {
 
 ## extends (@superclasses)
 
-Extends package other package. It call on each the package method `import_with` if it exists.
+Extends package other package. It call on each the package method `import_extends` if it exists.
 
-## new (%params)
+```perl
+package World { use Aion;
 
-Constructor.
+    our $extended_by_this = 0;
+
+    sub import_extends {
+        my ($class, $extends) = @_;
+        $extended_by_this ++;
+
+        $class      # => World
+        $extends    # => Hello
+    }
+}
+
+package Hello { use Aion;
+    extends qw/World/;
+
+    $World::extended_by_this # -> 1
+}
+
+Hello->isa("World")     # -> 1
+```
+
+## new (%param)
+
+Constructor. 
+
+* Set `%param` to features.
+* Check if param not mapped to feature.
+* Set default values.
+
+```perl
+package NewExample { use Aion;
+    has x => (is => 'ro', isa => Num);
+    has y => (is => 'ro+', isa => Num);
+    has z => (is => 'ro-', isa => Num);
+}
+
+eval { NewExample->new(f => 5) }; $@            # ~> f is not feature!
+eval { NewExample->new(n => 5, r => 6) }; $@    # ~> n, r is not features!
+eval { NewExample->new }; $@                    # ~> Feature y is required!
+eval { NewExample->new(z => 10) }; $@           # ~> Feature z cannot set in new!
+
+my $ex = NewExample->new(y => 8);
+
+eval { $ex->x }; $@  # ~> Get feature `x` must have the type Num. The it is undef
+
+$ex = NewExample->new(x => 10.1, y => 8);
+
+$ex->x # -> 10.1
+```
 
 # SUBROUTINES IN ROLES
 
 ## requires (@subroutine_names)
 
-It add aspect to the classes, who use this role.
+Check who in classes who use the role present the subroutines.
+
+```perl
+package Role::Alpha { use Aion -role;
+
+    sub in {
+        my ($self, $s) = @_;
+        $s =~ /[${\ $self->abc }]/
+    }
+
+    requires qw/abc/;
+}
+
+eval { package Omega1 { use Aion; with Role::Alpha; } }; $@ # ~> abc requires!
+
+package Omega { use Aion;
+    with Role::Alpha;
+
+    sub abc { "abc" }
+}
+
+Omega->new->in("a")  # -> 1
+```
 
 # METHODS
 
@@ -274,9 +341,40 @@ It add aspect to the classes, who use this role.
 
 It check what property is set.
 
-## clear ($feature)
+```perl
+package ExHas { use Aion;
+    has x => (is => 'rw');
+}
 
-It check what property is set.
+my $ex = ExHas->new;
+
+$ex->has("x")   # -> ""
+
+$ex->x(10);
+
+$ex->has("x")   # -> 1
+```
+
+## clear (@features)
+
+Cleared the features.
+
+```perl
+package ExClear { use Aion;
+    has x => (is => 'rw');
+    has y => (is => 'rw');
+}
+
+my $c = ExClear->new(x => 10, y => 12);
+
+$c->has("x")   # -> 1
+$c->has("y")   # -> 1
+
+$c->clear(qw/x y/);
+
+$c->has("x")   # -> ""
+$c->has("y")   # -> ""
+```
 
 
 # METHODS IN CLASSES
@@ -286,6 +384,22 @@ It check what property is set.
 ## new (%parameters)
 
 The constructor.
+
+# ASPECTS
+
+## is => $permissions
+
+
+## isa => $type
+
+
+## default => $value
+
+Default value for .
+
+```perl
+
+```
 
 # ATTRIBUTES
 

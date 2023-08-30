@@ -56,19 +56,29 @@ Constructor.
 Stringify of object (name with arguments):
 
 ```perl
+my $Char = Aion::Type->new(name => "Char");
+
+$Char->stringify # => Char
+
 my $Int = Aion::Type->new(
     name => "Int",
     args => [3, 5],
 );
 
 $Int->stringify  #=> Int[3, 5]
+```
 
-my $Char = Aion::Type->new(name => "Char");
+Stringify operations:
 
+```perl
 ($Int & $Char)->stringify   # => ( Int[3, 5] & Char )
 ($Int | $Char)->stringify   # => ( Int[3, 5] | Char )
 (~$Int)->stringify          # => ~Int[3, 5]
+```
 
+The operations is objects of `Aion::Type` with special names:
+
+```perl
 Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify   # => ~( Int[3, 5] | Char )
 Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify   # => ( Int[3, 5] | Char )
 Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify   # => ( Int[3, 5] & Char )

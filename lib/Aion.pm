@@ -16,6 +16,9 @@ use config ISA => 'rw';
 
 sub export($@);
 
+# Классы в которых подключён Aion с метаинформацией
+our %META;
+
 # вызывается из другого пакета, для импорта данного
 sub import {
 	my ($cls, $attr) = @_;
@@ -31,8 +34,8 @@ sub import {
 
 	export $pkg, qw/with upgrade has aspect does clear/;
 
-    # Свойства объекта
-	constant->import("${pkg}::META" => {
+    # Метаинформация
+	$META{$pkg} = {
 		feature => {},
 		aspect => {
 			is => \&is_aspect,
@@ -40,7 +43,7 @@ sub import {
 			coerce => \&coerce_aspect,
 			default => \&default_aspect,
 		}
-	});
+	};
 
     #Aion::Types->import($pkg);
     eval "package $pkg { use Aion::Types; }";
@@ -55,6 +58,12 @@ sub export($@) {
 		die "$pkg can $sub!" if $can && $can != \&$sub;
 		*{"${pkg}::$sub"} = \&$sub unless $can;
 	}
+}
+
+# Экспортирует функции в пакет, если их там ещё нет
+sub is_aion($) {
+	my $pkg = shift;
+	die "$pkg is'nt class of Aion!" if !exists $META{$pkg};
 }
 
 #@category Aspects
@@ -79,9 +88,9 @@ sub isa_aspect {
 
     $feature->{isa} = $isa;
 
-    $construct->{get} = "\$self->META->{feature}{$name}{isa}->validate(do{$construct->{get}}, 'Get feature `$name`')" if ISA =~ /ro|rw/;
+    $construct->{get} = "\$Aion::META{'$cls'}{feature}{$name}{isa}->validate(do{$construct->{get}}, 'Get feature `$name`')" if ISA =~ /ro|rw/;
 
-    $construct->{set} = "\$self->META->{feature}{$name}{isa}->validate(\$val, 'Set feature `$name`'); $construct->{set}" if ISA =~ /wo|rw/;
+    $construct->{set} = "\$Aion::META{'$cls'}{feature}{$name}{isa}->validate(\$val, 'Set feature `$name`'); $construct->{set}" if ISA =~ /wo|rw/;
 }
 
 # coerce => 1
@@ -90,7 +99,7 @@ sub coerce_aspect {
 
 	die "coerce: isa not present!" unless $feature->{isa};
 
-    $construct->{coerce} = "\$val = \$self->META->{feature}{$name}{isa}->coerce(\$val); ";
+    $construct->{coerce} = "\$val = \$Aion::META{'$cls'}{feature}{$name}{isa}->coerce(\$val); ";
     $construct->{set} = "%(coerce)s$construct->{set}"
 }
 
@@ -112,16 +121,18 @@ sub default_aspect {
 sub inherits($$@) {
     my $pkg = shift; my $with = shift;
 
-    my $FEATURE = $pkg->META->{feature};
-    my $ASPECT = $pkg->META->{aspect};
+	is_aion $pkg;
+
+    my $FEATURE = $Aion::META{$pkg}{feature};
+    my $ASPECT = $Aion::META{$pkg}{aspect};
 
     # Добавляем наследуемые свойства и атрибуты
 	for my $module (@_) {
         eval "require $module" or die unless $module->can('with') || $module->can('new');
 
-		if($module->can("META")) {
-			%$FEATURE = (%$FEATURE, %{$module->META->{feature}}) ;
-			%$ASPECT = (%$ASPECT, %{$module->META->{aspect}});
+		if(my $meta = $Aion::META{$module}) {
+			%$FEATURE = (%$FEATURE, %{$meta->{feature}}) ;
+			%$ASPECT = (%$ASPECT, %{$meta->{aspect}});
 		}
 	}
 
@@ -130,10 +141,10 @@ sub inherits($$@) {
         my $import = $module->can($import_name);
         $import->($module, $pkg) if $import;
 
-		if($with && $module->can("META") && $module->META->{requires}) {
-			for my $require (@{$module->META->{requires}}) {
-				die "Requires `$require`!" if !$pkg->can($require);
-			}
+		if($with && exists $Aion::META{$module} && (my $requires = $Aion::META{$module}{requires})) {
+			my @not_requires = grep { !$pkg->can($_) } @$requires;
+
+			do { local $, = ", "; die "@not_requires requires!" } if @not_requires;
 		}
     }
 
@@ -144,8 +155,10 @@ sub inherits($$@) {
 sub extends(@) {
 	my $pkg = caller;
 
+	is_aion $pkg;
+
 	push @{"${pkg}::ISA"}, @_;
-	push @{$pkg->META->{extends}}, @_;
+	push @{$Aion::META{$pkg}{extends}}, @_;
 
     unshift @_, $pkg, 0;
     goto &inherits;
@@ -155,8 +168,10 @@ sub extends(@) {
 sub with(@) {
 	my $pkg = caller;
 
+	is_aion $pkg;
+
 	push @{"${pkg}::ISA"}, @_;
-	push @{$pkg->META->{with}}, @_;
+	push @{$Aion::META{$pkg}{with}}, @_;
 
     unshift @_, $pkg, 1;
     goto &inherits;
@@ -165,15 +180,23 @@ sub with(@) {
 # Требуются подпрограммы
 sub requires(@) {
     my $pkg = caller;
-    push @{$pkg->META->{requires}}, @_;
+
+	is_aion $pkg;
+
+    push @{$Aion::META{$pkg}{requires}}, @_;
     return;
 }
+
+
 
 # Требуются подпрограммы
 sub aspect($$) {
 	my ($name, $sub) = @_;
     my $pkg = caller;
-	my $ASPECT = $pkg->META->{aspect};
+
+	is_aion $pkg;
+
+	my $ASPECT = $Aion::META{$pkg}{aspect};
 	die "Aspect `$name` exists!" if exists $ASPECT->{$name};
     $ASPECT->{$name} = $sub;
     return;
@@ -187,7 +210,8 @@ sub isa {
 
 	return 1 if $class eq $pkg;
 
-    my $extends = $pkg->META->{extends} // return "";
+	my $meta = $Aion::META{$pkg};
+    my $extends = $meta->{extends} // return "";
 
     return 1 if $class ~~ $extends;
     for my $extender (@$extends) {
@@ -202,7 +226,8 @@ sub does {
     my ($self, $role) = @_;
 
     my $pkg = ref $self || $self;
-	my $does = $pkg->META->{with} // return "";
+	my $meta = $Aion::META{$pkg};
+	my $does = $meta->{with} // return "";
 
     return 1 if $role ~~ $does;
     for my $doeser (@$does) {
@@ -214,26 +239,28 @@ sub does {
 
 # Очищает переменную в объекте, возвращает себя
 sub clear {
-    my ($self, $feature) = @_;
-    delete $self->{$feature};
+    my $self = shift;
+    delete @$self{@_};
     $self
 }
 
-# создаёт свойство
+# Создаёт свойство
 sub has(@) {
 	my $property = shift;
 
     return exists $property->{$_[0]} if blessed $property;
 
 	my $pkg = caller;
+	is_aion $pkg;
+
     my %opt = @_;
-	my $meta = $pkg->META;
+	my $meta = $Aion::META{$pkg};
 
 	# атрибуты
 	for my $name (ref $property? @$property: $property) {
 
 		die "has: the method $name is already in the package $pkg"
-            if $pkg->can($name) && !exists $pkg->ASPECT->{$name};
+            if $pkg->can($name) && !exists $meta->{feature}{$name};
 
         my %construct = (
             pkg => $pkg,
@@ -301,13 +328,15 @@ sub new {
 # Устанавливает свойства и выдаёт объект и ошибки
 sub create_from_params {
 	my ($cls, %value) = @_;
-	
+
 	$cls = ref $cls || $cls;
+	is_aion $cls;
+
 	my $self = bless {}, $cls;
 
 	my @required;
 	my @errors;
-    my $FEATURE = $cls->META->{feature};
+    my $FEATURE = $Aion::META{$cls}{feature};
 
 	while(my ($name, $feature) = each %$FEATURE) {
 
@@ -322,12 +351,12 @@ sub create_from_params {
 				$self->{$name} = $val;
 			}
 			else {
-				push @errors, "Feature $name not set in new!";
+				push @errors, "Feature $name cannot set in new!";
 			}
 		} elsif($feature->{required}) {
             push @required, $name;
         } else {
-			$self->{$name} = $feature->{default} if !$feature->{lazy};
+			$self->{$name} = $feature->{default} if $feature->{default} && !$feature->{lazy};
 		}
 
 	}
@@ -399,7 +428,7 @@ File lib/Animal.pm:
 	use Aion;
 	
 	has type => (is => 'ro+', isa => Str);
-	has name => (is => 'rw-', isa => Str);
+	has name => (is => 'rw-', isa => Str, default => 'murka');
 	
 	1;
 
@@ -408,16 +437,13 @@ File lib/Animal.pm:
 	use lib "lib";
 	use Animal;
 	
-	eval { Animal->new }; $@    # ~> Feature type is required!
-	eval { Animal->new(name => 'murka') }; $@    # ~> Feature name not set in new!
-	
 	my $cat = Animal->new(type => 'cat');
-	$cat->type   # => cat
 	
-	eval { $cat->name }; $@   # ~> Get feature `name` must have the type Str. The it is undef
+	$cat->type   # => cat
+	$cat->name   # => murka
 	
 	$cat->name("murzik");
-	$cat->name  # => murzik
+	$cat->name   # => murzik
 
 =head2 with
 
@@ -600,17 +626,87 @@ Aspect handler has parameters:
 
 =head2 extends (@superclasses)
 
-Extends package other package. It call on each the package method C<import_with> if it exists.
+Extends package other package. It call on each the package method C<import_extends> if it exists.
 
-=head2 new (%params)
+	package World { use Aion;
+	
+	    our $extended_by_this = 0;
+	
+	    sub import_extends {
+	        my ($class, $extends) = @_;
+	        $extended_by_this ++;
+	
+	        $class      # => World
+	        $extends    # => Hello
+	    }
+	}
+	
+	package Hello { use Aion;
+	    extends qw/World/;
+	
+	    $World::extended_by_this # -> 1
+	}
+	
+	Hello->isa("World")     # -> 1
 
-Constructor.
+=head2 new (%param)
+
+Constructor. 
+
+=over
+
+=item * Set C<%param> to features.
+
+=item * Check if param not mapped to feature.
+
+=item * Set default values.
+
+=back
+
+	package NewExample { use Aion;
+	    has x => (is => 'ro', isa => Num);
+	    has y => (is => 'ro+', isa => Num);
+	    has z => (is => 'ro-', isa => Num);
+	}
+	
+	eval { NewExample->new(f => 5) }; $@            # ~> f is not feature!
+	eval { NewExample->new(n => 5, r => 6) }; $@    # ~> n, r is not features!
+	eval { NewExample->new }; $@                    # ~> Feature y is required!
+	eval { NewExample->new(z => 10) }; $@           # ~> Feature z cannot set in new!
+	
+	my $ex = NewExample->new(y => 8);
+	
+	eval { $ex->x }; $@  # ~> Get feature `x` must have the type Num. The it is undef
+	
+	$ex = NewExample->new(x => 10.1, y => 8);
+	
+	$ex->x # -> 10.1
 
 =head1 SUBROUTINES IN ROLES
 
 =head2 requires (@subroutine_names)
 
-It add aspect to the classes, who use this role.
+Check who in classes who use the role present the subroutines.
+
+	package Role::Alpha { use Aion -role;
+	
+	    sub in {
+	        my ($self, $s) = @_;
+	        $s =~ /[${\ $self->abc }]/
+	    }
+	
+	    requires qw/abc/;
+	}
+	
+	eval { package Omega1 { use Aion; with Role::Alpha; } }; $@ # ~> abc requires!
+	
+	package Omega { use Aion;
+	    with Role::Alpha;
+	
+	    sub abc { "abc" }
+	}
+	
+	Omega->new->in("a")  # -> 1
 
 =head1 METHODS
 
@@ -618,9 +714,36 @@ It add aspect to the classes, who use this role.
 
 It check what property is set.
 
-=head2 clear ($feature)
+	package ExHas { use Aion;
+	    has x => (is => 'rw');
+	}
+	
+	my $ex = ExHas->new;
+	
+	$ex->has("x")   # -> ""
+	
+	$ex->x(10);
+	
+	$ex->has("x")   # -> 1
 
-It check what property is set.
+=head2 clear (@features)
+
+Cleared the features.
+
+	package ExClear { use Aion;
+	    has x => (is => 'rw');
+	    has y => (is => 'rw');
+	}
+	
+	my $c = ExClear->new(x => 10, y => 12);
+	
+	$c->has("x")   # -> 1
+	$c->has("y")   # -> 1
+	
+	$c->clear(qw/x y/);
+	
+	$c->has("x")   # -> ""
+	$c->has("y")   # -> ""
 
 =head1 METHODS IN CLASSES
 

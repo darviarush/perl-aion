@@ -51,7 +51,7 @@ package Calc {
 #>> use Aion;
 #>> 
 #>> has type => (is => 'ro+', isa => Str);
-#>> has name => (is => 'rw-', isa => Str);
+#>> has name => (is => 'rw-', isa => Str, default => 'murka');
 #>> 
 #>> 1;
 #@< EOF
@@ -60,16 +60,13 @@ done_testing; }; subtest 'has ($name, @aspects)' => sub {
 use lib "lib";
 use Animal;
 
-::like scalar do {eval { Animal->new }; $@}, qr!Feature type is required\!!, 'eval { Animal->new }; $@    # ~> Feature type is required!';
-::like scalar do {eval { Animal->new(name => 'murka') }; $@}, qr!Feature name not set in new\!!, 'eval { Animal->new(name => \'murka\') }; $@    # ~> Feature name not set in new!';
-
 my $cat = Animal->new(type => 'cat');
-::is scalar do {$cat->type}, "cat", '$cat->type   # => cat';
 
-::like scalar do {eval { $cat->name }; $@}, qr!Get feature `name` must have the type Str. The it is undef!, 'eval { $cat->name }; $@   # ~> Get feature `name` must have the type Str. The it is undef';
+::is scalar do {$cat->type}, "cat", '$cat->type   # => cat';
+::is scalar do {$cat->name}, "murka", '$cat->name   # => murka';
 
 $cat->name("murzik");
-::is scalar do {$cat->name}, "murzik", '$cat->name  # => murzik';
+::is scalar do {$cat->name}, "murzik", '$cat->name   # => murzik';
 
 # 
 # ## with
@@ -256,17 +253,87 @@ package Example::Mars {
 # 
 # ## extends (@superclasses)
 # 
-# Extends package other package. It call on each the package method `import_with` if it exists.
+# Extends package other package. It call on each the package method `import_extends` if it exists.
 # 
-# ## new (%params)
+done_testing; }; subtest 'extends (@superclasses)' => sub { 
+package World { use Aion;
+
+    our $extended_by_this = 0;
+
+    sub import_extends {
+        my ($class, $extends) = @_;
+        $extended_by_this ++;
+
+::is scalar do {$class}, "World", '        $class      # => World';
+::is scalar do {$extends}, "Hello", '        $extends    # => Hello';
+    }
+}
+
+package Hello { use Aion;
+    extends qw/World/;
+
+::is scalar do {$World::extended_by_this}, scalar do{1}, '    $World::extended_by_this # -> 1';
+}
+
+::is scalar do {Hello->isa("World")}, scalar do{1}, 'Hello->isa("World")     # -> 1';
+
 # 
-# Constructor.
+# ## new (%param)
+# 
+# Constructor. 
+# 
+# * Set `%param` to features.
+# * Check if param not mapped to feature.
+# * Set default values.
+# 
+done_testing; }; subtest 'new (%param)' => sub { 
+package NewExample { use Aion;
+    has x => (is => 'ro', isa => Num);
+    has y => (is => 'ro+', isa => Num);
+    has z => (is => 'ro-', isa => Num);
+}
+
+::like scalar do {eval { NewExample->new(f => 5) }; $@}, qr!f is not feature\!!, 'eval { NewExample->new(f => 5) }; $@            # ~> f is not feature!';
+::like scalar do {eval { NewExample->new(n => 5, r => 6) }; $@}, qr!n, r is not features\!!, 'eval { NewExample->new(n => 5, r => 6) }; $@    # ~> n, r is not features!';
+::like scalar do {eval { NewExample->new }; $@}, qr!Feature y is required\!!, 'eval { NewExample->new }; $@                    # ~> Feature y is required!';
+::like scalar do {eval { NewExample->new(z => 10) }; $@}, qr!Feature z cannot set in new\!!, 'eval { NewExample->new(z => 10) }; $@           # ~> Feature z cannot set in new!';
+
+my $ex = NewExample->new(y => 8);
+
+::like scalar do {eval { $ex->x }; $@}, qr!Get feature `x` must have the type Num. The it is undef!, 'eval { $ex->x }; $@  # ~> Get feature `x` must have the type Num. The it is undef';
+
+$ex = NewExample->new(x => 10.1, y => 8);
+
+::is scalar do {$ex->x}, scalar do{10.1}, '$ex->x # -> 10.1';
+
 # 
 # # SUBROUTINES IN ROLES
 # 
 # ## requires (@subroutine_names)
 # 
-# It add aspect to the classes, who use this role.
+# Check who in classes who use the role present the subroutines.
+# 
+done_testing; }; subtest 'requires (@subroutine_names)' => sub { 
+package Role::Alpha { use Aion -role;
+
+    sub in {
+        my ($self, $s) = @_;
+        $s =~ /[${\ $self->abc }]/
+    }
+
+    requires qw/abc/;
+}
+
+::like scalar do {eval { package Omega1 { use Aion; with Role::Alpha; } }; $@}, qr!abc requires\!!, 'eval { package Omega1 { use Aion; with Role::Alpha; } }; $@ # ~> abc requires!';
+
+package Omega { use Aion;
+    with Role::Alpha;
+
+    sub abc { "abc" }
+}
+
+::is scalar do {Omega->new->in("a")}, scalar do{1}, 'Omega->new->in("a")  # -> 1';
+
 # 
 # # METHODS
 # 
@@ -274,9 +341,40 @@ package Example::Mars {
 # 
 # It check what property is set.
 # 
-# ## clear ($feature)
+done_testing; }; subtest 'has ($feature)' => sub { 
+package ExHas { use Aion;
+    has x => (is => 'rw');
+}
+
+my $ex = ExHas->new;
+
+::is scalar do {$ex->has("x")}, scalar do{""}, '$ex->has("x")   # -> ""';
+
+$ex->x(10);
+
+::is scalar do {$ex->has("x")}, scalar do{1}, '$ex->has("x")   # -> 1';
+
 # 
-# It check what property is set.
+# ## clear (@features)
+# 
+# Cleared the features.
+# 
+done_testing; }; subtest 'clear (@features)' => sub { 
+package ExClear { use Aion;
+    has x => (is => 'rw');
+    has y => (is => 'rw');
+}
+
+my $c = ExClear->new(x => 10, y => 12);
+
+::is scalar do {$c->has("x")}, scalar do{1}, '$c->has("x")   # -> 1';
+::is scalar do {$c->has("y")}, scalar do{1}, '$c->has("y")   # -> 1';
+
+$c->clear(qw/x y/);
+
+::is scalar do {$c->has("x")}, scalar do{""}, '$c->has("x")   # -> ""';
+::is scalar do {$c->has("y")}, scalar do{""}, '$c->has("y")   # -> ""';
+
 # 
 # 
 # # METHODS IN CLASSES
