@@ -385,6 +385,61 @@ $c->has("y")   # -> ""
 
 The constructor.
 
+# ASPECTS
+
+`use Aion` include in module next aspects for use in `has`:
+
+## is => $permissions
+
+
+## isa => $type
+
+
+## default => $value
+
+Default value set in constructor, if feature falue not present.
+
+```perl
+package ExDefault { use Aion;
+    has x => (is => 'ro', default => 10);
+}
+
+ExDefault->new->x  # -> 10
+ExDefault->new(x => 20)->x  # -> 20
+```
+
+If `$value` is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
+
+```perl
+my $count = 0;
+
+package ExLazy { use Aion;
+    has x => (is => 'ro', default => sub {
+        my ($self) = @_;
+        ++$count
+    });
+}
+
+my $ex = ExLazy->new;
+$count   # -> 0
+$ex->x   # -> 10
+$count   # -> 1
+$ex->x   # -> 10
+$count   # -> 1
+```
+
+
+## defcopy => $ref
+
+
+
+## defdeepcopy => $ref
+
+## trigger => $coderef
+
+## trigger => $coderef
+
+
 # ATTRIBUTES
 
 Aion add universal attributes.

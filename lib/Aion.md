@@ -387,18 +387,115 @@ The constructor.
 
 # ASPECTS
 
+`use Aion` include in module next aspects for use in `has`:
+
 ## is => $permissions
 
+* `ro` — make getter only.
+* `wo` — make setter only.
+* `rw` — make getter and setter.
+
+Default is `rw`.
+
+Additional permissions:
+
+* `+` — the feature is required. It is not used with `-`.
+* `-` — the feature cannot be set in the constructor. It is not used with `+`.
+* `*` — the value is reference and it maked weaken can be set.
 
 ## isa => $type
 
 
+
 ## default => $value
 
-Default value for .
+Default value set in constructor, if feature falue not present.
 
 ```perl
+package ExDefault { use Aion;
+    has x => (is => 'ro', default => 10);
+}
 
+ExDefault->new->x  # -> 10
+ExDefault->new(x => 20)->x  # -> 20
+```
+
+If `$value` is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
+
+```perl
+my $count = 0;
+
+package ExLazy { use Aion;
+    has x => (default => sub {
+        my ($self) = @_;
+        ++$count
+    });
+}
+
+my $ex = ExLazy->new;
+$count   # -> 0
+$ex->x   # -> 10
+$count   # -> 1
+$ex->x   # -> 10
+$count   # -> 1
+```
+
+## defcopy => $ref
+
+As `default`, but `$ref` copied every time an object is created.
+The `$ref` properties are not copied.
+If `$ref` is subroutine, then the subroutine not copied.
+
+```perl
+package ExCopy { use Aion;
+    has x => (defcopy => {a => 10});
+}
+
+my $ex1 = ExCopy->new;
+$ex1->x->{a} = 20;
+
+my $ex2 = ExCopy->new;
+
+$ex1->x  # --> {a => 20}
+$ex2->x  # --> {a => 10}
+```
+
+## defdeepcopy => $ref
+
+As `defcopy`, but `$ref` copied with self properties recursion.
+
+```perl
+package ExDeepCopy { use Aion;
+    has x => (defdeepcopy => {a => [10, {b => 20}]});
+}
+
+my $ex1 = ExDeepCopy->new;
+$ex1->x->{a}[1]{b} = 30;
+
+my $ex2 = ExDeepCopy->new;
+
+$ex1->x  # --> {a => [10, {b => 30}]}
+$ex2->x  # --> {a => [10, {b => 20}]}
+```
+
+## trigger => $sub
+
+`$sub` called after the value of the feature is set (in `new` or in setter).
+
+```perl
+package ExTrigger { use Aion;
+    has x => (trigger => sub {
+        my ($self, $old_value) = @_;
+        $self->y = $old_value + $self->x;
+    });
+
+    has y => ();
+}
+
+my $ex = ExTrigger->new(x => 10);
+$ex->y      # -> 10
+$ex->x(20);
+$ex->y      # -> 30
 ```
 
 # ATTRIBUTES
@@ -414,8 +511,7 @@ Attribute `Isa` check the signature the function where it called.
 **TIP**: use aspect `isa` on features is more than enough to check the correctness of the object data.
 
 ```perl
-package Anim {
-    use Aion;
+package Anim { use Aion;
 
     sub is_cat : Isa(Object => Str => Bool) {
         my ($self, $anim) = @_;

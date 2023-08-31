@@ -385,6 +385,61 @@ $c->clear(qw/x y/);
 # 
 # The constructor.
 # 
+# # ASPECTS
+# 
+# `use Aion` include in module next aspects for use in `has`:
+# 
+# ## is => $permissions
+# 
+# 
+# ## isa => $type
+# 
+# 
+# ## default => $value
+# 
+# Default value set in constructor, if feature falue not present.
+# 
+done_testing; }; subtest 'default => $value' => sub { 
+package ExDefault { use Aion;
+    has x => (is => 'ro', default => 10);
+}
+
+::is scalar do {ExDefault->new->x}, scalar do{10}, 'ExDefault->new->x  # -> 10';
+::is scalar do {ExDefault->new(x => 20)->x}, scalar do{20}, 'ExDefault->new(x => 20)->x  # -> 20';
+
+# 
+# If `$value` is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
+# 
+
+my $count = 0;
+
+package ExLazy { use Aion;
+    has x => (is => 'ro', default => sub {
+        my ($self) = @_;
+        ++$count
+    });
+}
+
+my $ex = ExLazy->new;
+::is scalar do {$count}, scalar do{0}, '$count   # -> 0';
+::is scalar do {$ex->x}, scalar do{10}, '$ex->x   # -> 10';
+::is scalar do {$count}, scalar do{1}, '$count   # -> 1';
+::is scalar do {$ex->x}, scalar do{10}, '$ex->x   # -> 10';
+::is scalar do {$count}, scalar do{1}, '$count   # -> 1';
+
+# 
+# 
+# ## defcopy => $ref
+# 
+# 
+# 
+# ## defdeepcopy => $ref
+# 
+# ## trigger => $coderef
+# 
+# ## trigger => $coderef
+# 
+# 
 # # ATTRIBUTES
 # 
 # Aion add universal attributes.

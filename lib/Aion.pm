@@ -753,6 +753,51 @@ C<use Aion> include in module next methods:
 
 The constructor.
 
+=head1 ASPECTS
+
+C<use Aion> include in module next aspects for use in C<has>:
+
+=head2 is => $permissions
+
+=head2 isa => $type
+
+=head2 default => $value
+
+Default value set in constructor, if feature falue not present.
+
+	package ExDefault { use Aion;
+	    has x => (is => 'ro', default => 10);
+	}
+	
+	ExDefault->new->x  # -> 10
+	ExDefault->new(x => 20)->x  # -> 20
+
+If C<$value> is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
+
+	my $count = 0;
+	
+	package ExLazy { use Aion;
+	    has x => (is => 'ro', default => sub {
+	        my ($self) = @_;
+	        ++$count
+	    });
+	}
+	
+	my $ex = ExLazy->new;
+	$count   # -> 0
+	$ex->x   # -> 10
+	$count   # -> 1
+	$ex->x   # -> 10
+	$count   # -> 1
+
+=head2 defcopy => $ref
+
+=head2 defdeepcopy => $ref
+
+=head2 trigger => $coderef
+
+=head2 trigger => $coderef
+
 =head1 ATTRIBUTES
 
 Aion add universal attributes.
