@@ -42,6 +42,7 @@ sub import {
 			isa => \&isa_aspect,
 			coerce => \&coerce_aspect,
 			default => \&default_aspect,
+			trigger => \&trigger_aspect,
 		}
 	};
 
@@ -115,6 +116,14 @@ sub default_aspect {
         $feature->{opt}{isa}->validate($default, $name) if $feature->{opt}{isa};
         $feature->{default} = $default;
     }
+}
+
+# trigger => $sub
+sub trigger_aspect {
+	my ($cls, $name, $trigger, $construct, $feature) = @_;
+
+	*{"${cls}::${name}__TRIGGER"} = $trigger;
+	$construct->{set} = "my \$old = \$self->{$name}; $construct->{set}; \$self->${name}__TRIGGER(\$old)";
 }
 
 # Расширяет класс или роль
@@ -272,14 +281,15 @@ sub has(@) {
             sub => 'sub %(name)s%(attr)s {
 		if(@_>1) {
 			my ($self, $val) = @_;
-			%(set)s
+			%(set)s%(ret)s
 		} else {
 			my ($self) = @_;
 			%(get)s
 		}
 	}',
             get => '$self->{%(name)s}',
-            set => '$self->{%(name)s} = $val; $self',
+            set => '$self->{%(name)s} = $val',
+			ret => '; $self'
         );
 
         my $feature = {

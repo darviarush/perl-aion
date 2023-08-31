@@ -403,9 +403,51 @@ Additional permissions:
 * `-` — the feature cannot be set in the constructor. It is not used with `+`.
 * `*` — the value is reference and it maked weaken can be set.
 
+```perl
+package ExIs {
+    has rw => (is => 'rw');
+    has ro => (is => 'ro+');
+    has wo => (is => 'wo-');
+}
+
+eval { ExIs->new }; $@ # ~> 123
+eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> 123
+ExIs->new(ro => 10);
+ExIs->new(ro => 10, rw => 20);
+
+ExIs->new(ro => 10)->ro  # -> 10
+eval { ExIs->new(ro => 10)->ro }; $@ # ~> 123
+
+ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1
+eval { ExIs->new(ro => 10)->wo }; $@ # ~> 123
+ExIs->new(ro => 10)->rw(30)->rw  # -> 30
+```
+
+Feature with `*` don't hold value:
+
+```perl
+package Node { use Aion;
+    has parent => (is => "ro*", isa => Object["Node"]);
+}
+
+my $root = Node->new;
+my $node = Node->new(parent => $node);
+
+$node->parent->parent   # -> undef
+undef $root;
+$node->parent   # -> undef
+
+# And by setter:
+$node->parent($root = Node->new);
+
+$node->parent->parent   # -> undef
+undef $root;
+$node->parent   # -> undef
+```
+
 ## isa => $type
 
-
+Set feature type. It validate feature value 
 
 ## default => $value
 
@@ -438,44 +480,6 @@ $ex->x   # -> 10
 $count   # -> 1
 $ex->x   # -> 10
 $count   # -> 1
-```
-
-## defcopy => $ref
-
-As `default`, but `$ref` copied every time an object is created.
-The `$ref` properties are not copied.
-If `$ref` is subroutine, then the subroutine not copied.
-
-```perl
-package ExCopy { use Aion;
-    has x => (defcopy => {a => 10});
-}
-
-my $ex1 = ExCopy->new;
-$ex1->x->{a} = 20;
-
-my $ex2 = ExCopy->new;
-
-$ex1->x  # --> {a => 20}
-$ex2->x  # --> {a => 10}
-```
-
-## defdeepcopy => $ref
-
-As `defcopy`, but `$ref` copied with self properties recursion.
-
-```perl
-package ExDeepCopy { use Aion;
-    has x => (defdeepcopy => {a => [10, {b => 20}]});
-}
-
-my $ex1 = ExDeepCopy->new;
-$ex1->x->{a}[1]{b} = 30;
-
-my $ex2 = ExDeepCopy->new;
-
-$ex1->x  # --> {a => [10, {b => 30}]}
-$ex2->x  # --> {a => [10, {b => 20}]}
 ```
 
 ## trigger => $sub
