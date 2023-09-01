@@ -227,7 +227,7 @@ package Example::Mars {
 		}
 	}',
             get => '$self->{%(name)s}',
-            set => '$self->{%(name)s} = $val; $self',
+            set => '$self->{%(name)s} = $val',
             ret => '; $self',
         };
 
@@ -411,16 +411,15 @@ package ExIs { use Aion;
     has wo => (is => 'wo-');
 }
 
-eval { ExIs->new }; $@ # ~> 123
-eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> 123
+eval { ExIs->new }; $@ # ~> \* Feature ro is required!
+eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> \* Feature wo cannot set in new!
 ExIs->new(ro => 10);
 ExIs->new(ro => 10, rw => 20);
 
 ExIs->new(ro => 10)->ro  # -> 10
-eval { ExIs->new(ro => 10)->ro }; $@ # ~> 123
 
 ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1
-eval { ExIs->new(ro => 10)->wo }; $@ # ~> 123
+eval { ExIs->new(ro => 10)->wo }; $@ # ~> has: wo is wo- \(not get\)
 ExIs->new(ro => 10)->rw(30)->rw  # -> 30
 ```
 
@@ -428,7 +427,7 @@ Feature with `*` don't hold value:
 
 ```perl
 package Node { use Aion;
-    has parent => (is => "ro*", isa => Object["Node"]);
+    has parent => (is => "rw*", isa => Maybe[Object["Node"]]);
 }
 
 my $root = Node->new;
@@ -466,7 +465,7 @@ ExDefault->new(x => 20)->x  # -> 20
 If `$value` is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
 
 ```perl
-my $count = 0;
+my $count = 10;
 
 package ExLazy { use Aion;
     has x => (default => sub {
@@ -476,11 +475,11 @@ package ExLazy { use Aion;
 }
 
 my $ex = ExLazy->new;
-$count   # -> 0
-$ex->x   # -> 10
-$count   # -> 1
-$ex->x   # -> 10
-$count   # -> 1
+$count   # -> 10
+$ex->x   # -> 11
+$count   # -> 11
+$ex->x   # -> 11
+$count   # -> 11
 ```
 
 ## trigger => $sub
@@ -491,7 +490,7 @@ $count   # -> 1
 package ExTrigger { use Aion;
     has x => (trigger => sub {
         my ($self, $old_value) = @_;
-        $self->y = $old_value + $self->x;
+        $self->y($old_value + $self->x);
     });
 
     has y => ();

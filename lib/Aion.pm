@@ -4,7 +4,7 @@ use common::sense;
 
 our $VERSION = "0.01";
 
-use Scalar::Util qw/blessed/;
+use Scalar::Util qw/blessed weaken/;
 use Aion::Types qw//;
 
 # Когда осуществлять проверки:
@@ -80,11 +80,17 @@ sub is_aspect {
     die "Use is => '(ro|rw|wo|no)[+-]?[*]?'" if $is !~ /^(ro|rw|wo|no)[+-]?[*]?\z/;
 
     $construct->{get} = "die 'has: $name is $is (not get)'" if $is =~ /^(wo|no)/;
-    $construct->{set} = "die 'has: $name is $is (not set)'" if $is =~ /^(ro|no)/;
+
+	if($is =~ /^(ro|no)/) {
+    	$construct->{set} = "die 'has: $name is $is (not set)'";
+	}
+	elsif($is =~ /\*\z/) {
+		$construct->{ret} = "; Scalar::Util::weaken(\$self->{$name})$construct->{ret}";
+	}
 
     $feature->{required} = 1 if $is =~ /\+/;
     $feature->{excessive} = 1 if $is =~ /-/;
-    push @{$feature->{init}}, \&_weaken_init if $is =~ /\*/;
+    push @{$feature->{init}}, \&_weaken_init if $is =~ /\*\z/;
 }
 
 # isa => Type
@@ -635,7 +641,7 @@ Aspect handler has parameters:
 			}
 		}',
 	            get => '$self->{%(name)s}',
-	            set => '$self->{%(name)s} = $val; $self',
+	            set => '$self->{%(name)s} = $val',
 	            ret => '; $self',
 	        };
 	
@@ -824,22 +830,21 @@ Additional permissions:
 	    has wo => (is => 'wo-');
 	}
 	
-	eval { ExIs->new }; $@ # ~> 123
-	eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> 123
+	eval { ExIs->new }; $@ # ~> \* Feature ro is required!
+	eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> \* Feature wo cannot set in new!
 	ExIs->new(ro => 10);
 	ExIs->new(ro => 10, rw => 20);
 	
 	ExIs->new(ro => 10)->ro  # -> 10
-	eval { ExIs->new(ro => 10)->ro }; $@ # ~> 123
 	
 	ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1
-	eval { ExIs->new(ro => 10)->wo }; $@ # ~> 123
+	eval { ExIs->new(ro => 10)->wo }; $@ # ~> has: wo is wo- \(not get\)
 	ExIs->new(ro => 10)->rw(30)->rw  # -> 30
 
 Feature with C<*> don't hold value:
 
 	package Node { use Aion;
-	    has parent => (is => "ro*", isa => Object["Node"]);
+	    has parent => (is => "rw*", isa => Maybe[Object["Node"]]);
 	}
 	
 	my $root = Node->new;
@@ -873,7 +878,7 @@ Default value set in constructor, if feature falue not present.
 
 If C<$value> is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
 
-	my $count = 0;
+	my $count = 10;
 	
 	package ExLazy { use Aion;
 	    has x => (default => sub {
@@ -883,11 +888,11 @@ If C<$value> is subroutine, then the subroutine is considered a constructor for 
 	}
 	
 	my $ex = ExLazy->new;
-	$count   # -> 0
-	$ex->x   # -> 10
-	$count   # -> 1
-	$ex->x   # -> 10
-	$count   # -> 1
+	$count   # -> 10
+	$ex->x   # -> 11
+	$count   # -> 11
+	$ex->x   # -> 11
+	$count   # -> 11
 
 =head2 trigger => $sub
 
@@ -896,7 +901,7 @@ C<$sub> called after the value of the feature is set (in C<new> or in setter).
 	package ExTrigger { use Aion;
 	    has x => (trigger => sub {
 	        my ($self, $old_value) = @_;
-	        $self->y = $old_value + $self->x;
+	        $self->y($old_value + $self->x);
 	    });
 	
 	    has y => ();

@@ -227,7 +227,7 @@ package Example::Mars {
 		}
 	}',
             get => '$self->{%(name)s}',
-            set => '$self->{%(name)s} = $val; $self',
+            set => '$self->{%(name)s} = $val',
             ret => '; $self',
         };
 
@@ -411,16 +411,15 @@ package ExIs { use Aion;
     has wo => (is => 'wo-');
 }
 
-::like scalar do {eval { ExIs->new }; $@}, qr!123!, 'eval { ExIs->new }; $@ # ~> 123';
-::like scalar do {eval { ExIs->new(ro => 10, wo => -10) }; $@}, qr!123!, 'eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> 123';
+::like scalar do {eval { ExIs->new }; $@}, qr!\* Feature ro is required\!!, 'eval { ExIs->new }; $@ # ~> \* Feature ro is required!';
+::like scalar do {eval { ExIs->new(ro => 10, wo => -10) }; $@}, qr!\* Feature wo cannot set in new\!!, 'eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> \* Feature wo cannot set in new!';
 ExIs->new(ro => 10);
 ExIs->new(ro => 10, rw => 20);
 
 ::is scalar do {ExIs->new(ro => 10)->ro}, scalar do{10}, 'ExIs->new(ro => 10)->ro  # -> 10';
-::like scalar do {eval { ExIs->new(ro => 10)->ro }; $@}, qr!123!, 'eval { ExIs->new(ro => 10)->ro }; $@ # ~> 123';
 
 ::is scalar do {ExIs->new(ro => 10)->wo(30)->has("wo")}, scalar do{1}, 'ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1';
-::like scalar do {eval { ExIs->new(ro => 10)->wo }; $@}, qr!123!, 'eval { ExIs->new(ro => 10)->wo }; $@ # ~> 123';
+::like scalar do {eval { ExIs->new(ro => 10)->wo }; $@}, qr!has: wo is wo- \(not get\)!, 'eval { ExIs->new(ro => 10)->wo }; $@ # ~> has: wo is wo- \(not get\)';
 ::is scalar do {ExIs->new(ro => 10)->rw(30)->rw}, scalar do{30}, 'ExIs->new(ro => 10)->rw(30)->rw  # -> 30';
 
 # 
@@ -428,7 +427,7 @@ ExIs->new(ro => 10, rw => 20);
 # 
 
 package Node { use Aion;
-    has parent => (is => "ro*", isa => Object["Node"]);
+    has parent => (is => "rw*", isa => Maybe[Object["Node"]]);
 }
 
 my $root = Node->new;
@@ -466,7 +465,7 @@ package ExDefault { use Aion;
 # If `$value` is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
 # 
 
-my $count = 0;
+my $count = 10;
 
 package ExLazy { use Aion;
     has x => (default => sub {
@@ -476,11 +475,11 @@ package ExLazy { use Aion;
 }
 
 my $ex = ExLazy->new;
-::is scalar do {$count}, scalar do{0}, '$count   # -> 0';
-::is scalar do {$ex->x}, scalar do{10}, '$ex->x   # -> 10';
-::is scalar do {$count}, scalar do{1}, '$count   # -> 1';
-::is scalar do {$ex->x}, scalar do{10}, '$ex->x   # -> 10';
-::is scalar do {$count}, scalar do{1}, '$count   # -> 1';
+::is scalar do {$count}, scalar do{10}, '$count   # -> 10';
+::is scalar do {$ex->x}, scalar do{11}, '$ex->x   # -> 11';
+::is scalar do {$count}, scalar do{11}, '$count   # -> 11';
+::is scalar do {$ex->x}, scalar do{11}, '$ex->x   # -> 11';
+::is scalar do {$count}, scalar do{11}, '$count   # -> 11';
 
 # 
 # ## trigger => $sub
@@ -491,7 +490,7 @@ done_testing; }; subtest 'trigger => $sub' => sub {
 package ExTrigger { use Aion;
     has x => (trigger => sub {
         my ($self, $old_value) = @_;
-        $self->y = $old_value + $self->x;
+        $self->y($old_value + $self->x);
     });
 
     has y => ();
