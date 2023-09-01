@@ -207,7 +207,7 @@ package Example::Mars {
         $cls # => Example::Mars
         $name # => moon
         $value # -> 1
-        [sort keys %$construct] # --> [qw/attr eval get name pkg set sub/]
+        [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]
         [sort keys %$feature] # --> [qw/construct has name opt/]
 
         my $_construct = {
@@ -220,7 +220,7 @@ package Example::Mars {
             sub => 'sub %(name)s%(attr)s {
 		if(@_>1) {
 			my ($self, $val) = @_;
-			%(set)s
+			%(set)s%(ret)s
 		} else {
 			my ($self) = @_;
 			%(get)s
@@ -228,6 +228,7 @@ package Example::Mars {
 	}',
             get => '$self->{%(name)s}',
             set => '$self->{%(name)s} = $val; $self',
+            ret => '; $self',
         };
 
         $construct # --> $_construct
@@ -404,7 +405,7 @@ Additional permissions:
 * `*` — the value is reference and it maked weaken can be set.
 
 ```perl
-package ExIs {
+package ExIs { use Aion;
     has rw => (is => 'rw');
     has ro => (is => 'ro+');
     has wo => (is => 'wo-');
@@ -431,7 +432,7 @@ package Node { use Aion;
 }
 
 my $root = Node->new;
-my $node = Node->new(parent => $node);
+my $node = Node->new(parent => $root);
 
 $node->parent->parent   # -> undef
 undef $root;

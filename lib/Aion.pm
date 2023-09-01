@@ -69,16 +69,22 @@ sub is_aion($) {
 
 #@category Aspects
 
+sub _weaken_init {
+	my ($self, $feature) = @_;
+	weaken $self->{$feature->{name}};
+}
+
 # ro, rw, + и -
 sub is_aspect {
     my ($cls, $name, $is, $construct, $feature) = @_;
-    die "Use is => '(ro|rw|wo|no)[+-]?'" if $is !~ /^(ro|rw|wo|no)[+-]?\z/;
+    die "Use is => '(ro|rw|wo|no)[+-]?[*]?'" if $is !~ /^(ro|rw|wo|no)[+-]?[*]?\z/;
 
     $construct->{get} = "die 'has: $name is $is (not get)'" if $is =~ /^(wo|no)/;
     $construct->{set} = "die 'has: $name is $is (not set)'" if $is =~ /^(ro|no)/;
 
-    $feature->{required} = 1 if $is =~ /\+$/;
-    $feature->{not_in_new} = 1 if $is =~ /-$/;
+    $feature->{required} = 1 if $is =~ /\+/;
+    $feature->{excessive} = 1 if $is =~ /-/;
+    push @{$feature->{init}}, \&_weaken_init if $is =~ /\*/;
 }
 
 # isa => Type
@@ -96,7 +102,9 @@ sub isa_aspect {
 
 # coerce => 1
 sub coerce_aspect {
-    my ($cls, $name, $type, $construct, $feature) = @_;
+    my ($cls, $name, $coerce, $construct, $feature) = @_;
+
+	return unless $coerce;
 
 	die "coerce: isa not present!" unless $feature->{isa};
 
@@ -118,12 +126,19 @@ sub default_aspect {
     }
 }
 
+sub _trigger_init {
+	my ($self, $feature) = @_;
+	$feature->{trigger}->($self);
+}
+
 # trigger => $sub
 sub trigger_aspect {
 	my ($cls, $name, $trigger, $construct, $feature) = @_;
 
-	*{"${cls}::${name}__TRIGGER"} = $trigger;
+	$feature->{trigger} = *{"${cls}::${name}__TRIGGER"} = $trigger;
 	$construct->{set} = "my \$old = \$self->{$name}; $construct->{set}; \$self->${name}__TRIGGER(\$old)";
+
+	push @{$feature->{init}}, \&_trigger_init;
 }
 
 # Расширяет класс или роль
@@ -289,7 +304,7 @@ sub has(@) {
 	}',
             get => '$self->{%(name)s}',
             set => '$self->{%(name)s} = $val',
-			ret => '; $self'
+			ret => '; $self',
         );
 
         my $feature = {
@@ -344,6 +359,7 @@ sub create_from_params {
 
 	my $self = bless {}, $cls;
 
+	my @init;
 	my @required;
 	my @errors;
     my $FEATURE = $Aion::META{$cls}{feature};
@@ -353,22 +369,30 @@ sub create_from_params {
 		if(exists $value{$name}) {
 			my $val = delete $value{$name};
 
-			if(!$feature->{not_in_new}) {
+			if(!$feature->{excessive}) {
 				$val = $feature->{coerce}->coerce($val) if $feature->{coerce};
 
 				push @errors, $feature->{isa}->detail($val, "Feature $name")
                     if ISA =~ /w/ && $feature->{isa} && !$feature->{isa}->include($val);
 				$self->{$name} = $val;
+				push @init, $feature if $feature->{init};
 			}
 			else {
 				push @errors, "Feature $name cannot set in new!";
 			}
 		} elsif($feature->{required}) {
             push @required, $name;
-        } else {
-			$self->{$name} = $feature->{default} if $feature->{default} && !$feature->{lazy};
+        } elsif(exists $feature->{default}) {
+			$self->{$name} = $feature->{default};
+			push @init, $feature if $feature->{init};
 		}
 
+	}
+
+	for my $feature (@init) {
+		for my $init (@{$feature->{init}}) {
+			$init->($self, $feature);
+		}
 	}
 
 	do {local $" = ", "; unshift @errors, "Features @required is required!"} if @required > 1;
@@ -591,7 +615,7 @@ Aspect handler has parameters:
 	        $cls # => Example::Mars
 	        $name # => moon
 	        $value # -> 1
-	        [sort keys %$construct] # --> [qw/attr eval get name pkg set sub/]
+	        [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]
 	        [sort keys %$feature] # --> [qw/construct has name opt/]
 	
 	        my $_construct = {
@@ -604,7 +628,7 @@ Aspect handler has parameters:
 	            sub => 'sub %(name)s%(attr)s {
 			if(@_>1) {
 				my ($self, $val) = @_;
-				%(set)s
+				%(set)s%(ret)s
 			} else {
 				my ($self) = @_;
 				%(get)s
@@ -612,6 +636,7 @@ Aspect handler has parameters:
 		}',
 	            get => '$self->{%(name)s}',
 	            set => '$self->{%(name)s} = $val; $self',
+	            ret => '; $self',
 	        };
 	
 	        $construct # --> $_construct
@@ -769,7 +794,71 @@ C<use Aion> include in module next aspects for use in C<has>:
 
 =head2 is => $permissions
 
+=over
+
+=item * C<ro> — make getter only.
+
+=item * C<wo> — make setter only.
+
+=item * C<rw> — make getter and setter.
+
+=back
+
+Default is C<rw>.
+
+Additional permissions:
+
+=over
+
+=item * C<+> — the feature is required. It is not used with C<->.
+
+=item * C<-> — the feature cannot be set in the constructor. It is not used with C<+>.
+
+=item * C<*> — the value is reference and it maked weaken can be set.
+
+=back
+
+	package ExIs { use Aion;
+	    has rw => (is => 'rw');
+	    has ro => (is => 'ro+');
+	    has wo => (is => 'wo-');
+	}
+	
+	eval { ExIs->new }; $@ # ~> 123
+	eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> 123
+	ExIs->new(ro => 10);
+	ExIs->new(ro => 10, rw => 20);
+	
+	ExIs->new(ro => 10)->ro  # -> 10
+	eval { ExIs->new(ro => 10)->ro }; $@ # ~> 123
+	
+	ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1
+	eval { ExIs->new(ro => 10)->wo }; $@ # ~> 123
+	ExIs->new(ro => 10)->rw(30)->rw  # -> 30
+
+Feature with C<*> don't hold value:
+
+	package Node { use Aion;
+	    has parent => (is => "ro*", isa => Object["Node"]);
+	}
+	
+	my $root = Node->new;
+	my $node = Node->new(parent => $root);
+	
+	$node->parent->parent   # -> undef
+	undef $root;
+	$node->parent   # -> undef
+	
+	# And by setter:
+	$node->parent($root = Node->new);
+	
+	$node->parent->parent   # -> undef
+	undef $root;
+	$node->parent   # -> undef
+
 =head2 isa => $type
+
+Set feature type. It validate feature value 
 
 =head2 default => $value
 
@@ -787,7 +876,7 @@ If C<$value> is subroutine, then the subroutine is considered a constructor for 
 	my $count = 0;
 	
 	package ExLazy { use Aion;
-	    has x => (is => 'ro', default => sub {
+	    has x => (default => sub {
 	        my ($self) = @_;
 	        ++$count
 	    });
@@ -800,13 +889,23 @@ If C<$value> is subroutine, then the subroutine is considered a constructor for 
 	$ex->x   # -> 10
 	$count   # -> 1
 
-=head2 defcopy => $ref
+=head2 trigger => $sub
 
-=head2 defdeepcopy => $ref
+C<$sub> called after the value of the feature is set (in C<new> or in setter).
 
-=head2 trigger => $coderef
-
-=head2 trigger => $coderef
+	package ExTrigger { use Aion;
+	    has x => (trigger => sub {
+	        my ($self, $old_value) = @_;
+	        $self->y = $old_value + $self->x;
+	    });
+	
+	    has y => ();
+	}
+	
+	my $ex = ExTrigger->new(x => 10);
+	$ex->y      # -> 10
+	$ex->x(20);
+	$ex->y      # -> 30
 
 =head1 ATTRIBUTES
 
@@ -820,8 +919,7 @@ B<WARNING>: use atribute C<Isa> slows down the program.
 
 B<TIP>: use aspect C<isa> on features is more than enough to check the correctness of the object data.
 
-	package Anim {
-	    use Aion;
+	package Anim { use Aion;
 	
 	    sub is_cat : Isa(Object => Str => Bool) {
 	        my ($self, $anim) = @_;

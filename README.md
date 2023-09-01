@@ -207,7 +207,7 @@ package Example::Mars {
         $cls # => Example::Mars
         $name # => moon
         $value # -> 1
-        [sort keys %$construct] # --> [qw/attr eval get name pkg set sub/]
+        [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]
         [sort keys %$feature] # --> [qw/construct has name opt/]
 
         my $_construct = {
@@ -220,7 +220,7 @@ package Example::Mars {
             sub => 'sub %(name)s%(attr)s {
 		if(@_>1) {
 			my ($self, $val) = @_;
-			%(set)s
+			%(set)s%(ret)s
 		} else {
 			my ($self) = @_;
 			%(get)s
@@ -228,6 +228,7 @@ package Example::Mars {
 	}',
             get => '$self->{%(name)s}',
             set => '$self->{%(name)s} = $val; $self',
+            ret => '; $self',
         };
 
         $construct # --> $_construct
@@ -391,9 +392,63 @@ The constructor.
 
 ## is => $permissions
 
+* `ro` — make getter only.
+* `wo` — make setter only.
+* `rw` — make getter and setter.
+
+Default is `rw`.
+
+Additional permissions:
+
+* `+` — the feature is required. It is not used with `-`.
+* `-` — the feature cannot be set in the constructor. It is not used with `+`.
+* `*` — the value is reference and it maked weaken can be set.
+
+```perl
+package ExIs { use Aion;
+    has rw => (is => 'rw');
+    has ro => (is => 'ro+');
+    has wo => (is => 'wo-');
+}
+
+eval { ExIs->new }; $@ # ~> 123
+eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> 123
+ExIs->new(ro => 10);
+ExIs->new(ro => 10, rw => 20);
+
+ExIs->new(ro => 10)->ro  # -> 10
+eval { ExIs->new(ro => 10)->ro }; $@ # ~> 123
+
+ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1
+eval { ExIs->new(ro => 10)->wo }; $@ # ~> 123
+ExIs->new(ro => 10)->rw(30)->rw  # -> 30
+```
+
+Feature with `*` don't hold value:
+
+```perl
+package Node { use Aion;
+    has parent => (is => "ro*", isa => Object["Node"]);
+}
+
+my $root = Node->new;
+my $node = Node->new(parent => $root);
+
+$node->parent->parent   # -> undef
+undef $root;
+$node->parent   # -> undef
+
+# And by setter:
+$node->parent($root = Node->new);
+
+$node->parent->parent   # -> undef
+undef $root;
+$node->parent   # -> undef
+```
 
 ## isa => $type
 
+Set feature type. It validate feature value 
 
 ## default => $value
 
@@ -414,7 +469,7 @@ If `$value` is subroutine, then the subroutine is considered a constructor for f
 my $count = 0;
 
 package ExLazy { use Aion;
-    has x => (is => 'ro', default => sub {
+    has x => (default => sub {
         my ($self) = @_;
         ++$count
     });
@@ -428,17 +483,25 @@ $ex->x   # -> 10
 $count   # -> 1
 ```
 
+## trigger => $sub
 
-## defcopy => $ref
+`$sub` called after the value of the feature is set (in `new` or in setter).
 
+```perl
+package ExTrigger { use Aion;
+    has x => (trigger => sub {
+        my ($self, $old_value) = @_;
+        $self->y = $old_value + $self->x;
+    });
 
+    has y => ();
+}
 
-## defdeepcopy => $ref
-
-## trigger => $coderef
-
-## trigger => $coderef
-
+my $ex = ExTrigger->new(x => 10);
+$ex->y      # -> 10
+$ex->x(20);
+$ex->y      # -> 30
+```
 
 # ATTRIBUTES
 
@@ -453,8 +516,7 @@ Attribute `Isa` check the signature the function where it called.
 **TIP**: use aspect `isa` on features is more than enough to check the correctness of the object data.
 
 ```perl
-package Anim {
-    use Aion;
+package Anim { use Aion;
 
     sub is_cat : Isa(Object => Str => Bool) {
         my ($self, $anim) = @_;

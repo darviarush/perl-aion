@@ -207,7 +207,7 @@ package Example::Mars {
 ::is scalar do {$cls}, "Example::Mars", '        $cls # => Example::Mars';
 ::is scalar do {$name}, "moon", '        $name # => moon';
 ::is scalar do {$value}, scalar do{1}, '        $value # -> 1';
-::is_deeply scalar do {[sort keys %$construct]}, scalar do {[qw/attr eval get name pkg set sub/]}, '        [sort keys %$construct] # --> [qw/attr eval get name pkg set sub/]';
+::is_deeply scalar do {[sort keys %$construct]}, scalar do {[qw/attr eval get name pkg ret set sub/]}, '        [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]';
 ::is_deeply scalar do {[sort keys %$feature]}, scalar do {[qw/construct has name opt/]}, '        [sort keys %$feature] # --> [qw/construct has name opt/]';
 
         my $_construct = {
@@ -220,7 +220,7 @@ package Example::Mars {
             sub => 'sub %(name)s%(attr)s {
 		if(@_>1) {
 			my ($self, $val) = @_;
-			%(set)s
+			%(set)s%(ret)s
 		} else {
 			my ($self) = @_;
 			%(get)s
@@ -228,6 +228,7 @@ package Example::Mars {
 	}',
             get => '$self->{%(name)s}',
             set => '$self->{%(name)s} = $val; $self',
+            ret => '; $self',
         };
 
 ::is_deeply scalar do {$construct}, scalar do {$_construct}, '        $construct # --> $_construct';
@@ -391,9 +392,63 @@ $c->clear(qw/x y/);
 # 
 # ## is => $permissions
 # 
+# * `ro` — make getter only.
+# * `wo` — make setter only.
+# * `rw` — make getter and setter.
+# 
+# Default is `rw`.
+# 
+# Additional permissions:
+# 
+# * `+` — the feature is required. It is not used with `-`.
+# * `-` — the feature cannot be set in the constructor. It is not used with `+`.
+# * `*` — the value is reference and it maked weaken can be set.
+# 
+done_testing; }; subtest 'is => $permissions' => sub { 
+package ExIs { use Aion;
+    has rw => (is => 'rw');
+    has ro => (is => 'ro+');
+    has wo => (is => 'wo-');
+}
+
+::like scalar do {eval { ExIs->new }; $@}, qr!123!, 'eval { ExIs->new }; $@ # ~> 123';
+::like scalar do {eval { ExIs->new(ro => 10, wo => -10) }; $@}, qr!123!, 'eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> 123';
+ExIs->new(ro => 10);
+ExIs->new(ro => 10, rw => 20);
+
+::is scalar do {ExIs->new(ro => 10)->ro}, scalar do{10}, 'ExIs->new(ro => 10)->ro  # -> 10';
+::like scalar do {eval { ExIs->new(ro => 10)->ro }; $@}, qr!123!, 'eval { ExIs->new(ro => 10)->ro }; $@ # ~> 123';
+
+::is scalar do {ExIs->new(ro => 10)->wo(30)->has("wo")}, scalar do{1}, 'ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1';
+::like scalar do {eval { ExIs->new(ro => 10)->wo }; $@}, qr!123!, 'eval { ExIs->new(ro => 10)->wo }; $@ # ~> 123';
+::is scalar do {ExIs->new(ro => 10)->rw(30)->rw}, scalar do{30}, 'ExIs->new(ro => 10)->rw(30)->rw  # -> 30';
+
+# 
+# Feature with `*` don't hold value:
+# 
+
+package Node { use Aion;
+    has parent => (is => "ro*", isa => Object["Node"]);
+}
+
+my $root = Node->new;
+my $node = Node->new(parent => $root);
+
+::is scalar do {$node->parent->parent}, scalar do{undef}, '$node->parent->parent   # -> undef';
+undef $root;
+::is scalar do {$node->parent}, scalar do{undef}, '$node->parent   # -> undef';
+
+# And by setter:
+$node->parent($root = Node->new);
+
+::is scalar do {$node->parent->parent}, scalar do{undef}, '$node->parent->parent   # -> undef';
+undef $root;
+::is scalar do {$node->parent}, scalar do{undef}, '$node->parent   # -> undef';
+
 # 
 # ## isa => $type
 # 
+# Set feature type. It validate feature value 
 # 
 # ## default => $value
 # 
@@ -414,7 +469,7 @@ package ExDefault { use Aion;
 my $count = 0;
 
 package ExLazy { use Aion;
-    has x => (is => 'ro', default => sub {
+    has x => (default => sub {
         my ($self) = @_;
         ++$count
     });
@@ -428,17 +483,25 @@ my $ex = ExLazy->new;
 ::is scalar do {$count}, scalar do{1}, '$count   # -> 1';
 
 # 
+# ## trigger => $sub
 # 
-# ## defcopy => $ref
+# `$sub` called after the value of the feature is set (in `new` or in setter).
 # 
-# 
-# 
-# ## defdeepcopy => $ref
-# 
-# ## trigger => $coderef
-# 
-# ## trigger => $coderef
-# 
+done_testing; }; subtest 'trigger => $sub' => sub { 
+package ExTrigger { use Aion;
+    has x => (trigger => sub {
+        my ($self, $old_value) = @_;
+        $self->y = $old_value + $self->x;
+    });
+
+    has y => ();
+}
+
+my $ex = ExTrigger->new(x => 10);
+::is scalar do {$ex->y}, scalar do{10}, '$ex->y      # -> 10';
+$ex->x(20);
+::is scalar do {$ex->y}, scalar do{30}, '$ex->y      # -> 30';
+
 # 
 # # ATTRIBUTES
 # 
@@ -453,8 +516,7 @@ my $ex = ExLazy->new;
 # **TIP**: use aspect `isa` on features is more than enough to check the correctness of the object data.
 # 
 done_testing; }; subtest 'Isa (@signature)' => sub { 
-package Anim {
-    use Aion;
+package Anim { use Aion;
 
     sub is_cat : Isa(Object => Str => Bool) {
         my ($self, $anim) = @_;
