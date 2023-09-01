@@ -38,11 +38,11 @@ sub import {
 	$META{$pkg} = {
 		feature => {},
 		aspect => {
-			is => \&is_aspect,
-			isa => \&isa_aspect,
-			coerce => \&coerce_aspect,
-			default => \&default_aspect,
-			trigger => \&trigger_aspect,
+			is => {prio => -150, sub => \&is_aspect},
+			default => {prio => -100, sub => \&default_aspect},
+			isa => {prio => , sub => \&isa_aspect},
+			coerce => {prio => , sub => \&coerce_aspect},
+			trigger => {prio => , sub => \&trigger_aspect},
 		}
 	};
 
@@ -69,16 +69,41 @@ sub is_aion($) {
 
 #@category Aspects
 
-# ro, rw, + и -
+sub _required_new {
+	my ($is) = @_;
+	return undef, 1 unless $is;
+}
+
+sub _excessive_new {
+	my ($is, $feature) = @_;
+	$_[0] = 0, return "Feature $feature->{name} cannot set in new!" if $is;
+}
+
+sub _weaken_new {
+	my ($is, $feature) = @_;
+	weaken($_) if $is;
+	return;
+}
+
+# ro, rw, + или - и *
 sub is_aspect {
     my ($cls, $name, $is, $construct, $feature) = @_;
-    die "Use is => '(ro|rw|wo|no)[+-]?'" if $is !~ /^(ro|rw|wo|no)[+-]?\z/;
+    die "Use is => '(ro|rw|wo|no)[+-]?[*]?'" if $is !~ /^(ro|rw|wo|no)[+-]?[*]?\z/;
 
     $construct->{get} = "die 'has: $name is $is (not get)'" if $is =~ /^(wo|no)/;
+
     $construct->{set} = "die 'has: $name is $is (not set)'" if $is =~ /^(ro|no)/;
 
-    $feature->{required} = 1 if $is =~ /\+$/;
-    $feature->{not_in_new} = 1 if $is =~ /-$/;
+    $feature->{required} = 1, push @{$feature->{new}}, \&_required_new if $is =~ /\+/;
+    $feature->{excessive} = 1, push @{$feature->{new}}, \&_excessive_new if $is =~ /-/;
+	$feature->{weaken} = 1, push @{$feature->{new}}, \&_weaken_new if $is =~ /\*/;
+}
+
+sub _isa_new {
+	my ($is, $feature) = @_;
+	return unless $is;
+	my $isa = $feature->{isa};
+	return $isa->detail($_, "Feature $feature->{name}") unless $isa->test;
 }
 
 # isa => Type
@@ -91,7 +116,17 @@ sub isa_aspect {
 
     $construct->{get} = "\$Aion::META{'$cls'}{feature}{$name}{isa}->validate(do{$construct->{get}}, 'Get feature `$name`')" if ISA =~ /ro|rw/;
 
-    $construct->{set} = "\$Aion::META{'$cls'}{feature}{$name}{isa}->validate(\$val, 'Set feature `$name`'); $construct->{set}" if ISA =~ /wo|rw/;
+	if(ISA =~ /wo|rw/) {
+    	$construct->{set} = "\$Aion::META{'$cls'}{feature}{$name}{isa}->validate(\$val, 'Set feature `$name`'); $construct->{set}";
+
+		push @{$feature->{new}}, \&_isa_new;
+	}
+}
+
+sub _coerce_new {
+	my ($is, $feature) = @_;
+	$_ = $feature->{isa}->coerce($_) if $is;
+	return;
 }
 
 # coerce => 1
@@ -101,7 +136,15 @@ sub coerce_aspect {
 	die "coerce: isa not present!" unless $feature->{isa};
 
     $construct->{coerce} = "\$val = \$Aion::META{'$cls'}{feature}{$name}{isa}->coerce(\$val); ";
-    $construct->{set} = "%(coerce)s$construct->{set}"
+    $construct->{set} = "%(coerce)s$construct->{set}";
+
+	unshift @{$feature->{new}}, \&_coerce_new;
+}
+
+sub _default_new {
+	my ($is, $feature) = @_;
+	$_ = $feature->{default}, $_[0] = 1 unless $is;
+	return;
 }
 
 # default => value
@@ -109,21 +152,35 @@ sub default_aspect {
     my ($cls, $name, $default, $construct, $feature) = @_;
 
     if(ref $default eq "CODE") {
-        $feature->{lazy} = 1;
+        $feature->{lazy} = $default;
         *{"${cls}::${name}__DEFAULT"} = $default;
-        $construct->{get} = "\$self->{$name} = \$self->${name}__DEFAULT if !exists \$self->{$name}; $construct->{get}";
+        $construct->{lazy} = "\$self->{$name} = \$self->${name}__DEFAULT if !exists \$self->{$name}";
+
+		$construct->{get} = "%(lazy)s; $construct->{get}";
     } else {
-        $feature->{opt}{isa}->validate($default, $name) if $feature->{opt}{isa};
+        $feature->{opt}{isa}->validate($default, "Default in feature $name") if $feature->{opt}{isa};
         $feature->{default} = $default;
+
+		unshift @{$feature->{new}}, \&_default_new;
     }
+}
+
+sub _trigger_init {
+	my ($self, $feature) = @_;
+	$feature->{trigger}->($self, undef);
+	return;
 }
 
 # trigger => $sub
 sub trigger_aspect {
 	my ($cls, $name, $trigger, $construct, $feature) = @_;
 
+	$feature->{trigger} = $trigger;
+
 	*{"${cls}::${name}__TRIGGER"} = $trigger;
-	$construct->{set} = "my \$old = \$self->{$name}; $construct->{set}; \$self->${name}__TRIGGER(\$old)";
+	$construct->{set} = "my \$is = exists \$self->{name}; my \$old = \$is? \$self->{$name}: undef; $construct->{set}; \$self->${name}__TRIGGER(\$is? \$old: ())";
+
+	push @{$feature->{init}}, \&_trigger_init;
 }
 
 # Расширяет класс или роль
@@ -344,39 +401,40 @@ sub create_from_params {
 
 	my $self = bless {}, $cls;
 
+	my @init;
 	my @required;
 	my @errors;
     my $FEATURE = $Aion::META{$cls}{feature};
 
 	while(my ($name, $feature) = each %$FEATURE) {
 
-		if(exists $value{$name}) {
-			my $val = delete $value{$name};
+		my $is = exists $value{$name};
+		local $_ = $is? delete $value{$name}: undef;
 
-			if(!$feature->{not_in_new}) {
-				$val = $feature->{coerce}->coerce($val) if $feature->{coerce};
-
-				push @errors, $feature->{isa}->detail($val, "Feature $name")
-                    if ISA =~ /w/ && $feature->{isa} && !$feature->{isa}->include($val);
-				$self->{$name} = $val;
-			}
-			else {
-				push @errors, "Feature $name cannot set in new!";
-			}
-		} elsif($feature->{required}) {
-            push @required, $name;
-        } else {
-			$self->{$name} = $feature->{default} if $feature->{default} && !$feature->{lazy};
+		if(my $new = $feature->{new}) {
+			my ($error, $required) = $new->($is, $feature);
+			push @required, $name if $required;
+			push @errors, $error if defined $error;
 		}
 
+		$self->{$name} = $_ if $is;
+
+		push @init, $feature if $is && $feature->{init};
 	}
 
-	do {local $" = ", "; unshift @errors, "Features @required is required!"} if @required > 1;
+	for my $feature (@init) {
+		for my $init (@{$feature->{init}}) {
+			my $error = $init->($self, $feature);
+			push @errors, $error if defined $error;
+		}
+	}
+
+	do {local $" = ", "; unshift @errors, "Features ${\ sort @required} is required!"} if @required > 1;
 	unshift @errors, "Feature @required is required!" if @required == 1;
-	
-	my @fakekeys = sort keys %value;
+
+	my @fakekeys = keys %value;
 	unshift @errors, "@fakekeys is not feature!" if @fakekeys == 1;
-	do {local $" = ", "; unshift @errors, "@fakekeys is not features!"} if @fakekeys > 1;
+	unshift @errors, (join ", ", sort @fakekeys) . " is not features!" if @fakekeys > 1;
 
 	return $self, @errors;
 }
@@ -769,7 +827,71 @@ C<use Aion> include in module next aspects for use in C<has>:
 
 =head2 is => $permissions
 
+=over
+
+=item * C<ro> — make getter only.
+
+=item * C<wo> — make setter only.
+
+=item * C<rw> — make getter and setter.
+
+=back
+
+Default is C<rw>.
+
+Additional permissions:
+
+=over
+
+=item * C<+> — the feature is required. It is not used with C<->.
+
+=item * C<-> — the feature cannot be set in the constructor. It is not used with C<+>.
+
+=item * C<*> — the value is reference and it maked weaken can be set.
+
+=back
+
+	package ExIs { use Aion;
+	    has rw => (is => 'rw');
+	    has ro => (is => 'ro+');
+	    has wo => (is => 'wo-');
+	}
+	
+	eval { ExIs->new }; $@ # ~> 123
+	eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> 123
+	ExIs->new(ro => 10);
+	ExIs->new(ro => 10, rw => 20);
+	
+	ExIs->new(ro => 10)->ro  # -> 10
+	eval { ExIs->new(ro => 10)->ro }; $@ # ~> 123
+	
+	ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1
+	eval { ExIs->new(ro => 10)->wo }; $@ # ~> 123
+	ExIs->new(ro => 10)->rw(30)->rw  # -> 30
+
+Feature with C<*> don't hold value:
+
+	package Node { use Aion;
+	    has parent => (is => "ro*", isa => Object["Node"]);
+	}
+	
+	my $root = Node->new;
+	my $node = Node->new(parent => $root);
+	
+	$node->parent->parent   # -> undef
+	undef $root;
+	$node->parent   # -> undef
+	
+	# And by setter:
+	$node->parent($root = Node->new);
+	
+	$node->parent->parent   # -> undef
+	undef $root;
+	$node->parent   # -> undef
+
 =head2 isa => $type
+
+Set feature type. It validate feature value 
 
 =head2 default => $value
 
@@ -787,7 +909,7 @@ If C<$value> is subroutine, then the subroutine is considered a constructor for 
 	my $count = 0;
 	
 	package ExLazy { use Aion;
-	    has x => (is => 'ro', default => sub {
+	    has x => (default => sub {
 	        my ($self) = @_;
 	        ++$count
 	    });
@@ -800,13 +922,23 @@ If C<$value> is subroutine, then the subroutine is considered a constructor for 
 	$ex->x   # -> 10
 	$count   # -> 1
 
-=head2 defcopy => $ref
+=head2 trigger => $sub
 
-=head2 defdeepcopy => $ref
+C<$sub> called after the value of the feature is set (in C<new> or in setter).
 
-=head2 trigger => $coderef
-
-=head2 trigger => $coderef
+	package ExTrigger { use Aion;
+	    has x => (trigger => sub {
+	        my ($self, $old_value) = @_;
+	        $self->y = $old_value + $self->x;
+	    });
+	
+	    has y => ();
+	}
+	
+	my $ex = ExTrigger->new(x => 10);
+	$ex->y      # -> 10
+	$ex->x(20);
+	$ex->y      # -> 30
 
 =head1 ATTRIBUTES
 
@@ -820,8 +952,7 @@ B<WARNING>: use atribute C<Isa> slows down the program.
 
 B<TIP>: use aspect C<isa> on features is more than enough to check the correctness of the object data.
 
-	package Anim {
-	    use Aion;
+	package Anim { use Aion;
 	
 	    sub is_cat : Isa(Object => Str => Bool) {
 	        my ($self, $anim) = @_;

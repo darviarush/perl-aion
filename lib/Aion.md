@@ -404,7 +404,7 @@ Additional permissions:
 * `*` — the value is reference and it maked weaken can be set.
 
 ```perl
-package ExIs {
+package ExIs { use Aion;
     has rw => (is => 'rw');
     has ro => (is => 'ro+');
     has wo => (is => 'wo-');
@@ -431,7 +431,7 @@ package Node { use Aion;
 }
 
 my $root = Node->new;
-my $node = Node->new(parent => $node);
+my $node = Node->new(parent => $root);
 
 $node->parent->parent   # -> undef
 undef $root;
