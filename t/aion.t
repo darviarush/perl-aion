@@ -41,7 +41,7 @@ package Calc {
 # 
 # `use Aion` include in module types from `Aion::Types` and next subroutines:
 # 
-# ## has ($name, @aspects)
+# ## has ($name, %aspects)
 # 
 # Make method for get/set feature (property) of the class.
 # 
@@ -56,7 +56,7 @@ package Calc {
 #>> 1;
 #@< EOF
 # 
-done_testing; }; subtest 'has ($name, @aspects)' => sub { 
+done_testing; }; subtest 'has ($name, %aspects)' => sub { 
 use lib "lib";
 use Animal;
 

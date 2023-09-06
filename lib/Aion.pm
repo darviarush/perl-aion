@@ -22,7 +22,7 @@ our %META;
 # вызывается из другого пакета, для импорта данного
 sub import {
 	my ($cls, $attr) = @_;
-	my ($pkg, $path) = caller;
+	my $pkg = caller;
 
 	*{"${pkg}::isa"} = \&isa if \&isa != $pkg->can('isa');
 
@@ -46,9 +46,7 @@ sub import {
 		}
 	};
 
-    #Aion::Types->import($pkg);
-    eval "package $pkg { use Aion::Types; }";
-    die if $@;
+    eval "package $pkg; use Aion::Types; 1" or die;
 }
 
 # Экспортирует функции в пакет, если их там ещё нет
@@ -458,7 +456,7 @@ In addition to standard aspects, roles can add their own aspects using subroutin
 
 C<use Aion> include in module types from C<Aion::Types> and next subroutines:
 
-=head2 has ($name, @aspects)
+=head2 has ($name, %aspects)
 
 Make method for get/set feature (property) of the class.
 

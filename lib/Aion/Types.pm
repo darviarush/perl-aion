@@ -293,7 +293,8 @@ subtype "Any";
 									init_where => $_init_max,
 									awhere { 1 <= $_ <= SELF->{max} };
 
-			subtype "Ref", as &Defined, where { "" ne ref $_ };
+			subtype "Ref", as &
+			, where { "" ne ref $_ };
 				subtype "Tied`[A]", as &Ref,
 					where { my $ref = reftype($_); !!(
 						$ref eq "HASH"? tied %$_:
