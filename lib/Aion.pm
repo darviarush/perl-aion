@@ -458,7 +458,7 @@ In addition to standard aspects, roles can add their own aspects using subroutin
 
 C<use Aion> include in module types from C<Aion::Types> and next subroutines:
 
-=head2 has ($name, @aspects)
+=head2 has ($name, %aspects)
 
 Make method for get/set feature (property) of the class.
 

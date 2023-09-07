@@ -34,7 +34,7 @@ IntOrArrayRef->coerce(5.5) # => 6
 
 # DESCRIPTION
 
-This modile export subroutines:
+This module export subroutines:
 
 * `subtype`, `as`, `init_where`, `where`, `awhere`, `message` — for create validators.
 * `SELF`, `ARGS`, `A`, `B`, `C`, `D`, `M`, `N` — for use in validators has arguments.
@@ -74,14 +74,13 @@ Any
 					StrMatch[qr/.../]
 					ClassName[A]
 					RoleName[A]
+					Rat
 					Numeric
 						Num
 							PositiveNum
-							Float
-							Range[from, to]
-							Int`[N]
-								PositiveInt`[N]
-								Nat`[N]
+							Int
+								PositiveInt
+								Nat
 			Ref
 				Tied`[A]
 				LValueRef
@@ -104,13 +103,21 @@ Any
 					Lim[A, B?]
 				HashLike`[A]
 					HasProp[p...]
-			Like: Str | Object
+					LimKeys[A, B?]
+			Like
 				HasMethods[m...]
 				Overload`[m...]
 				InstanceOf[A...]
 				ConsumerOf[A...]
 				StrLike
 					Len[A, B?]
+				NumLike
+					Float
+					Double
+					Range[from, to]
+					Bytes[A, B?]
+					PositiveBytes[A, B?]
+
 ```
 
 # SUBROUTINES
@@ -686,6 +693,19 @@ package ExRole {
 'Aion::Type' ~~ RoleName    # -> ""
 ```
 
+## Rat
+
+Rational numbers.
+
+```perl
+"6/7" ~~ Rat     # -> 1
+"-6/7" ~~ Rat    # -> 1
+6 ~~ Rat         # -> 1
+"inf" ~~ Rat     # -> 1
+"NaN" ~~ Rat     # -> 1
+6.5 ~~ Rat       # -> ""
+```
+
 ## Numeric
 
 Test scalar with `Scalar::Util::looks_like_number`. Maybe spaces on end.
@@ -695,6 +715,8 @@ Test scalar with `Scalar::Util::looks_like_number`. Maybe spaces on end.
 6.5e-7 ~~ Numeric    # -> 1
 "6.5 " ~~ Numeric    # -> 1
 "v6.5" ~~ Numeric    # -> ""
+6.5.1 ~~ Numeric     # -> ""
+v6.5 ~~ Numeric      # -> ""
 ```
 
 ## Num
@@ -752,7 +774,7 @@ Numbers between `from` and `to`.
 0.9 ~~ Range[1, 3]  # -> ""
 ```
 
-## Int`[N]
+## Int
 
 Integers.
 
@@ -762,32 +784,34 @@ Integers.
 5.5 ~~ Int    # -> ""
 ```
 
+## Bytes[N]
+
 `N` - the number of bytes for limit.
 
 ```perl
--129 ~~ Int[1]    # -> ""
--128 ~~ Int[1]    # -> 1
-127 ~~ Int[1]     # -> 1
-128 ~~ Int[1]     # -> ""
+-129 ~~ Bytes[1]    # -> ""
+-128 ~~ Bytes[1]    # -> 1
+127 ~~ Bytes[1]     # -> 1
+128 ~~ Bytes[1]     # -> ""
 
 # 2 bits power of (8 bits * 8 bytes - 1)
 my $N = 1 << (8*8-1);
-(-$N-1) ~~ Int[8]   # -> ""
-(-$N) ~~ Int[8]     # -> 1
-($N-1) ~~ Int[8]  	# -> 1
-$N ~~ Int[8]      	# -> ""
+(-$N-1) ~~ Bytes[8]   # -> ""
+(-$N) ~~ Bytes[8]     # -> 1
+($N-1) ~~ Bytes[8]  	# -> 1
+$N ~~ Bytes[8]      	# -> ""
 
 require Math::BigInt;
 
 my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
 
-((-$N17-1) . "") ~~ Int[17]  # -> ""
-(-$N17 . "") ~~ Int[17]  # -> 1
-(($N17-1) . "") ~~ Int[17]  # -> 1
-($N17 . "") ~~ Int[17]  # -> ""
+((-$N17-1) . "") ~~ Bytes[17]  # -> ""
+(-$N17 . "") ~~ Bytes[17]  # -> 1
+(($N17-1) . "") ~~ Bytes[17]  # -> 1
+($N17 . "") ~~ Bytes[17]  # -> ""
 ```
 
-## PositiveInt`[N]
+## PositiveInt
 
 Positive integers.
 
@@ -798,43 +822,36 @@ Positive integers.
 -1 ~~ PositiveInt    # -> ""
 ```
 
+## PositiveBytes[N]
+
 `N` - the number of bytes for limit.
 
 ```perl
--1 ~~ PositiveInt[1]    # -> ""
-0 ~~ PositiveInt[1]    # -> 1
-255 ~~ PositiveInt[1]    # -> 1
-256 ~~ PositiveInt[1]    # -> ""
+-1 ~~ PositiveBytes[1]    # -> ""
+0 ~~ PositiveBytes[1]    # -> 1
+255 ~~ PositiveBytes[1]    # -> 1
+256 ~~ PositiveBytes[1]    # -> ""
 
--1 ~~ PositiveInt[8] # -> ""
-1.01 ~~ PositiveInt[8] # -> ""
-0 ~~ PositiveInt[8] # -> 1
+-1 ~~ PositiveBytes[8] # -> ""
+1.01 ~~ PositiveBytes[8] # -> ""
+0 ~~ PositiveBytes[8] # -> 1
 
 my $N8 = 2 ** (8*Math::BigInt->new(8)) - 1;
 
-$N8 . "" ~~ PositiveInt[8] # -> 1
-($N8+1) . "" ~~ PositiveInt[8] # -> ""
+$N8 . "" ~~ PositiveBytes[8] # -> 1
+($N8+1) . "" ~~ PositiveBytes[8] # -> ""
 
--1 ~~ PositiveInt[17] # -> ""
-0 ~~ PositiveInt[17] # -> 1
+-1 ~~ PositiveBytes[17] # -> ""
+0 ~~ PositiveBytes[17] # -> 1
 ```
 
-## Nat`[N]
+## Nat
 
 Integers 1+.
 
 ```perl
 0 ~~ Nat    # -> ""
 1 ~~ Nat    # -> 1
-```
-
-`N` - the number of bytes for limit.
-
-```perl
-0 ~~ Nat[1]      # -> ""
-1 ~~ Nat[1]      # -> 1
-255 ~~ Nat[1]    # -> 1
-256 ~~ Nat[1]    # -> ""
 ```
 
 ## Ref

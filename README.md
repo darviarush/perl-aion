@@ -41,7 +41,7 @@ In addition to standard aspects, roles can add their own aspects using subroutin
 
 `use Aion` include in module types from `Aion::Types` and next subroutines:
 
-## has ($name, @aspects)
+## has ($name, %aspects)
 
 Make method for get/set feature (property) of the class.
 

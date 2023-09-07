@@ -49,12 +49,10 @@ our @EXPORT = our @EXPORT_OK = qw/
                         StrMatch
                         ClassName
                         RoleName
+						Rat
                         Numeric
                             Num
                                 PositiveNum
-                                Float
-								Double
-                                Range
                                 Int
                                     PositiveInt
                                     Nat
@@ -80,6 +78,7 @@ our @EXPORT = our @EXPORT_OK = qw/
 						Lim
 					HashLike
 						HasProp
+						LimKeys
                 Like
                     HasMethods
                     Overload
@@ -87,6 +86,13 @@ our @EXPORT = our @EXPORT_OK = qw/
                     ConsumerOf
 					StrLike
 						Len
+					NumLike
+                        Float
+						Double
+						Range
+						Bytes
+						PositiveBytes
+
 /;
 
 
@@ -263,35 +269,14 @@ subtype "Any";
 					subtype "StrMatch[qr/.../]", as &Str, where { $_ =~ A };
 					subtype "ClassName", as &Str, where { !!$_->can('new') };
 					subtype "RoleName", as &Str, where { !!$_->can('requires') };
+
+					subtype "Rat", as &Str, where { /^(-?\d+(\/\d+)?|inf|nan)\z/in };
 					subtype "Numeric", as &Str, where { looks_like_number($_) };
 						subtype "Num", as &Numeric, where { /\d\z/ };
 							subtype "PositiveNum", as &Num, where { $_ >= 0 };
-							subtype "Float", as &Num, where { -3.402823466E+38 <= $_ <= 3.402823466E+38 };
-							subtype "Double", as &Num, where { -1.7976931348623158e+308 <= $_ <= 1.7976931348623158e+308 };
-							subtype "Range[from, to]", as &Num, where { A <= $_ <= B };
-
-							my $_8bits = Math::BigInt->new(8);
-							my $_init_max = sub {
-								my $bits = A < 8? 8: $_8bits;
-								SELF->{max} = (1 << ($bits*A)) - 1;
-							};
-							subtype "Int`[N]", as &Num,
-								where { /^-?\d+\z/ }
-								init_where {
-									my $bits = A < 8? 8: $_8bits;
-									my $N = 1 << ($bits * A - 1);
-									SELF->{min} = -$N;
-									SELF->{max} = $N-1;
-								}
-								awhere { /^-?\d+\z/ && SELF->{min} <= $_ <= SELF->{max} };
-								subtype "PositiveInt`[N]", as &Int,
-									where { $_ >= 0 }
-									init_where => $_init_max,
-									awhere { 0 <= $_ <= SELF->{max} };
-								subtype "Nat`[N]", as &Int,
-									where { $_ > 0 }
-									init_where => $_init_max,
-									awhere { 1 <= $_ <= SELF->{max} };
+							subtype "Int", as &Num,	where { /^-?\d+\z/ };
+								subtype "PositiveInt", as &Int, where { $_ >= 0 };
+								subtype "Nat", as &Int, where { $_ > 0 };
 
 			subtype "Ref", as &Defined, where { "" ne ref $_ };
 				subtype "Tied`[A]", as &Ref,
@@ -389,6 +374,9 @@ subtype "Any";
 				awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
 					subtype "HasProp[p...]", as &HashLike,
 						where { my $x = $_; all { exists $x->{$_} } ARGS };
+					subtype "LimKeys[A, B?]", as &HashLike,
+						init_where => $init_limit,
+						where { SELF->{min} <= scalar keys %$_ <= SELF->{max} };
 
 			subtype "Like", as (&Str | &Object);
 				subtype "HasMethods[m...]", as &Like,
@@ -402,6 +390,27 @@ subtype "Any";
 					subtype "Len[A, B?]", as &StrLike,
 						init_where => $init_limit,
 						where { SELF->{min} <= length($_) <= SELF->{max} };
+
+				subtype "NumLike", where { looks_like_number($_) };
+					subtype "Float", as &NumLike, where { -3.402823466E+38 <= $_ <= 3.402823466E+38 };
+					subtype "Double", as &NumLike, where { -1.7976931348623158e+308 <= $_ <= 1.7976931348623158e+308 };
+					subtype "Range[from, to]", as &NumLike, where { A <= $_ <= B };
+
+					my $_8bits = Math::BigInt->new(8);
+					subtype "Bytes[N]", as &NumLike,
+						init_where {
+							my $bits = A < 8? 8: $_8bits;
+							my $N = 1 << ($bits * A - 1);
+							N = -$N;
+							M = $N-1;
+						}
+						where { N <= $_ <= M };
+					subtype "PositiveBytes[N]", as &NumLike,
+						init_where {
+							my $bits = A < 8? 8: $_8bits;
+							M = (1 << ($bits*A)) - 1;
+						}
+						where { 0 <= $_ <= M };
 
 	coerce &Str => from &Undef => via { "" };
 	coerce &Int => from &Num => via { int($_+($_ < 0? -.5: .5)) };
@@ -448,7 +457,7 @@ Aion::Types is library of validators. And it makes new validators.
 
 =head1 DESCRIPTION
 
-This modile export subroutines:
+This module export subroutines:
 
 =over
 
@@ -493,14 +502,13 @@ Hierarhy of validators:
 						StrMatch[qr/.../]
 						ClassName[A]
 						RoleName[A]
+						Rat
 						Numeric
 							Num
 								PositiveNum
-								Float
-								Range[from, to]
-								Int`[N]
-									PositiveInt`[N]
-									Nat`[N]
+								Int
+									PositiveInt
+									Nat
 				Ref
 					Tied`[A]
 					LValueRef
@@ -523,13 +531,21 @@ Hierarhy of validators:
 						Lim[A, B?]
 					HashLike`[A]
 						HasProp[p...]
-				Like: Str | Object
+						LimKeys[A, B?]
+				Like
 					HasMethods[m...]
 					Overload`[m...]
 					InstanceOf[A...]
 					ConsumerOf[A...]
 					StrLike
 						Len[A, B?]
+					NumLike
+						Float
+						Double
+						Range[from, to]
+						Bytes[A, B?]
+						PositiveBytes[A, B?]
+	
 
 =head1 SUBROUTINES
 
@@ -1014,6 +1030,17 @@ Rolename is the package with subroutine C<requires>.
 	'ExRole' ~~ RoleName    	# -> 1
 	'Aion::Type' ~~ RoleName    # -> ""
 
+=head2 Rat
+
+Rational numbers.
+
+	"6/7" ~~ Rat     # -> 1
+	"-6/7" ~~ Rat    # -> 1
+	6 ~~ Rat         # -> 1
+	"inf" ~~ Rat     # -> 1
+	"NaN" ~~ Rat     # -> 1
+	6.5 ~~ Rat       # -> ""
+
 =head2 Numeric
 
 Test scalar with C<Scalar::Util::looks_like_number>. Maybe spaces on end.
@@ -1022,6 +1049,8 @@ Test scalar with C<Scalar::Util::looks_like_number>. Maybe spaces on end.
 	6.5e-7 ~~ Numeric    # -> 1
 	"6.5 " ~~ Numeric    # -> 1
 	"v6.5" ~~ Numeric    # -> ""
+	6.5.1 ~~ Numeric     # -> ""
+	v6.5 ~~ Numeric      # -> ""
 
 =head2 Num
 
@@ -1068,7 +1097,7 @@ Numbers between C<from> and C<to>.
 	3.1 ~~ Range[1, 3]  # -> ""
 	0.9 ~~ Range[1, 3]  # -> ""
 
-=head2 Int`[N]
+=head2 Int
 
 Integers.
 
@@ -1076,30 +1105,32 @@ Integers.
 	-12 ~~ Int    # -> 1
 	5.5 ~~ Int    # -> ""
 
+=head2 Bytes[N]
+
 C<N> - the number of bytes for limit.
 
-	-129 ~~ Int[1]    # -> ""
-	-128 ~~ Int[1]    # -> 1
-	127 ~~ Int[1]     # -> 1
-	128 ~~ Int[1]     # -> ""
+	-129 ~~ Bytes[1]    # -> ""
+	-128 ~~ Bytes[1]    # -> 1
+	127 ~~ Bytes[1]     # -> 1
+	128 ~~ Bytes[1]     # -> ""
 	
 	# 2 bits power of (8 bits * 8 bytes - 1)
 	my $N = 1 << (8*8-1);
-	(-$N-1) ~~ Int[8]   # -> ""
-	(-$N) ~~ Int[8]     # -> 1
-	($N-1) ~~ Int[8]  	# -> 1
-	$N ~~ Int[8]      	# -> ""
+	(-$N-1) ~~ Bytes[8]   # -> ""
+	(-$N) ~~ Bytes[8]     # -> 1
+	($N-1) ~~ Bytes[8]  	# -> 1
+	$N ~~ Bytes[8]      	# -> ""
 	
 	require Math::BigInt;
 	
 	my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
 	
-	((-$N17-1) . "") ~~ Int[17]  # -> ""
-	(-$N17 . "") ~~ Int[17]  # -> 1
-	(($N17-1) . "") ~~ Int[17]  # -> 1
-	($N17 . "") ~~ Int[17]  # -> ""
+	((-$N17-1) . "") ~~ Bytes[17]  # -> ""
+	(-$N17 . "") ~~ Bytes[17]  # -> 1
+	(($N17-1) . "") ~~ Bytes[17]  # -> 1
+	($N17 . "") ~~ Bytes[17]  # -> ""
 
-=head2 PositiveInt`[N]
+=head2 PositiveInt
 
 Positive integers.
 
@@ -1108,38 +1139,33 @@ Positive integers.
 	55 ~~ PositiveInt    # -> 1
 	-1 ~~ PositiveInt    # -> ""
 
+=head2 PositiveBytes[N]
+
 C<N> - the number of bytes for limit.
 
-	-1 ~~ PositiveInt[1]    # -> ""
-	0 ~~ PositiveInt[1]    # -> 1
-	255 ~~ PositiveInt[1]    # -> 1
-	256 ~~ PositiveInt[1]    # -> ""
+	-1 ~~ PositiveBytes[1]    # -> ""
+	0 ~~ PositiveBytes[1]    # -> 1
+	255 ~~ PositiveBytes[1]    # -> 1
+	256 ~~ PositiveBytes[1]    # -> ""
 	
-	-1 ~~ PositiveInt[8] # -> ""
-	1.01 ~~ PositiveInt[8] # -> ""
-	0 ~~ PositiveInt[8] # -> 1
+	-1 ~~ PositiveBytes[8] # -> ""
+	1.01 ~~ PositiveBytes[8] # -> ""
+	0 ~~ PositiveBytes[8] # -> 1
 	
 	my $N8 = 2 ** (8*Math::BigInt->new(8)) - 1;
 	
-	$N8 . "" ~~ PositiveInt[8] # -> 1
-	($N8+1) . "" ~~ PositiveInt[8] # -> ""
+	$N8 . "" ~~ PositiveBytes[8] # -> 1
+	($N8+1) . "" ~~ PositiveBytes[8] # -> ""
 	
-	-1 ~~ PositiveInt[17] # -> ""
-	0 ~~ PositiveInt[17] # -> 1
+	-1 ~~ PositiveBytes[17] # -> ""
+	0 ~~ PositiveBytes[17] # -> 1
 
-=head2 Nat`[N]
+=head2 Nat
 
 Integers 1+.
 
 	0 ~~ Nat    # -> ""
 	1 ~~ Nat    # -> 1
-
-C<N> - the number of bytes for limit.
-
-	0 ~~ Nat[1]      # -> ""
-	1 ~~ Nat[1]      # -> 1
-	255 ~~ Nat[1]    # -> 1
-	256 ~~ Nat[1]    # -> ""
 
 =head2 Ref
 
