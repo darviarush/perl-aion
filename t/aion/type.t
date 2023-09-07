@@ -8,26 +8,26 @@ subtest 'SYNOPSIS' => sub {
 use Aion::Type;
 
 my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
-is scalar do {12   ~~ $Int}, "1", '12   ~~ $Int # => 1';
-is scalar do {12.1 ~~ $Int}, scalar do{""}, '12.1 ~~ $Int # -> ""';
+::is scalar do {12   ~~ $Int}, "1", '12   ~~ $Int # => 1';
+::is scalar do {12.1 ~~ $Int}, scalar do{""}, '12.1 ~~ $Int # -> ""';
 
 my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
-is scalar do {$Char->include("a")}, "1", '$Char->include("a")     # => 1';
-is scalar do {$Char->exclude("ab")}, "1", '$Char->exclude("ab")    # => 1';
+::is scalar do {$Char->include("a")}, "1", '$Char->include("a")     # => 1';
+::is scalar do {$Char->exclude("ab")}, "1", '$Char->exclude("ab")    # => 1';
 
 my $IntOrChar = $Int | $Char;
-is scalar do {77   ~~ $IntOrChar}, "1", '77   ~~ $IntOrChar # => 1';
-is scalar do {"a"  ~~ $IntOrChar}, "1", '"a"  ~~ $IntOrChar # => 1';
-is scalar do {"ab" ~~ $IntOrChar}, scalar do{""}, '"ab" ~~ $IntOrChar # -> ""';
+::is scalar do {77   ~~ $IntOrChar}, "1", '77   ~~ $IntOrChar # => 1';
+::is scalar do {"a"  ~~ $IntOrChar}, "1", '"a"  ~~ $IntOrChar # => 1';
+::is scalar do {"ab" ~~ $IntOrChar}, scalar do{""}, '"ab" ~~ $IntOrChar # -> ""';
 
 my $Digit = $Int & $Char;
-is scalar do {7  ~~ $Digit}, "1", '7  ~~ $Digit # => 1';
-is scalar do {77 ~~ $Digit}, scalar do{""}, '77 ~~ $Digit # -> ""';
+::is scalar do {7  ~~ $Digit}, "1", '7  ~~ $Digit # => 1';
+::is scalar do {77 ~~ $Digit}, scalar do{""}, '77 ~~ $Digit # -> ""';
 
-is scalar do {"a" ~~ ~$Int;}, "1", '"a" ~~ ~$Int; # => 1';
-is scalar do {5   ~~ ~$Int;}, scalar do{""}, '5   ~~ ~$Int; # -> ""';
+::is scalar do {"a" ~~ ~$Int;}, "1", '"a" ~~ ~$Int; # => 1';
+::is scalar do {5   ~~ ~$Int;}, scalar do{""}, '5   ~~ ~$Int; # -> ""';
 
-like scalar do {eval { $Int->validate("a", "..Eval..") }; $@}, qr!..Eval.. must have the type Int. The it is 'a'!, 'eval { $Int->validate("a", "..Eval..") }; $@    # ~> ..Eval.. must have the type Int. The it is \'a\'';
+::like scalar do {eval { $Int->validate("a", "..Eval..") }; $@}, qr!..Eval.. must have the type Int. The it is 'a'!, 'eval { $Int->validate("a", "..Eval..") }; $@    # ~> ..Eval.. must have the type Int. The it is \'a\'';
 
 # 
 # # DESCRIPTION
@@ -58,30 +58,30 @@ like scalar do {eval { $Int->validate("a", "..Eval..") }; $@}, qr!..Eval.. must 
 done_testing; }; subtest 'stringify' => sub { 
 my $Char = Aion::Type->new(name => "Char");
 
-is scalar do {$Char->stringify}, "Char", '$Char->stringify # => Char';
+::is scalar do {$Char->stringify}, "Char", '$Char->stringify # => Char';
 
 my $Int = Aion::Type->new(
     name => "Int",
     args => [3, 5],
 );
 
-is scalar do {$Int->stringify}, "Int[3, 5]", '$Int->stringify  #=> Int[3, 5]';
+::is scalar do {$Int->stringify}, "Int[3, 5]", '$Int->stringify  #=> Int[3, 5]';
 
 # 
 # Stringify operations:
 # 
 
-is scalar do {($Int & $Char)->stringify}, "( Int[3, 5] & Char )", '($Int & $Char)->stringify   # => ( Int[3, 5] & Char )';
-is scalar do {($Int | $Char)->stringify}, "( Int[3, 5] | Char )", '($Int | $Char)->stringify   # => ( Int[3, 5] | Char )';
-is scalar do {(~$Int)->stringify}, "~Int[3, 5]", '(~$Int)->stringify          # => ~Int[3, 5]';
+::is scalar do {($Int & $Char)->stringify}, "( Int[3, 5] & Char )", '($Int & $Char)->stringify   # => ( Int[3, 5] & Char )';
+::is scalar do {($Int | $Char)->stringify}, "( Int[3, 5] | Char )", '($Int | $Char)->stringify   # => ( Int[3, 5] | Char )';
+::is scalar do {(~$Int)->stringify}, "~Int[3, 5]", '(~$Int)->stringify          # => ~Int[3, 5]';
 
 # 
 # The operations is objects of `Aion::Type` with special names:
 # 
 
-is scalar do {Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify}, "~( Int[3, 5] | Char )", 'Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify   # => ~( Int[3, 5] | Char )';
-is scalar do {Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify}, "( Int[3, 5] | Char )", 'Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify   # => ( Int[3, 5] | Char )';
-is scalar do {Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify}, "( Int[3, 5] & Char )", 'Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify   # => ( Int[3, 5] & Char )';
+::is scalar do {Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify}, "~( Int[3, 5] | Char )", 'Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify   # => ~( Int[3, 5] | Char )';
+::is scalar do {Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify}, "( Int[3, 5] | Char )", 'Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify   # => ( Int[3, 5] | Char )';
+::is scalar do {Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify}, "( Int[3, 5] & Char )", 'Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify   # => ( Int[3, 5] & Char )';
 
 # 
 # ## test
@@ -95,9 +95,9 @@ my $PositiveInt = Aion::Type->new(
 );
 
 local $_ = 5;
-is scalar do {$PositiveInt->test}, scalar do{1}, '$PositiveInt->test  # -> 1';
+::is scalar do {$PositiveInt->test}, scalar do{1}, '$PositiveInt->test  # -> 1';
 local $_ = -6;
-is scalar do {$PositiveInt->test}, scalar do{""}, '$PositiveInt->test  # -> ""';
+::is scalar do {$PositiveInt->test}, scalar do{""}, '$PositiveInt->test  # -> ""';
 
 # 
 # ## init
@@ -116,12 +116,12 @@ my $Range = Aion::Type->new(
 
 $Range->init;
 
-is scalar do {3 ~~ $Range}, scalar do{1}, '3 ~~ $Range  # -> 1';
-is scalar do {4 ~~ $Range}, scalar do{1}, '4 ~~ $Range  # -> 1';
-is scalar do {5 ~~ $Range}, scalar do{1}, '5 ~~ $Range  # -> 1';
+::is scalar do {3 ~~ $Range}, scalar do{1}, '3 ~~ $Range  # -> 1';
+::is scalar do {4 ~~ $Range}, scalar do{1}, '4 ~~ $Range  # -> 1';
+::is scalar do {5 ~~ $Range}, scalar do{1}, '5 ~~ $Range  # -> 1';
 
-is scalar do {2 ~~ $Range}, scalar do{""}, '2 ~~ $Range  # -> ""';
-is scalar do {6 ~~ $Range}, scalar do{""}, '6 ~~ $Range  # -> ""';
+::is scalar do {2 ~~ $Range}, scalar do{""}, '2 ~~ $Range  # -> ""';
+::is scalar do {6 ~~ $Range}, scalar do{""}, '6 ~~ $Range  # -> ""';
 
 # 
 # 
@@ -135,8 +135,8 @@ my $PositiveInt = Aion::Type->new(
     test => sub { /^\d+$/ },
 );
 
-is scalar do {$PositiveInt->include(5)}, scalar do{1}, '$PositiveInt->include(5) # -> 1';
-is scalar do {$PositiveInt->include(-6)}, scalar do{""}, '$PositiveInt->include(-6) # -> ""';
+::is scalar do {$PositiveInt->include(5)}, scalar do{1}, '$PositiveInt->include(5) # -> 1';
+::is scalar do {$PositiveInt->include(-6)}, scalar do{""}, '$PositiveInt->include(-6) # -> ""';
 
 # 
 # ## exclude ($element)
@@ -149,8 +149,8 @@ my $PositiveInt = Aion::Type->new(
     test => sub { /^\d+$/ },
 );
 
-is scalar do {$PositiveInt->exclude(5)}, scalar do{""}, '$PositiveInt->exclude(5)  # -> ""';
-is scalar do {$PositiveInt->exclude(-6)}, scalar do{1}, '$PositiveInt->exclude(-6) # -> 1';
+::is scalar do {$PositiveInt->exclude(5)}, scalar do{""}, '$PositiveInt->exclude(5)  # -> ""';
+::is scalar do {$PositiveInt->exclude(-6)}, scalar do{1}, '$PositiveInt->exclude(-6) # -> 1';
 
 # 
 # ## coerce ($value)
@@ -165,9 +165,9 @@ my $Bool = Aion::Type->new(name => "Bool", test => sub { /^(1|0|)\z/ });
 push @{$Int->{coerce}}, [$Bool, sub { 0+$_ }];
 push @{$Int->{coerce}}, [$Num, sub { int($_+.5) }];
 
-is scalar do {$Int->coerce(5.5)}, "6", '$Int->coerce(5.5)    # => 6';
-is scalar do {$Int->coerce(undef)}, "0", '$Int->coerce(undef)  # => 0';
-is scalar do {$Int->coerce("abc")}, "abc", '$Int->coerce("abc")  # => abc';
+::is scalar do {$Int->coerce(5.5)}, "6", '$Int->coerce(5.5)    # => 6';
+::is scalar do {$Int->coerce(undef)}, "0", '$Int->coerce(undef)  # => 0';
+::is scalar do {$Int->coerce("abc")}, "abc", '$Int->coerce("abc")  # => abc';
 
 # 
 # ## detail ($element, $feature)
@@ -177,14 +177,14 @@ is scalar do {$Int->coerce("abc")}, "abc", '$Int->coerce("abc")  # => abc';
 done_testing; }; subtest 'detail ($element, $feature)' => sub { 
 my $Int = Aion::Type->new(name => "Int");
 
-is scalar do {$Int->detail(-5, "Feature car")}, "Feature car must have the type Int. The it is -5", '$Int->detail(-5, "Feature car") # => Feature car must have the type Int. The it is -5';
+::is scalar do {$Int->detail(-5, "Feature car")}, "Feature car must have the type Int. The it is -5", '$Int->detail(-5, "Feature car") # => Feature car must have the type Int. The it is -5';
 
 my $Num = Aion::Type->new(name => "Num", detail => sub {
     my ($val, $name) = @_;
     "Error: $val is'nt $name!"
 });
 
-is scalar do {$Num->detail("x", "car")}, "Error: x is'nt car!", '$Num->detail("x", "car")  # => Error: x is\'nt car!';
+::is scalar do {$Num->detail("x", "car")}, "Error: x is'nt car!", '$Num->detail("x", "car")  # => Error: x is\'nt car!';
 
 # 
 # ## validate ($element, $feature)
@@ -200,7 +200,7 @@ my $PositiveInt = Aion::Type->new(
 eval {
     $PositiveInt->validate(-1, "Neg")
 };
-like scalar do {$@}, qr!Neg must have the type PositiveInt. The it is -1!, '$@   # ~> Neg must have the type PositiveInt. The it is -1';
+::like scalar do {$@}, qr!Neg must have the type PositiveInt. The it is -1!, '$@   # ~> Neg must have the type PositiveInt. The it is -1';
 
 # 
 # ## val_to_str ($element)
@@ -208,7 +208,7 @@ like scalar do {$@}, qr!Neg must have the type PositiveInt. The it is -1!, '$@  
 # Translate `$val` to string.
 # 
 done_testing; }; subtest 'val_to_str ($element)' => sub { 
-is scalar do {Aion::Type->val_to_str([1,2,{x=>6}])}, "[\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]", 'Aion::Type->val_to_str([1,2,{x=>6}])   # => [\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]';
+::is scalar do {Aion::Type->val_to_str([1,2,{x=>6}])}, "[\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]", 'Aion::Type->val_to_str([1,2,{x=>6}])   # => [\n    [0] 1,\n    [1] 2,\n    [2] {\n            x   6\n        }\n]';
 
 # 
 # ## make ($pkg)
@@ -220,19 +220,19 @@ BEGIN {
     Aion::Type->new(name=>"Rim", test => sub { /^[IVXLCDM]+$/i })->make(__PACKAGE__);
 }
 
-is scalar do {"IX" ~~ Rim}, "1", '"IX" ~~ Rim     # => 1';
+::is scalar do {"IX" ~~ Rim}, "1", '"IX" ~~ Rim     # => 1';
 
 # 
 # Property `init` won't use with `make`.
 # 
 
-like scalar do {eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@}, qr!init_where won't work in Rim!, 'eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@ # ~> init_where won\'t work in Rim';
+::like scalar do {eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@}, qr!init_where won't work in Rim!, 'eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@ # ~> init_where won\'t work in Rim';
 
 # 
 # If subroutine make'nt, then died.
 # 
 
-like scalar do {eval { Aion::Type->new(name=>"Rim")->make }; $@}, qr!syntax error!, 'eval { Aion::Type->new(name=>"Rim")->make }; $@ # ~> syntax error';
+::like scalar do {eval { Aion::Type->new(name=>"Rim")->make }; $@}, qr!syntax error!, 'eval { Aion::Type->new(name=>"Rim")->make }; $@ # ~> syntax error';
 
 # 
 # ## make_arg ($pkg)
@@ -246,13 +246,13 @@ BEGIN {
     })->make_arg(__PACKAGE__);
 }
 
-is scalar do {"IX" ~~ Len[2,2]}, "1", '"IX" ~~ Len[2,2]    # => 1';
+::is scalar do {"IX" ~~ Len[2,2]}, "1", '"IX" ~~ Len[2,2]    # => 1';
 
 # 
 # If subroutine make'nt, then died.
 # 
 
-like scalar do {eval { Aion::Type->new(name=>"Rim")->make_arg }; $@}, qr!syntax error!, 'eval { Aion::Type->new(name=>"Rim")->make_arg }; $@ # ~> syntax error';
+::like scalar do {eval { Aion::Type->new(name=>"Rim")->make_arg }; $@}, qr!syntax error!, 'eval { Aion::Type->new(name=>"Rim")->make_arg }; $@ # ~> syntax error';
 
 # 
 # ## make_maybe_arg ($pkg)
@@ -268,15 +268,15 @@ BEGIN {
     )->make_maybe_arg(__PACKAGE__);
 }
 
-is scalar do {3 ~~ Enum123}, scalar do{1}, '3 ~~ Enum123            # -> 1';
-is scalar do {3 ~~ Enum123[4,5,6]}, scalar do{""}, '3 ~~ Enum123[4,5,6]     # -> ""';
-is scalar do {5 ~~ Enum123[4,5,6]}, scalar do{1}, '5 ~~ Enum123[4,5,6]     # -> 1';
+::is scalar do {3 ~~ Enum123}, scalar do{1}, '3 ~~ Enum123            # -> 1';
+::is scalar do {3 ~~ Enum123[4,5,6]}, scalar do{""}, '3 ~~ Enum123[4,5,6]     # -> ""';
+::is scalar do {5 ~~ Enum123[4,5,6]}, scalar do{1}, '5 ~~ Enum123[4,5,6]     # -> 1';
 
 # 
 # If subroutine make'nt, then died.
 # 
 
-like scalar do {eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@}, qr!syntax error!, 'eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@ # ~> syntax error';
+::like scalar do {eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@}, qr!syntax error!, 'eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@ # ~> syntax error';
 
 # 
 # # OPERATORS
@@ -292,10 +292,10 @@ my $PositiveInt = Aion::Type->new(
 );
 
 local $_ = 10;
-is scalar do {$PositiveInt->()}, scalar do{1}, '$PositiveInt->()    # -> 1';
+::is scalar do {$PositiveInt->()}, scalar do{1}, '$PositiveInt->()    # -> 1';
 
 $_ = -1;
-is scalar do {$PositiveInt->()}, scalar do{""}, '$PositiveInt->()    # -> ""';
+::is scalar do {$PositiveInt->()}, scalar do{""}, '$PositiveInt->()    # -> ""';
 
 # 
 # ## ""
@@ -303,11 +303,11 @@ is scalar do {$PositiveInt->()}, scalar do{""}, '$PositiveInt->()    # -> ""';
 # Stringify object.
 # 
 done_testing; }; subtest '""' => sub { 
-is scalar do {Aion::Type->new(name => "Int") . ""}, "Int", 'Aion::Type->new(name => "Int") . ""   # => Int';
+::is scalar do {Aion::Type->new(name => "Int") . ""}, "Int", 'Aion::Type->new(name => "Int") . ""   # => Int';
 
 my $Enum = Aion::Type->new(name => "Enum", args => [qw/A B C/]);
 
-is scalar do {"$Enum"}, "Enum['A', 'B', 'C']", '"$Enum" # => Enum[\'A\', \'B\', \'C\']';
+::is scalar do {"$Enum"}, "Enum['A', 'B', 'C']", '"$Enum" # => Enum[\'A\', \'B\', \'C\']';
 
 # 
 # ## $a | $b
@@ -320,9 +320,9 @@ my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
 
 my $IntOrChar = $Int | $Char;
 
-is scalar do {77   ~~ $IntOrChar}, "1", '77   ~~ $IntOrChar # => 1';
-is scalar do {"a"  ~~ $IntOrChar}, "1", '"a"  ~~ $IntOrChar # => 1';
-is scalar do {"ab" ~~ $IntOrChar}, scalar do{""}, '"ab" ~~ $IntOrChar # -> ""';
+::is scalar do {77   ~~ $IntOrChar}, "1", '77   ~~ $IntOrChar # => 1';
+::is scalar do {"a"  ~~ $IntOrChar}, "1", '"a"  ~~ $IntOrChar # => 1';
+::is scalar do {"ab" ~~ $IntOrChar}, scalar do{""}, '"ab" ~~ $IntOrChar # -> ""';
 
 # 
 # ## $a & $b
@@ -335,9 +335,9 @@ my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
 
 my $Digit = $Int & $Char;
 
-is scalar do {7  ~~ $Digit}, "1", '7  ~~ $Digit # => 1';
-is scalar do {77 ~~ $Digit}, scalar do{""}, '77 ~~ $Digit # -> ""';
-is scalar do {"a" ~~ $Digit}, scalar do{""}, '"a" ~~ $Digit # -> ""';
+::is scalar do {7  ~~ $Digit}, "1", '7  ~~ $Digit # => 1';
+::is scalar do {77 ~~ $Digit}, scalar do{""}, '77 ~~ $Digit # -> ""';
+::is scalar do {"a" ~~ $Digit}, scalar do{""}, '"a" ~~ $Digit # -> ""';
 
 # 
 # ## ~ $a
@@ -347,8 +347,8 @@ is scalar do {"a" ~~ $Digit}, scalar do{""}, '"a" ~~ $Digit # -> ""';
 done_testing; }; subtest '~ $a' => sub { 
 my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
 
-is scalar do {"a" ~~ ~$Int;}, "1", '"a" ~~ ~$Int; # => 1';
-is scalar do {5   ~~ ~$Int;}, scalar do{""}, '5   ~~ ~$Int; # -> ""';
+::is scalar do {"a" ~~ ~$Int;}, "1", '"a" ~~ ~$Int; # => 1';
+::is scalar do {5   ~~ ~$Int;}, scalar do{""}, '5   ~~ ~$Int; # -> ""';
 
 # 
 # # AUTHOR

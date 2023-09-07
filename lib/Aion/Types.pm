@@ -278,8 +278,7 @@ subtype "Any";
 								subtype "PositiveInt", as &Int, where { $_ >= 0 };
 								subtype "Nat", as &Int, where { $_ > 0 };
 
-			subtype "Ref", as &
-			, where { "" ne ref $_ };
+			subtype "Ref", as &Defined, where { "" ne ref $_ };
 				subtype "Tied`[A]", as &Ref,
 					where { my $ref = reftype($_); !!(
 						$ref eq "HASH"? tied %$_:

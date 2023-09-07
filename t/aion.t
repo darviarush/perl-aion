@@ -24,7 +24,7 @@ package Calc {
 
 }
 
-is scalar do {Calc->new(a => 1.1, b => 2)->result}, "3.1", 'Calc->new(a => 1.1, b => 2)->result   # => 3.1';
+::is scalar do {Calc->new(a => 1.1, b => 2)->result}, "3.1", 'Calc->new(a => 1.1, b => 2)->result   # => 3.1';
 
 # 
 # # DESCRIPTION
@@ -62,11 +62,11 @@ use Animal;
 
 my $cat = Animal->new(type => 'cat');
 
-is scalar do {$cat->type}, "cat", '$cat->type   # => cat';
-is scalar do {$cat->name}, "murka", '$cat->name   # => murka';
+::is scalar do {$cat->type}, "cat", '$cat->type   # => cat';
+::is scalar do {$cat->name}, "murka", '$cat->name   # => murka';
 
 $cat->name("murzik");
-is scalar do {$cat->name}, "murzik", '$cat->name   # => murzik';
+::is scalar do {$cat->name}, "murzik", '$cat->name   # => murzik';
 
 # 
 # ## with
@@ -120,8 +120,8 @@ use Class::All::Stringify;
 
 my $s = Class::All::Stringify->new(key1=>"a", key2=>"b");
 
-is scalar do {$s->keysify}, "key1, key2", '$s->keysify     # => key1, key2';
-is scalar do {$s->valsify}, "a, b", '$s->valsify     # => a, b';
+::is scalar do {$s->keysify}, "key1, key2", '$s->keysify     # => key1, key2';
+::is scalar do {$s->valsify}, "a, b", '$s->valsify     # => a, b';
 
 # 
 # ## isa ($package)
@@ -134,13 +134,13 @@ package Ex::A { use Aion; extends qw/Ex::X/; }
 package Ex::B { use Aion; }
 package Ex::C { use Aion; extends qw/Ex::A Ex::B/ }
 
-is scalar do {Ex::C->isa("Ex::A")}, scalar do{1}, 'Ex::C->isa("Ex::A") # -> 1';
-is scalar do {Ex::C->isa("Ex::B")}, scalar do{1}, 'Ex::C->isa("Ex::B") # -> 1';
-is scalar do {Ex::C->isa("Ex::X")}, scalar do{1}, 'Ex::C->isa("Ex::X") # -> 1';
-is scalar do {Ex::C->isa("Ex::X1")}, scalar do{""}, 'Ex::C->isa("Ex::X1") # -> ""';
-is scalar do {Ex::A->isa("Ex::X")}, scalar do{1}, 'Ex::A->isa("Ex::X") # -> 1';
-is scalar do {Ex::A->isa("Ex::A")}, scalar do{1}, 'Ex::A->isa("Ex::A") # -> 1';
-is scalar do {Ex::X->isa("Ex::X")}, scalar do{1}, 'Ex::X->isa("Ex::X") # -> 1';
+::is scalar do {Ex::C->isa("Ex::A")}, scalar do{1}, 'Ex::C->isa("Ex::A") # -> 1';
+::is scalar do {Ex::C->isa("Ex::B")}, scalar do{1}, 'Ex::C->isa("Ex::B") # -> 1';
+::is scalar do {Ex::C->isa("Ex::X")}, scalar do{1}, 'Ex::C->isa("Ex::X") # -> 1';
+::is scalar do {Ex::C->isa("Ex::X1")}, scalar do{""}, 'Ex::C->isa("Ex::X1") # -> ""';
+::is scalar do {Ex::A->isa("Ex::X")}, scalar do{1}, 'Ex::A->isa("Ex::X") # -> 1';
+::is scalar do {Ex::A->isa("Ex::A")}, scalar do{1}, 'Ex::A->isa("Ex::A") # -> 1';
+::is scalar do {Ex::X->isa("Ex::X")}, scalar do{1}, 'Ex::X->isa("Ex::X") # -> 1';
 
 # 
 # ## does ($package)
@@ -153,12 +153,12 @@ package Role::A { use Aion; with qw/Role::X/; }
 package Role::B { use Aion; }
 package Ex::Z { use Aion; with qw/Role::A Role::B/ }
 
-is scalar do {Ex::Z->does("Role::A")}, scalar do{1}, 'Ex::Z->does("Role::A") # -> 1';
-is scalar do {Ex::Z->does("Role::B")}, scalar do{1}, 'Ex::Z->does("Role::B") # -> 1';
-is scalar do {Ex::Z->does("Role::X")}, scalar do{1}, 'Ex::Z->does("Role::X") # -> 1';
-is scalar do {Role::A->does("Role::X")}, scalar do{1}, 'Role::A->does("Role::X") # -> 1';
-is scalar do {Role::A->does("Role::X1")}, scalar do{""}, 'Role::A->does("Role::X1") # -> ""';
-is scalar do {Ex::Z->does("Ex::Z")}, scalar do{""}, 'Ex::Z->does("Ex::Z") # -> ""';
+::is scalar do {Ex::Z->does("Role::A")}, scalar do{1}, 'Ex::Z->does("Role::A") # -> 1';
+::is scalar do {Ex::Z->does("Role::B")}, scalar do{1}, 'Ex::Z->does("Role::B") # -> 1';
+::is scalar do {Ex::Z->does("Role::X")}, scalar do{1}, 'Ex::Z->does("Role::X") # -> 1';
+::is scalar do {Role::A->does("Role::X")}, scalar do{1}, 'Role::A->does("Role::X") # -> 1';
+::is scalar do {Role::A->does("Role::X1")}, scalar do{""}, 'Role::A->does("Role::X1") # -> ""';
+::is scalar do {Ex::Z->does("Ex::Z")}, scalar do{""}, 'Ex::Z->does("Ex::Z") # -> ""';
 
 # 
 # ## aspect ($aspect => sub { ... })
@@ -182,7 +182,7 @@ my $earth = Example::Earth->new;
 
 $earth->moon = "Mars";
 
-is scalar do {$earth->moon}, "Mars", '$earth->moon # => Mars';
+::is scalar do {$earth->moon}, "Mars", '$earth->moon # => Mars';
 
 # 
 # Aspect is called every time it is specified in `has`.
@@ -204,11 +204,11 @@ package Example::Mars {
 
         $construct->{attr} .= ":lvalue";
 
-is scalar do {$cls}, "Example::Mars", '        $cls # => Example::Mars';
-is scalar do {$name}, "moon", '        $name # => moon';
-is scalar do {$value}, scalar do{1}, '        $value # -> 1';
-is_deeply scalar do {[sort keys %$construct]}, scalar do {[qw/attr eval get name pkg ret set sub/]}, '        [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]';
-is_deeply scalar do {[sort keys %$feature]}, scalar do {[qw/construct has name opt/]}, '        [sort keys %$feature] # --> [qw/construct has name opt/]';
+::is scalar do {$cls}, "Example::Mars", '        $cls # => Example::Mars';
+::is scalar do {$name}, "moon", '        $name # => moon';
+::is scalar do {$value}, scalar do{1}, '        $value # -> 1';
+::is_deeply scalar do {[sort keys %$construct]}, scalar do {[qw/attr eval get name pkg ret set sub/]}, '        [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]';
+::is_deeply scalar do {[sort keys %$feature]}, scalar do {[qw/construct has name opt/]}, '        [sort keys %$feature] # --> [qw/construct has name opt/]';
 
         my $_construct = {
             pkg => $cls,
@@ -231,7 +231,7 @@ is_deeply scalar do {[sort keys %$feature]}, scalar do {[qw/construct has name o
             ret => '; $self',
         };
 
-is_deeply scalar do {$construct}, scalar do {$_construct}, '        $construct # --> $_construct';
+::is_deeply scalar do {$construct}, scalar do {$_construct}, '        $construct # --> $_construct';
 
         my $_feature = {
             has => [is => "rw", lvalue => 1],
@@ -243,7 +243,7 @@ is_deeply scalar do {$construct}, scalar do {$_construct}, '        $construct #
             construct => $_construct,
         };
 
-is_deeply scalar do {$feature}, scalar do {$_feature}, '        $feature # --> $_feature';
+::is_deeply scalar do {$feature}, scalar do {$_feature}, '        $feature # --> $_feature';
     };
 
     has moon => (is => "rw", lvalue => 1);
@@ -265,18 +265,18 @@ package World { use Aion;
         my ($class, $extends) = @_;
         $extended_by_this ++;
 
-is scalar do {$class}, "World", '        $class      # => World';
-is scalar do {$extends}, "Hello", '        $extends    # => Hello';
+::is scalar do {$class}, "World", '        $class      # => World';
+::is scalar do {$extends}, "Hello", '        $extends    # => Hello';
     }
 }
 
 package Hello { use Aion;
     extends qw/World/;
 
-is scalar do {$World::extended_by_this}, scalar do{1}, '    $World::extended_by_this # -> 1';
+::is scalar do {$World::extended_by_this}, scalar do{1}, '    $World::extended_by_this # -> 1';
 }
 
-is scalar do {Hello->isa("World")}, scalar do{1}, 'Hello->isa("World")     # -> 1';
+::is scalar do {Hello->isa("World")}, scalar do{1}, 'Hello->isa("World")     # -> 1';
 
 # 
 # ## new (%param)
@@ -294,18 +294,18 @@ package NewExample { use Aion;
     has z => (is => 'ro-', isa => Num);
 }
 
-like scalar do {eval { NewExample->new(f => 5) }; $@}, qr!f is not feature\!!, 'eval { NewExample->new(f => 5) }; $@            # ~> f is not feature!';
-like scalar do {eval { NewExample->new(n => 5, r => 6) }; $@}, qr!n, r is not features\!!, 'eval { NewExample->new(n => 5, r => 6) }; $@    # ~> n, r is not features!';
-like scalar do {eval { NewExample->new }; $@}, qr!Feature y is required\!!, 'eval { NewExample->new }; $@                    # ~> Feature y is required!';
-like scalar do {eval { NewExample->new(z => 10) }; $@}, qr!Feature z cannot set in new\!!, 'eval { NewExample->new(z => 10) }; $@           # ~> Feature z cannot set in new!';
+::like scalar do {eval { NewExample->new(f => 5) }; $@}, qr!f is not feature\!!, 'eval { NewExample->new(f => 5) }; $@            # ~> f is not feature!';
+::like scalar do {eval { NewExample->new(n => 5, r => 6) }; $@}, qr!n, r is not features\!!, 'eval { NewExample->new(n => 5, r => 6) }; $@    # ~> n, r is not features!';
+::like scalar do {eval { NewExample->new }; $@}, qr!Feature y is required\!!, 'eval { NewExample->new }; $@                    # ~> Feature y is required!';
+::like scalar do {eval { NewExample->new(z => 10) }; $@}, qr!Feature z cannot set in new\!!, 'eval { NewExample->new(z => 10) }; $@           # ~> Feature z cannot set in new!';
 
 my $ex = NewExample->new(y => 8);
 
-like scalar do {eval { $ex->x }; $@}, qr!Get feature `x` must have the type Num. The it is undef!, 'eval { $ex->x }; $@  # ~> Get feature `x` must have the type Num. The it is undef';
+::like scalar do {eval { $ex->x }; $@}, qr!Get feature `x` must have the type Num. The it is undef!, 'eval { $ex->x }; $@  # ~> Get feature `x` must have the type Num. The it is undef';
 
 $ex = NewExample->new(x => 10.1, y => 8);
 
-is scalar do {$ex->x}, scalar do{10.1}, '$ex->x # -> 10.1';
+::is scalar do {$ex->x}, scalar do{10.1}, '$ex->x # -> 10.1';
 
 # 
 # # SUBROUTINES IN ROLES
@@ -325,7 +325,7 @@ package Role::Alpha { use Aion -role;
     requires qw/abc/;
 }
 
-like scalar do {eval { package Omega1 { use Aion; with Role::Alpha; } }; $@}, qr!abc requires\!!, 'eval { package Omega1 { use Aion; with Role::Alpha; } }; $@ # ~> abc requires!';
+::like scalar do {eval { package Omega1 { use Aion; with Role::Alpha; } }; $@}, qr!abc requires\!!, 'eval { package Omega1 { use Aion; with Role::Alpha; } }; $@ # ~> abc requires!';
 
 package Omega { use Aion;
     with Role::Alpha;
@@ -333,7 +333,7 @@ package Omega { use Aion;
     sub abc { "abc" }
 }
 
-is scalar do {Omega->new->in("a")}, scalar do{1}, 'Omega->new->in("a")  # -> 1';
+::is scalar do {Omega->new->in("a")}, scalar do{1}, 'Omega->new->in("a")  # -> 1';
 
 # 
 # # METHODS
@@ -349,11 +349,11 @@ package ExHas { use Aion;
 
 my $ex = ExHas->new;
 
-is scalar do {$ex->has("x")}, scalar do{""}, '$ex->has("x")   # -> ""';
+::is scalar do {$ex->has("x")}, scalar do{""}, '$ex->has("x")   # -> ""';
 
 $ex->x(10);
 
-is scalar do {$ex->has("x")}, scalar do{1}, '$ex->has("x")   # -> 1';
+::is scalar do {$ex->has("x")}, scalar do{1}, '$ex->has("x")   # -> 1';
 
 # 
 # ## clear (@features)
@@ -368,13 +368,13 @@ package ExClear { use Aion;
 
 my $c = ExClear->new(x => 10, y => 12);
 
-is scalar do {$c->has("x")}, scalar do{1}, '$c->has("x")   # -> 1';
-is scalar do {$c->has("y")}, scalar do{1}, '$c->has("y")   # -> 1';
+::is scalar do {$c->has("x")}, scalar do{1}, '$c->has("x")   # -> 1';
+::is scalar do {$c->has("y")}, scalar do{1}, '$c->has("y")   # -> 1';
 
 $c->clear(qw/x y/);
 
-is scalar do {$c->has("x")}, scalar do{""}, '$c->has("x")   # -> ""';
-is scalar do {$c->has("y")}, scalar do{""}, '$c->has("y")   # -> ""';
+::is scalar do {$c->has("x")}, scalar do{""}, '$c->has("x")   # -> ""';
+::is scalar do {$c->has("y")}, scalar do{""}, '$c->has("y")   # -> ""';
 
 # 
 # 
@@ -411,16 +411,16 @@ package ExIs { use Aion;
     has wo => (is => 'wo-');
 }
 
-like scalar do {eval { ExIs->new }; $@}, qr!\* Feature ro is required\!!, 'eval { ExIs->new }; $@ # ~> \* Feature ro is required!';
-like scalar do {eval { ExIs->new(ro => 10, wo => -10) }; $@}, qr!\* Feature wo cannot set in new\!!, 'eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> \* Feature wo cannot set in new!';
+::like scalar do {eval { ExIs->new }; $@}, qr!\* Feature ro is required\!!, 'eval { ExIs->new }; $@ # ~> \* Feature ro is required!';
+::like scalar do {eval { ExIs->new(ro => 10, wo => -10) }; $@}, qr!\* Feature wo cannot set in new\!!, 'eval { ExIs->new(ro => 10, wo => -10) }; $@ # ~> \* Feature wo cannot set in new!';
 ExIs->new(ro => 10);
 ExIs->new(ro => 10, rw => 20);
 
-is scalar do {ExIs->new(ro => 10)->ro}, scalar do{10}, 'ExIs->new(ro => 10)->ro  # -> 10';
+::is scalar do {ExIs->new(ro => 10)->ro}, scalar do{10}, 'ExIs->new(ro => 10)->ro  # -> 10';
 
-is scalar do {ExIs->new(ro => 10)->wo(30)->has("wo")}, scalar do{1}, 'ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1';
-like scalar do {eval { ExIs->new(ro => 10)->wo }; $@}, qr!has: wo is wo- \(not get\)!, 'eval { ExIs->new(ro => 10)->wo }; $@ # ~> has: wo is wo- \(not get\)';
-is scalar do {ExIs->new(ro => 10)->rw(30)->rw}, scalar do{30}, 'ExIs->new(ro => 10)->rw(30)->rw  # -> 30';
+::is scalar do {ExIs->new(ro => 10)->wo(30)->has("wo")}, scalar do{1}, 'ExIs->new(ro => 10)->wo(30)->has("wo")  # -> 1';
+::like scalar do {eval { ExIs->new(ro => 10)->wo }; $@}, qr!has: wo is wo- \(not get\)!, 'eval { ExIs->new(ro => 10)->wo }; $@ # ~> has: wo is wo- \(not get\)';
+::is scalar do {ExIs->new(ro => 10)->rw(30)->rw}, scalar do{30}, 'ExIs->new(ro => 10)->rw(30)->rw  # -> 30';
 
 # 
 # Feature with `*` don't hold value:
@@ -433,16 +433,16 @@ package Node { use Aion;
 my $root = Node->new;
 my $node = Node->new(parent => $root);
 
-is scalar do {$node->parent->parent}, scalar do{undef}, '$node->parent->parent   # -> undef';
+::is scalar do {$node->parent->parent}, scalar do{undef}, '$node->parent->parent   # -> undef';
 undef $root;
-is scalar do {$node->parent}, scalar do{undef}, '$node->parent   # -> undef';
+::is scalar do {$node->parent}, scalar do{undef}, '$node->parent   # -> undef';
 
 # And by setter:
 $node->parent($root = Node->new);
 
-is scalar do {$node->parent->parent}, scalar do{undef}, '$node->parent->parent   # -> undef';
+::is scalar do {$node->parent->parent}, scalar do{undef}, '$node->parent->parent   # -> undef';
 undef $root;
-is scalar do {$node->parent}, scalar do{undef}, '$node->parent   # -> undef';
+::is scalar do {$node->parent}, scalar do{undef}, '$node->parent   # -> undef';
 
 # 
 # ## isa => $type
@@ -458,8 +458,8 @@ package ExDefault { use Aion;
     has x => (is => 'ro', default => 10);
 }
 
-is scalar do {ExDefault->new->x}, scalar do{10}, 'ExDefault->new->x  # -> 10';
-is scalar do {ExDefault->new(x => 20)->x}, scalar do{20}, 'ExDefault->new(x => 20)->x  # -> 20';
+::is scalar do {ExDefault->new->x}, scalar do{10}, 'ExDefault->new->x  # -> 10';
+::is scalar do {ExDefault->new(x => 20)->x}, scalar do{20}, 'ExDefault->new(x => 20)->x  # -> 20';
 
 # 
 # If `$value` is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
@@ -475,11 +475,11 @@ package ExLazy { use Aion;
 }
 
 my $ex = ExLazy->new;
-is scalar do {$count}, scalar do{10}, '$count   # -> 10';
-is scalar do {$ex->x}, scalar do{11}, '$ex->x   # -> 11';
-is scalar do {$count}, scalar do{11}, '$count   # -> 11';
-is scalar do {$ex->x}, scalar do{11}, '$ex->x   # -> 11';
-is scalar do {$count}, scalar do{11}, '$count   # -> 11';
+::is scalar do {$count}, scalar do{10}, '$count   # -> 10';
+::is scalar do {$ex->x}, scalar do{11}, '$ex->x   # -> 11';
+::is scalar do {$count}, scalar do{11}, '$count   # -> 11';
+::is scalar do {$ex->x}, scalar do{11}, '$ex->x   # -> 11';
+::is scalar do {$count}, scalar do{11}, '$count   # -> 11';
 
 # 
 # ## trigger => $sub
@@ -497,9 +497,9 @@ package ExTrigger { use Aion;
 }
 
 my $ex = ExTrigger->new(x => 10);
-is scalar do {$ex->y}, scalar do{10}, '$ex->y      # -> 10';
+::is scalar do {$ex->y}, scalar do{10}, '$ex->y      # -> 10';
 $ex->x(20);
-is scalar do {$ex->y}, scalar do{30}, '$ex->y      # -> 30';
+::is scalar do {$ex->y}, scalar do{30}, '$ex->y      # -> 30';
 
 # 
 # # ATTRIBUTES
@@ -525,12 +525,12 @@ package Anim { use Aion;
 
 my $anim = Anim->new;
 
-is scalar do {$anim->is_cat('cat')}, scalar do{1}, '$anim->is_cat(\'cat\')    # -> 1';
-is scalar do {$anim->is_cat('dog')}, scalar do{""}, '$anim->is_cat(\'dog\')    # -> ""';
+::is scalar do {$anim->is_cat('cat')}, scalar do{1}, '$anim->is_cat(\'cat\')    # -> 1';
+::is scalar do {$anim->is_cat('dog')}, scalar do{""}, '$anim->is_cat(\'dog\')    # -> ""';
 
 
-like scalar do {eval { Anim->is_cat("cat") }; $@}, qr!Arguments of method `is_cat` must have the type Tuple\[Object, Str\].!, 'eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].';
-like scalar do {eval { my @items = $anim->is_cat("cat") }; $@}, qr!Returns of method `is_cat` must have the type Tuple\[Bool\].!, 'eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].';
+::like scalar do {eval { Anim->is_cat("cat") }; $@}, qr!Arguments of method `is_cat` must have the type Tuple\[Object, Str\].!, 'eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].';
+::like scalar do {eval { my @items = $anim->is_cat("cat") }; $@}, qr!Returns of method `is_cat` must have the type Tuple\[Bool\].!, 'eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].';
 
 # 
 # If use name of type in `@signature`, then call subroutine with this name from current package.
