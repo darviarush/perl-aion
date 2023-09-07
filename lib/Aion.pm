@@ -22,7 +22,7 @@ our %META;
 # вызывается из другого пакета, для импорта данного
 sub import {
 	my ($cls, $attr) = @_;
-	my ($pkg, $path) = caller;
+	my $pkg = caller;
 
 	*{"${pkg}::isa"} = \&isa if \&isa != $pkg->can('isa');
 
@@ -46,9 +46,7 @@ sub import {
 		}
 	};
 
-    #Aion::Types->import($pkg);
-    eval "package $pkg { use Aion::Types; }";
-    die if $@;
+    eval "package $pkg; use Aion::Types; 1" or die;
 }
 
 # Экспортирует функции в пакет, если их там ещё нет
