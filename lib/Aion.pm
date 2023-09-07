@@ -123,7 +123,10 @@ sub default_aspect {
     if(ref $default eq "CODE") {
         $feature->{lazy} = 1;
         *{"${cls}::${name}__DEFAULT"} = $default;
-        $construct->{get} = "\$self->{$name} = \$self->${name}__DEFAULT if !exists \$self->{$name}; $construct->{get}";
+
+		$construct->{lazy_trigger} //= "";
+		$construct->{lazy} = "\$self->{$name} = \$self->${name}__DEFAULT%(lazy_trigger)s if !exists \$self->{$name}; ";
+        $construct->{get} = "%(lazy)s$construct->{get}";
     } else {
         $feature->{opt}{isa}->validate($default, $name) if $feature->{opt}{isa};
         $feature->{default} = $default;
@@ -132,15 +135,18 @@ sub default_aspect {
 
 sub _trigger_init {
 	my ($self, $feature) = @_;
-	$feature->{trigger}->($self);
+	my $name = "$feature->{name}__TRIGGER";
+	$self->$name;
 }
 
 # trigger => $sub
 sub trigger_aspect {
 	my ($cls, $name, $trigger, $construct, $feature) = @_;
 
-	$feature->{trigger} = *{"${cls}::${name}__TRIGGER"} = $trigger;
-	$construct->{set} = "my \$old = \$self->{$name}; $construct->{set}; \$self->${name}__TRIGGER(\$old)";
+	*{"${cls}::${name}__TRIGGER"} = $trigger;
+
+	$construct->{set} = "my \$e = exists \$self->{$name}; my \$old = \$self->{$name}; $construct->{set}; \$self->${name}__TRIGGER(\$e? \$old: ())";
+	$construct->{lazy_trigger} = ", \$self->${name}__TRIGGER";
 
 	push @{$feature->{init}}, \&_trigger_init;
 }
