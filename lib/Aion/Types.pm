@@ -6,95 +6,15 @@ use common::sense;
 
 use Aion::Type;
 use Attribute::Handlers;
-use Math::BigInt;
 use List::Util qw/all any/;
 use Exporter qw/import/;
 use Scalar::Util qw/looks_like_number reftype blessed/;
 use Sub::Util qw/prototype set_prototype subname set_subname/;
 
-our @EXPORT = our @EXPORT_OK = qw/
-    subtype as init_where where awhere message
-    SELF ARGS A B C D M N
-    coerce from via
-
-    Any
-        Control
-            Union
-            Intersection
-            Exclude
-            Option
-			Wantarray
-
-        Item
-            Bool
-            Enum
-            Maybe
-            Undef
-            Defined
-                Value
-                    Version
-                    Str
-                        Uni
-                        Bin
-                        NonEmptyStr
-						StartsWith
-						EndsWith
-                        Email
-                        Tel
-                        Url
-                        Path
-                        Html
-                        StrDate
-                        StrDateTime
-                        StrMatch
-                        ClassName
-                        RoleName
-						Rat
-                        Numeric
-                            Num
-                                PositiveNum
-                                Int
-                                    PositiveInt
-                                    Nat
-                Ref
-                    Tied
-                    LValueRef
-                    FormatRef
-                    CodeRef
-                    RegexpRef
-                    ScalarRef
-                    RefRef
-                    GlobRef
-                    ArrayRef
-                    HashRef
-                    Map
-                    Dict
-                    Tuple
-                    CycleTuple
-                    Object
-					RegexpLike
-					CodeLike
-					ArrayLike
-						Lim
-					HashLike
-						HasProp
-						LimKeys
-                Like
-                    HasMethods
-                    Overload
-                    InstanceOf
-                    ConsumerOf
-					StrLike
-						Len
-					NumLike
-                        Float
-						Double
-						Range
-						Bytes
-						PositiveBytes
-
-/;
-
+require Exporter;
+our @EXPORT = our @EXPORT_OK = grep {
+	*{$Aion::Types::{$_}}{CODE}	&& !/^(_|(NaN|import|all|any|looks_like_number|reftype|blessed|prototype|set_prototype|subname set_subname)\z)/n
+} keys %Aion::Types::;
 
 sub UNIVERSAL::Isa : ATTR(CODE) {
     my ($pkg, $symbol, $referent, $attr, $data, $phase, $file, $line) = @_;
@@ -129,7 +49,8 @@ sub UNIVERSAL::Isa : ATTR(CODE) {
 	*$symbol = $sub
 }
 
-use constant TRUE => sub {1};
+BEGIN {
+my $TRUE = sub {1};
 
 # Создание типа
 sub subtype(@) {
@@ -154,7 +75,7 @@ sub subtype(@) {
 	
 	die "subtype $save: needs a where" if $is_arg && !($where || $awhere);
 
-	if($as && $as->{test} != TRUE) {
+	if($as && $as->{test} != $TRUE) {
 		if(!$where && !$awhere) {
 			$where = (sub { my ($as) = @_; sub { $as->test } })->($as);
 		} else {
@@ -177,9 +98,10 @@ sub subtype(@) {
 		$type->{test} = $where;
 		$type->make_arg($pkg)
 	} else {
-		$type->{test} = $where // TRUE;
+		$type->{test} = $where // $TRUE;
 		$type->make($pkg)
 	}
+}
 }
 
 sub as($) { (as => @_) }
@@ -396,10 +318,13 @@ subtype "Any";
 					subtype "Double", as &NumLike, where { -1.7976931348623158e+308 <= $_ <= 1.7976931348623158e+308 };
 					subtype "Range[from, to]", as &NumLike, where { A <= $_ <= B };
 
-					my $_8bits = Math::BigInt->new(8);
+					my $_8bits;
 					subtype "Bytes[N]", as &NumLike,
 						init_where {
-							my $bits = A < 8? 8: $_8bits;
+							my $bits = A < 8? 8: ($_8bits //= do {
+								require Math::BigInt;
+								Math::BigInt->new(8)
+							});
 							my $N = 1 << ($bits * A - 1);
 							N = -$N;
 							M = $N-1;
@@ -407,7 +332,10 @@ subtype "Any";
 						where { N <= $_ <= M };
 					subtype "PositiveBytes[N]", as &NumLike,
 						init_where {
-							my $bits = A < 8? 8: $_8bits;
+							my $bits = A < 8? 8: ($_8bits //= do {
+								require Math::BigInt;
+								Math::BigInt->new(8)
+							});
 							M = (1 << ($bits*A)) - 1;
 						}
 						where { 0 <= $_ <= M };
