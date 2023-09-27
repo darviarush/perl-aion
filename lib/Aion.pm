@@ -3,7 +3,7 @@ use 5.22.0;
 no strict; no warnings; no diagnostics;
 use common::sense;
 
-our $VERSION = "0.01";
+our $VERSION = "0.1";
 
 use Scalar::Util qw/blessed weaken/;
 use Aion::Types qw//;
