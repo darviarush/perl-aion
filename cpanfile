@@ -1,4 +1,4 @@
-requires 'perl', '5.008001';
+requires 'perl', '5.22.0';
 
 on 'test' => sub {
     requires 'Liveman',

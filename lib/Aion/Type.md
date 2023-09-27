@@ -1,6 +1,6 @@
 # NAME
 
-Aion::Type - class of validators.
+Aion::Type - class of validators
 
 # SYNOPSIS
 

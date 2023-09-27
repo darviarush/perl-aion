@@ -1,5 +1,6 @@
 package Aion;
-use 5.008001;
+use 5.22.0;
+no strict; no warnings; no diagnostics;
 use common::sense;
 
 our $VERSION = "0.01";
@@ -423,7 +424,7 @@ __END__
 
 =head1 NAME
 
-B<Aion> — A postmodern object system for Perl 5, as C<Moose> and C<Moo>, but with improvements.
+B<Aion> — A postmodern object system for Perl 5, as C<Moose> and C<Moo>, but with improvements
 
 =head1 VERSION
 

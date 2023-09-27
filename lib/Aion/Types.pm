@@ -1,7 +1,8 @@
 package Aion::Types;
 # Типы-валидаторы для Aion
 
-use 5.008001;
+use 5.22.0;
+no strict; no warnings; no diagnostics;
 use common::sense;
 
 use Aion::Type;
@@ -353,7 +354,7 @@ __END__
 
 =head1 NAME
 
-Aion::Types is library of validators. And it makes new validators.
+Aion::Types is library of validators. And it makes new validators
 
 =head1 SYNOPSIS
 

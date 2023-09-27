@@ -1,6 +1,6 @@
 # NAME
 
-**Aion** — A postmodern object system for Perl 5, as `Moose` and `Moo`, but with improvements.
+**Aion** — A postmodern object system for Perl 5, as `Moose` and `Moo`, but with improvements
 
 # VERSION
 
