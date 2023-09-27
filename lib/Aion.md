@@ -537,8 +537,12 @@ If use name of type in `@signature`, then call subroutine with this name from cu
 
 # AUTHOR
 
-Yaroslav O. Kosmina [dart@cpan.org](mailto:dart@cpan.org)
+Yaroslav O. Kosmina [dart@cpan.org](dart@cpan.org)
 
 # LICENSE
 
 ⚖ **GPLv3**
+
+# COPYRIGHT
+
+The Aion module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.
