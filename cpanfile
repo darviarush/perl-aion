@@ -1,7 +1,7 @@
 requires 'perl', '5.22.0';
 
 on 'test' => sub {
-    requires 'Liveman', '0.7';
+    requires 'Liveman', '1.0';
 };
 
 requires 'Attribute::Handlers', '1.03';
@@ -13,5 +13,3 @@ requires 'Math::BigInt', '1.999837';
 requires 'List::Util', '1.63';
 requires 'Scalar::Util', '1.63';
 requires 'Sub::Util', '1.63';
-
-
