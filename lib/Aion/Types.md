@@ -75,12 +75,11 @@ Any
 					ClassName[A]
 					RoleName[A]
 					Rat
-					Numeric
-						Num
-							PositiveNum
-							Int
-								PositiveInt
-								Nat
+					Num
+						PositiveNum
+						Int
+							PositiveInt
+							Nat
 			Ref
 				Tied`[A]
 				LValueRef
@@ -702,21 +701,11 @@ Rational numbers.
 "-6/7" ~~ Rat    # -> 1
 6 ~~ Rat         # -> 1
 "inf" ~~ Rat     # -> 1
+"+Inf" ~~ Rat    # -> 1
 "NaN" ~~ Rat     # -> 1
-6.5 ~~ Rat       # -> ""
-```
-
-## Numeric
-
-Test scalar with `Scalar::Util::looks_like_number`. Maybe spaces on end.
-
-```perl
-6.5 ~~ Numeric       # -> 1
-6.5e-7 ~~ Numeric    # -> 1
-"6.5 " ~~ Numeric    # -> 1
-"v6.5" ~~ Numeric    # -> ""
-6.5.1 ~~ Numeric     # -> ""
-v6.5 ~~ Numeric      # -> ""
+"-nan" ~~ Rat    # -> 1
+6.5 ~~ Rat       # -> 1
+"6.5 " ~~ Rat    # -> ''
 ```
 
 ## Num

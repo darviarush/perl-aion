@@ -75,12 +75,11 @@ coerce IntOrArrayRef, from Num, via { int($_ + .5) };
 # 					ClassName[A]
 # 					RoleName[A]
 # 					Rat
-# 					Numeric
-# 						Num
-# 							PositiveNum
-# 							Int
-# 								PositiveInt
-# 								Nat
+# 					Num
+# 						PositiveNum
+# 						Int
+# 							PositiveInt
+# 							Nat
 # 			Ref
 # 				Tied`[A]
 # 				LValueRef
@@ -702,21 +701,11 @@ done_testing; }; subtest 'Rat' => sub {
 ::is scalar do {"-6/7" ~~ Rat}, scalar do{1}, '"-6/7" ~~ Rat    # -> 1';
 ::is scalar do {6 ~~ Rat}, scalar do{1}, '6 ~~ Rat         # -> 1';
 ::is scalar do {"inf" ~~ Rat}, scalar do{1}, '"inf" ~~ Rat     # -> 1';
+::is scalar do {"+Inf" ~~ Rat}, scalar do{1}, '"+Inf" ~~ Rat    # -> 1';
 ::is scalar do {"NaN" ~~ Rat}, scalar do{1}, '"NaN" ~~ Rat     # -> 1';
-::is scalar do {6.5 ~~ Rat}, scalar do{""}, '6.5 ~~ Rat       # -> ""';
-
-# 
-# ## Numeric
-# 
-# Test scalar with `Scalar::Util::looks_like_number`. Maybe spaces on end.
-# 
-done_testing; }; subtest 'Numeric' => sub { 
-::is scalar do {6.5 ~~ Numeric}, scalar do{1}, '6.5 ~~ Numeric       # -> 1';
-::is scalar do {6.5e-7 ~~ Numeric}, scalar do{1}, '6.5e-7 ~~ Numeric    # -> 1';
-::is scalar do {"6.5 " ~~ Numeric}, scalar do{1}, '"6.5 " ~~ Numeric    # -> 1';
-::is scalar do {"v6.5" ~~ Numeric}, scalar do{""}, '"v6.5" ~~ Numeric    # -> ""';
-::is scalar do {6.5.1 ~~ Numeric}, scalar do{""}, '6.5.1 ~~ Numeric     # -> ""';
-::is scalar do {v6.5 ~~ Numeric}, scalar do{""}, 'v6.5 ~~ Numeric      # -> ""';
+::is scalar do {"-nan" ~~ Rat}, scalar do{1}, '"-nan" ~~ Rat    # -> 1';
+::is scalar do {6.5 ~~ Rat}, scalar do{1}, '6.5 ~~ Rat       # -> 1';
+::is scalar do {"6.5 " ~~ Rat}, scalar do{''}, '"6.5 " ~~ Rat    # -> \'\'';
 
 # 
 # ## Num

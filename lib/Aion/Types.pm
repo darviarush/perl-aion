@@ -193,13 +193,13 @@ subtype "Any";
 					subtype "ClassName", as &Str, where { !!$_->can('new') };
 					subtype "RoleName", as &Str, where { !!$_->can('requires') };
 
-					subtype "Rat", as &Str, where { /^(-?\d+(\/\d+)?|inf|nan)\z/in };
-					subtype "Numeric", as &Str, where { looks_like_number($_) };
-						subtype "Num", as &Numeric, where { /\d\z/ };
-							subtype "PositiveNum", as &Num, where { $_ >= 0 };
-							subtype "Int", as &Num,	where { /^-?\d+\z/ };
-								subtype "PositiveInt", as &Int, where { $_ >= 0 };
-								subtype "Nat", as &Int, where { $_ > 0 };
+					subtype "Num", as &Str, where { looks_like_number($_) && /[\dfn]\z/i };
+						subtype "PositiveNum", as &Num, where { $_ >= 0 };
+						subtype "Int", as &Num,	where { /^-?\d+\z/ };
+							subtype "PositiveInt", as &Int, where { $_ >= 0 };
+							subtype "Nat", as &Int, where { $_ > 0 };
+					subtype "Rat", as &Str, where { &Num->test || /^(-?\d+(\/\d+)?)\z/in };
+
 
 			subtype "Ref", as &Defined, where { "" ne ref $_ };
 				subtype "Tied`[A]", as &Ref,
@@ -432,12 +432,11 @@ Hierarhy of validators:
 						ClassName[A]
 						RoleName[A]
 						Rat
-						Numeric
-							Num
-								PositiveNum
-								Int
-									PositiveInt
-									Nat
+						Num
+							PositiveNum
+							Int
+								PositiveInt
+								Nat
 				Ref
 					Tied`[A]
 					LValueRef
@@ -967,19 +966,11 @@ Rational numbers.
 	"-6/7" ~~ Rat    # -> 1
 	6 ~~ Rat         # -> 1
 	"inf" ~~ Rat     # -> 1
+	"+Inf" ~~ Rat    # -> 1
 	"NaN" ~~ Rat     # -> 1
-	6.5 ~~ Rat       # -> ""
-
-=head2 Numeric
-
-Test scalar with C<Scalar::Util::looks_like_number>. Maybe spaces on end.
-
-	6.5 ~~ Numeric       # -> 1
-	6.5e-7 ~~ Numeric    # -> 1
-	"6.5 " ~~ Numeric    # -> 1
-	"v6.5" ~~ Numeric    # -> ""
-	6.5.1 ~~ Numeric     # -> ""
-	v6.5 ~~ Numeric      # -> ""
+	"-nan" ~~ Rat    # -> 1
+	6.5 ~~ Rat       # -> 1
+	"6.5 " ~~ Rat    # -> ''
 
 =head2 Num
 
