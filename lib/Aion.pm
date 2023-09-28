@@ -424,11 +424,11 @@ __END__
 
 =head1 NAME
 
-B<Aion> — A postmodern object system for Perl 5, as C<Moose> and C<Moo>, but with improvements
+Aion - a postmodern object system for Perl 5, as C<Moose> and C<Moo>, but with improvements
 
 =head1 VERSION
 
-0.01
+0.1
 
 =head1 SYNOPSIS
 
@@ -955,3 +955,7 @@ Yaroslav O. Kosmina LL<mailto:dart@cpan.org>
 =head1 LICENSE
 
 ⚖ B<GPLv3>
+
+=head1 COPYRIGHT
+
+The Aion module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.

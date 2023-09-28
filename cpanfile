@@ -1,7 +1,7 @@
 requires 'perl', '5.22.0';
 
 on 'test' => sub {
-    requires 'Liveman', '1.0';
+    requires 'Test::More', '0.98';
 };
 
 requires 'Attribute::Handlers', '1.03';

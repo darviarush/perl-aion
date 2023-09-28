@@ -1,6 +1,7 @@
+[![Actions Status](https://github.com/darviarush/perl-aion/actions/workflows/test.yml/badge.svg)](https://github.com/darviarush/perl-aion/actions)
 # NAME
 
-**Aion** — A postmodern object system for Perl 5, as `Moose` and `Moo`, but with improvements
+Aion - a postmodern object system for Perl 5, as `Moose` and `Moo`, but with improvements
 
 # VERSION
 
@@ -537,8 +538,12 @@ If use name of type in `@signature`, then call subroutine with this name from cu
 
 # AUTHOR
 
-Yaroslav O. Kosmina [dart@cpan.org](mailto:dart@cpan.org)
+Yaroslav O. Kosmina [dart@cpan.org](dart@cpan.org)
 
 # LICENSE
 
 ⚖ **GPLv3**
+
+# COPYRIGHT
+
+The Aion module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.

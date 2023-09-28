@@ -1,6 +1,6 @@
 # NAME
 
-Aion::Types is library of validators. And it makes new validators
+Aion::Types is a library of validators. And it makes new validators
 
 # SYNOPSIS
 

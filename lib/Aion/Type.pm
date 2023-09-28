@@ -523,3 +523,7 @@ Yaroslav O. Kosmina LL<mailto:dart@cpan.org>
 =head1 LICENSE
 
 ⚖ B<GPLv3>
+
+=head1 COPYRIGHT
+
+The Aion::Type module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.

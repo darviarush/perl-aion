@@ -358,6 +358,11 @@ my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
 # # LICENSE
 # 
 # ⚖ **GPLv3**
+# 
+# # COPYRIGHT
+# 
+# The Aion::Type module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.
+
 	done_testing;
 };
 

@@ -354,7 +354,7 @@ __END__
 
 =head1 NAME
 
-Aion::Types is library of validators. And it makes new validators
+Aion::Types is a library of validators. And it makes new validators
 
 =head1 SYNOPSIS
 
@@ -1494,3 +1494,7 @@ Yaroslav O. Kosmina LL<mailto:dart@cpan.org>
 =head1 LICENSE
 
 ⚖ B<GPLv3>
+
+=head1 COPYRIGHT
+
+The Aion::Types module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.
