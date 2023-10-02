@@ -12,7 +12,6 @@ use Exporter qw/import/;
 use Scalar::Util qw/looks_like_number reftype blessed/;
 use Sub::Util qw/prototype set_prototype subname set_subname/;
 
-require Exporter;
 our @EXPORT = our @EXPORT_OK = grep {
 	*{$Aion::Types::{$_}}{CODE}	&& !/^(_|(NaN|import|all|any|looks_like_number|reftype|blessed|prototype|set_prototype|subname|set_subname)\z)/n
 } keys %Aion::Types::;
