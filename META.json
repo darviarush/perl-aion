@@ -43,6 +43,7 @@
       "runtime" : {
          "requires" : {
             "Attribute::Handlers" : "0.99",
+            "DDP" : "1.002001",
             "List::Util" : "1.68",
             "Math::BigInt" : "1.999837",
             "Scalar::Util" : "1.63",
