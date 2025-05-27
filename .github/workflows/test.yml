@@ -15,8 +15,8 @@ jobs:
           perl-version: ${{ matrix.perl }}
       - name: Install dependencies
         run: cpanm -nq --installdeps --with-develop --with-recommends .
-      - name: Install Devel::Cover
-        run: cpanm -n Devel::Cover
+      - name: Install Devel::Cover and Lcov reporter
+        run: cpanm -n Devel::Cover@1.46 Devel::Cover::Report::Lcov
       - name: Run test with coverage
         env:
           PERL5OPT: -MDevel::Cover
