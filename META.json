@@ -43,24 +43,12 @@
       "runtime" : {
          "requires" : {
             "Attribute::Handlers" : "0.99",
-            "DDP" : "0",
-            "Exporter" : "5.77",
-            "List::Util" : "1.63",
             "Math::BigInt" : "1.999837",
-            "Math::BigInt::Calc" : "0",
-            "Math::BigInt::FastCalc" : "0",
-            "Math::BigInt::Lib" : "0",
-            "Math::BigInt::Trace" : "0",
             "Scalar::Util" : "1.63",
             "Sub::Util" : "1.63",
             "common::sense" : "3.75",
             "config" : "1.3",
-            "diagnostics" : "0",
-            "feature" : "0",
-            "overload" : "1.37",
-            "perl" : "v5.22.0",
-            "strict" : "0",
-            "warnings" : "1.70"
+            "perl" : "v5.22.0"
          }
       },
       "test" : {
