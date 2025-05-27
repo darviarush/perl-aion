@@ -22,7 +22,7 @@ jobs:
           PERL5OPT: -MDevel::Cover
         run: |
           prove -lr t
-          cover --report lcov
+          env -u PERL5OPT cover --report lcov
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
