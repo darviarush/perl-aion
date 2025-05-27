@@ -21,7 +21,7 @@ requires 'strict', '0';
 requires 'warnings', '1.70';
 requires 'Aion::Type', '0';
 requires 'Aion::Types', '0';
-requires 'Attribute::Handlers', '1.03';
+requires 'Attribute::Handlers', '0.99';
 requires 'DDP', '0';
 requires 'Exporter', '5.77';
 requires 'List::Util', '1.63';

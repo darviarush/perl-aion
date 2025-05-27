@@ -44,7 +44,7 @@
          "requires" : {
             "Aion::Type" : "0",
             "Aion::Types" : "0",
-            "Attribute::Handlers" : "1.03",
+            "Attribute::Handlers" : "0.99",
             "DDP" : "0",
             "Exporter" : "5.77",
             "List::Util" : "1.63",
