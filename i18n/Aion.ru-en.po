@@ -1,0 +1,57 @@
+msgid "# NAME"
+msgstr "#NAME"
+
+msgid "0.1"
+msgstr "0.1"
+
+msgid "# DESCRIPTION"
+msgstr "#DESCRIPTION"
+
+msgid "## with"
+msgstr "## with"
+
+msgid "## isa ($package)"
+msgstr "## isa ($package)"
+
+msgid "## does ($package)"
+msgstr "## does ($package)"
+
+msgid "## aspect ($aspect => sub { ... })"
+msgstr "## aspect ($aspect => sub { ... })"
+
+msgid "# SUBROUTINES IN CLASSES"
+msgstr "# SUBROUTINES IN CLASSES"
+
+msgid "## new (%param)"
+msgstr "## new (%param)"
+
+msgid "# SUBROUTINES IN ROLES"
+msgstr "# SUBROUTINES IN ROLES"
+
+msgid "# METHODS"
+msgstr "# METHODS"
+
+msgid "## clear (@features)"
+msgstr "## clear (@features)"
+
+msgid "## isa => $type"
+msgstr "## isa => $type"
+
+msgid "## trigger => $sub"
+msgstr "## trigger => $sub"
+
+msgid "## release => $sub"
+msgstr "## Release => $ SUB"
+
+msgid "## clearer => $sub"
+msgstr "## Cleareer => $ SUB"
+
+msgid "# ATTRIBUTES"
+msgstr "# ATTRIBUTES"
+
+msgid "# AUTHOR"
+msgstr "# Author"
+
+msgid "Yaroslav O. Kosmina <dart@cpan.org>"
+msgstr "Yaroslav O. Kosmina <dart@cpan.org>"
+

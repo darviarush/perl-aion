@@ -20,7 +20,7 @@ sub export($@);
 # Классы в которых подключён Aion с метаинформацией
 our %META;
 
-# вызывается из другого пакета, для импорта данного
+# Вызывается из другого пакета, для импорта данного
 sub import {
 	my ($cls, $attr) = @_;
 	my $pkg = caller;
@@ -37,6 +37,7 @@ sub import {
 
     # Метаинформация
 	$META{$pkg} = {
+		order => scalar keys %META,
 		feature => {},
 		aspect => {
 			is => \&is_aspect,
@@ -44,6 +45,8 @@ sub import {
 			coerce => \&coerce_aspect,
 			default => \&default_aspect,
 			trigger => \&trigger_aspect,
+			release => \&release_aspect,
+			clearer => \&clearer_aspect,
 		}
 	};
 
@@ -73,7 +76,7 @@ sub _weaken_init {
 	weaken $self->{$feature->{name}};
 }
 
-# ro, rw, + и -
+# ro, rw, + и -, *
 sub is_aspect {
     my ($cls, $name, $is, $construct, $feature) = @_;
     die "Use is => '(ro|rw|wo|no)[+-]?[*]?'" if $is !~ /^(ro|rw|wo|no)[+-]?[*]?\z/;
@@ -152,6 +155,41 @@ sub trigger_aspect {
 	push @{$feature->{init}}, \&_trigger_init;
 }
 
+# release => $sub
+sub release_aspect {
+	my ($cls, $name, $release, $construct, $feature) = @_;
+
+	*{"${cls}::${name}__RELEASE"} = $release;
+
+	$construct->{get} = "my \$release = $construct->{get}; \$self->${name}__RELEASE(\$release); \$release";
+}
+
+# Если на фичах объекта есть clearer, то на него устанавливается этот деструктор
+sub destroy {
+	my ($self) = @_;
+
+	my $feature_href = $Aion::META{ref $self}{feature};
+	
+	for my $feature (sort { $b->{order} <=> $a->{order} } values %$feature_href) {
+		eval {
+			my ($name, $clearer) = @$feature{qw/name clearer/};
+			$clearer->($self) if defined $clearer and exists $self->{$name};
+		};
+		warn $@ if $@;
+	}
+}
+
+# clearer => $sub
+sub clearer_aspect {
+	my ($cls, $name, $clearer, $construct, $feature) = @_;
+
+	$feature->{clearer} = $clearer;
+	*{"${cls}::DESTROY"} = \&destroy unless $cls->can('DESTROY');
+	*{"${cls}::${name}__CLEARER"} = $clearer;
+	
+	die "Is DESTROY in Aion class ($cls): not set aion destroy!" if $cls->can('DESTROY') != \&destroy;
+}
+
 # Расширяет класс или роль
 sub inherits($$@) {
     my $pkg = shift; my $with = shift;
@@ -222,9 +260,7 @@ sub requires(@) {
     return;
 }
 
-
-
-# Требуются подпрограммы
+# Добавляется аспект
 sub aspect($$) {
 	my ($name, $sub) = @_;
     my $pkg = caller;
@@ -272,9 +308,14 @@ sub does {
     return "";
 }
 
-# Очищает переменную в объекте, возвращает себя
+# Очищает переменные в объекте, возвращает себя
 sub clear {
     my $self = shift;
+	my $meta = $Aion::META{ref $self};
+	for my $name (@_) {
+		my $feature = $meta->{feature}{$name};
+		$feature->{clearer}->($self) if $feature and $feature->{clearer} and exists $self->{$name};
+	}
     delete @$self{@_};
     $self
 }
@@ -323,6 +364,7 @@ sub has(@) {
             opt => \%opt,
             name => $name,
             construct => \%construct,
+			order => scalar keys %{$meta->{feature}},
         };
 
         my $ASPECT = $meta->{aspect};
@@ -408,7 +450,7 @@ sub create_from_params {
 
 	do {local $" = ", "; unshift @errors, "Features @required is required!"} if @required > 1;
 	unshift @errors, "Feature @required is required!" if @required == 1;
-	
+
 	my @fakekeys = sort keys %value;
 	unshift @errors, "@fakekeys is not feature!" if @fakekeys == 1;
 	do {local $" = ", "; unshift @errors, "@fakekeys is not features!"} if @fakekeys > 1;
@@ -424,7 +466,7 @@ __END__
 
 =head1 NAME
 
-Aion - a postmodern object system for Perl 5, as C<Moose> and C<Moo>, but with improvements
+Aion - постмодернистская объектная система для Perl 5, такая как «Mouse», «Moose», «Moo», «Mo» и «M», но с улучшениями
 
 =head1 VERSION
 
@@ -451,23 +493,23 @@ Aion - a postmodern object system for Perl 5, as C<Moose> and C<Moo>, but with i
 
 =head1 DESCRIPTION
 
-Aion — OOP framework for create classes with B<features>, has B<aspects>, B<roles> and so on.
+Aion — ООП-фреймворк для создания классов с B<фичами>, имеет B<аспекты>, B<роли> и так далее.
 
-Properties declared via C<has> are called B<features>.
+Свойства, объявленные через has, называются B<фичами>.
 
-And C<is>, C<isa>, C<default> and so on in C<has> are called B<aspects>.
+А C<is>, C<isa>, C<default> и так далее в C<has> называются B<аспектами>.
 
-In addition to standard aspects, roles can add their own aspects using subroutine C<aspect>.
+Помимо стандартных аспектов, роли могут добавлять свои собственные аспекты с помощью подпрограммы B<aspect>.
 
 =head1 SUBROUTINES IN CLASSES AND ROLES
 
-C<use Aion> include in module types from C<Aion::Types> and next subroutines:
+C<use Aion> импортирует типы из модуля C<Aion::Types> и следующие подпрограммы:
 
 =head2 has ($name, %aspects)
 
-Make method for get/set feature (property) of the class.
+Создаёт метод для получения/установки функции (свойства) класса.
 
-File lib/Animal.pm:
+Файл lib/Animal.pm:
 
 	package Animal;
 	use Aion;
@@ -492,9 +534,9 @@ File lib/Animal.pm:
 
 =head2 with
 
-Add to module roles. It call on each the role method C<import_with>.
+Добавляет в модуль роли. Для каждой роли вызывается метод C<import_with>.
 
-File lib/Role/Keys/Stringify.pm:
+Файл lib/Role/Keys/Stringify.pm:
 
 	package Role::Keys::Stringify;
 	
@@ -507,7 +549,7 @@ File lib/Role/Keys/Stringify.pm:
 	
 	1;
 
-File lib/Role/Values/Stringify.pm:
+Файл lib/Role/Values/Stringify.pm:
 
 	package Role::Values::Stringify;
 	
@@ -520,13 +562,14 @@ File lib/Role/Values/Stringify.pm:
 	
 	1;
 
-File lib/Class/All/Stringify.pm:
+Файл lib/Class/All/Stringify.pm:
 
 	package Class::All::Stringify;
 	
 	use Aion;
 	
-	with qw/Role::Keys::Stringify Role::Values::Stringify/;
+	with q/Role::Keys::Stringify/;
+	with q/Role::Values::Stringify/;
 	
 	has [qw/key1 key2/] => (is => 'rw', isa => Str);
 	
@@ -544,10 +587,10 @@ File lib/Class/All/Stringify.pm:
 
 =head2 isa ($package)
 
-Check C<$package> is the class what extended this class.
+Проверяет, что C<$package> — это суперкласс для данного или сам этот класс.
 
 	package Ex::X { use Aion; }
-	package Ex::A { use Aion; extends qw/Ex::X/; }
+	package Ex::A { use Aion; extends q/Ex::X/; }
 	package Ex::B { use Aion; }
 	package Ex::C { use Aion; extends qw/Ex::A Ex::B/ }
 	
@@ -561,7 +604,7 @@ Check C<$package> is the class what extended this class.
 
 =head2 does ($package)
 
-Check C<$package> is the role what extended this class.
+Проверяет, что C<$package> — это роль, которая используется в классе или другой роли.
 
 	package Role::X { use Aion -role; }
 	package Role::A { use Aion; with qw/Role::X/; }
@@ -577,7 +620,7 @@ Check C<$package> is the role what extended this class.
 
 =head2 aspect ($aspect => sub { ... })
 
-It add aspect to C<has> in this class or role, and to the classes, who use this role, if it role.
+Добавляет аспект к C<has> в текущем классе и его классам-наследникам или текущей роли и применяющим её классам.
 
 	package Example::Earth {
 	    use Aion;
@@ -597,21 +640,21 @@ It add aspect to C<has> in this class or role, and to the classes, who use this 
 	
 	$earth->moon # => Mars
 
-Aspect is called every time it is specified in C<has>.
+Аспект вызывается каждый раз, когда он указан в C<has>.
 
-Aspect handler has parameters:
+Создатель аспекта имеет параметры:
 
 =over
 
-=item * C<$cls> — the package with the C<has>.
+=item * C<$cls> — пакет с C<has>.
 
-=item * C<$name> — the feature name.
+=item * C<$name> — имя фичи.
 
-=item * C<$value> — the aspect value.
+=item * C<$value> — значение аспекта.
 
-=item * C<$construct> — the hash with code fragments for join to the feature method.
+=item * C<$construct> — хэш с фрагментами кода для присоединения к методу объекта.
 
-=item * C<$feature> — the hash present feature.
+=item * C<$feature> — хеш описывающий фичу.
 
 =back
 
@@ -672,7 +715,7 @@ Aspect handler has parameters:
 
 =head2 extends (@superclasses)
 
-Extends package other package. It call on each the package method C<import_extends> if it exists.
+Расширяет класс другим классом/классами. Он вызывает из каждого наследуемого класса метод C<import_extends>, если он в нём есть.
 
 	package World { use Aion;
 	
@@ -688,7 +731,7 @@ Extends package other package. It call on each the package method C<import_exten
 	}
 	
 	package Hello { use Aion;
-	    extends qw/World/;
+	    extends q/World/;
 	
 	    $World::extended_by_this # -> 1
 	}
@@ -697,15 +740,15 @@ Extends package other package. It call on each the package method C<import_exten
 
 =head2 new (%param)
 
-Constructor. 
+Конструктор.
 
 =over
 
-=item * Set C<%param> to features.
+=item * Устанавливает C<%param> для фич.
 
-=item * Check if param not mapped to feature.
+=item * Проверяет, что параметры соответствуют фичам.
 
-=item * Set default values.
+=item * Устанавливает значения по умолчанию.
 
 =back
 
@@ -732,7 +775,7 @@ Constructor.
 
 =head2 requires (@subroutine_names)
 
-Check who in classes who use the role present the subroutines.
+Проверяет, что в классах использующих эту роль есть указанные подпрограммы или фичи.
 
 	package Role::Alpha { use Aion -role;
 	
@@ -758,7 +801,11 @@ Check who in classes who use the role present the subroutines.
 
 =head2 has ($feature)
 
-It check what property is set.
+Проверяет, что свойство установлено.
+
+Фичи имеющие C<< default =E<gt> sub { ... } >> выполняют C<sub> при первом вызове геттера, то есть: являются отложенными.
+
+C<< $object-E<gt>has('фича') >> позволяет проверить, что C<default> ещё не вызывался.
 
 	package ExHas { use Aion;
 	    has x => (is => 'rw');
@@ -774,14 +821,14 @@ It check what property is set.
 
 =head2 clear (@features)
 
-Cleared the features.
+Удаляет ключи фич из объекта предварительно вызвав на них C<clearer> (если есть).
 
-	package ExClear { use Aion;
+	package ExClearer { use Aion;
 	    has x => (is => 'rw');
 	    has y => (is => 'rw');
 	}
 	
-	my $c = ExClear->new(x => 10, y => 12);
+	my $c = ExClearer->new(x => 10, y => 12);
 	
 	$c->has("x")   # -> 1
 	$c->has("y")   # -> 1
@@ -793,39 +840,39 @@ Cleared the features.
 
 =head1 METHODS IN CLASSES
 
-C<use Aion> include in module next methods:
+C<use Aion> включает в модуль следующие методы:
 
 =head2 new (%parameters)
 
-The constructor.
+Конструктор.
 
 =head1 ASPECTS
 
-C<use Aion> include in module next aspects for use in C<has>:
+C<use Aion> включает в модуль следующие аспекты для использования в C<has>:
 
 =head2 is => $permissions
 
 =over
 
-=item * C<ro> — make getter only.
+=item * C<ro> — создать только геттер.
 
-=item * C<wo> — make setter only.
+=item * C<wo> — создать только сеттер.
 
-=item * C<rw> — make getter and setter.
+=item * C<rw> — создать геттер и сеттер.
 
 =back
 
-Default is C<rw>.
+По умолчанию — C<rw>.
 
-Additional permissions:
+Дополнительные разрешения:
 
 =over
 
-=item * C<+> — the feature is required. It is not used with C<->.
+=item * C<+> — фича обязательна в параметрах конструктора. C<+> не используется с C<->.
 
-=item * C<-> — the feature cannot be set in the constructor. It is not used with C<+>.
+=item * C<-> — фича не может быть установлена через конструктор. '-' не используется с C<+>.
 
-=item * C<*> — the value is reference and it maked weaken can be set.
+=item * C<*> — не инкрементировать счётчик ссылок на значение (применить C<weaken> к значению после установки его в фичу).
 
 =back
 
@@ -846,7 +893,7 @@ Additional permissions:
 	eval { ExIs->new(ro => 10)->wo }; $@ # ~> has: wo is wo- \(not get\)
 	ExIs->new(ro => 10)->rw(30)->rw  # -> 30
 
-Feature with C<*> don't hold value:
+Функция с C<*> не удерживает значение:
 
 	package Node { use Aion;
 	    has parent => (is => "rw*", isa => Maybe[Object["Node"]]);
@@ -868,11 +915,21 @@ Feature with C<*> don't hold value:
 
 =head2 isa => $type
 
-Set feature type. It validate feature value 
+Указывает тип, а точнее – валидатор, фичи.
+
+	package ExIsa { use Aion;
+	    has x => (is => 'ro', isa => Int);
+	}
+	
+	eval { ExIsa->new(x => 'str') }; $@ # ~> \* Feature x must have the type Int. The it is 'str'
+	eval { ExIsa->new->x          }; $@ # ~> Get feature `x` must have the type Int. The it is undef
+	ExIsa->new(x => 10)->x              # -> 10
+
+Список валидаторов см. в L<Aion::Type>.
 
 =head2 default => $value
 
-Default value set in constructor, if feature falue not present.
+Значение по умолчанию устанавливается в конструкторе, если параметр с именем фичи отсутствует.
 
 	package ExDefault { use Aion;
 	    has x => (is => 'ro', default => 10);
@@ -881,7 +938,7 @@ Default value set in constructor, if feature falue not present.
 	ExDefault->new->x  # -> 10
 	ExDefault->new(x => 20)->x  # -> 20
 
-If C<$value> is subroutine, then the subroutine is considered a constructor for feature value. This subroutine lazy called where the value get.
+Если C<$value> является подпрограммой, то подпрограмма считается конструктором значения фичи. Используется ленивое вычисление.
 
 	my $count = 10;
 	
@@ -901,7 +958,8 @@ If C<$value> is subroutine, then the subroutine is considered a constructor for 
 
 =head2 trigger => $sub
 
-C<$sub> called after the value of the feature is set (in C<new> or in setter).
+C<$sub> вызывается после установки свойства в конструкторе (C<new>) или через сеттер.
+Этимология – впустить.
 
 	package ExTrigger { use Aion;
 	    has x => (trigger => sub {
@@ -917,17 +975,60 @@ C<$sub> called after the value of the feature is set (in C<new> or in setter).
 	$ex->x(20);
 	$ex->y      # -> 30
 
+=head2 Release => $ SUB
+
+C<$sub> вызывается перед возвратом свойства из объекта через геттер.
+Этимология – выпустить.
+
+	package ExRelease { use Aion;
+	    has x => (release => sub {
+	        my ($self, $value) = @_;
+	        $_[1] = $value + 1;
+	    });
+	}
+	
+	my $ex = ExRelease->new(x => 10);
+	$ex->x      # -> 11
+
+=head2 Cleareer => $ SUB
+
+C<$sub> вызывается при вызове декструктора или C<< $object-E<gt>clear("feature") >>, но только если свойство имеется (см. C<< $object-E<gt>has("feature") >>).
+
+	package ExClearer { use Aion;
+		
+		our $x;
+	
+	    has x => (clearer => sub {
+	        my ($self) = @_;
+	        $x = $self->x
+	    });
+	}
+	
+	$ExClearer::x      	# -> undef
+	ExClearer->new(x => 10);
+	$ExClearer::x      	# -> 10
+	
+	my $ex = ExClearer->new(x => 12);
+	
+	$ExClearer::x      # -> 10
+	$ex->clear('x');
+	$ExClearer::x      # -> 12
+	
+	undef $ex;
+	
+	$ExClearer::x      # -> 12
+
 =head1 ATTRIBUTES
 
-Aion add universal attributes.
+C<Aion> добавляет в пакет универсальные атрибуты.
 
 =head2 Isa (@signature)
 
-Attribute C<Isa> check the signature the function where it called.
+Атрибут C<Isa> проверяет сигнатуру функции.
 
-B<WARNING>: use atribute C<Isa> slows down the program.
+B<ВНИМАНИЕ>: использование атрибута «Isa» замедляет работу программы.
 
-B<TIP>: use aspect C<isa> on features is more than enough to check the correctness of the object data.
+B<СОВЕТ>: использования аспекта C<isa> для объектов более чем достаточно, чтобы проверить правильность данных объекта.
 
 	package Anim { use Aion;
 	
@@ -946,11 +1047,9 @@ B<TIP>: use aspect C<isa> on features is more than enough to check the correctne
 	eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].
 	eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].
 
-If use name of type in C<@signature>, then call subroutine with this name from current package.
+=head1 Author
 
-=head1 AUTHOR
-
-Yaroslav O. Kosmina LL<mailto:dart@cpan.org>
+Yaroslav O. Kosmina L<mailto:dart@cpan.org>
 
 =head1 LICENSE
 
