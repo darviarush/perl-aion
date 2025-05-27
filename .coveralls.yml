@@ -1,0 +1,5 @@
+service_name: github-actions
+repo_token: 93FrKwyADpL0vtzODk8L0xDxORi8M62Xt
+parallel: true
+coveralls_host: https://coveralls.io
+flag_name: unit-tests
