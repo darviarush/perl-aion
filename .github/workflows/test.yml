@@ -25,18 +25,13 @@ jobs:
       - uses: actions/checkout@v2
       - name: Install dependencies
         run: cpanm -nq --installdeps --with-develop --with-recommends .
-      - name: Install Devel::Cover and Lcov reporter
-        run: |
-          cpanm --quiet --notest Module::Build Devel::Cover Devel::Cover::Report::Codecovbash
-          perl Build.PL
-          cover -test -report codecov
-      - name: Run test with coverage
+      - name: Install coverage tools
+        run: cpanm -nq Devel::Cover Devel::Cover::Report::Coveralls
+      - name: Run tests with coverage
         env:
-          PERL5OPT: -MDevel::Cover
-        run: |
-          prove -lr t
-          env -u PERL5OPT cover --report lcov
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: cover_db/lcov/lcov.info
+            PERL5OPT: -MDevel::Cover
+        run: prove -lr t
+      - name: Generate Coveralls report
+        run: cover -report coveralls
+      - name: Upload coverage to Coveralls
+        run: cover -report coveralls -upload

@@ -1,4 +1,4 @@
-[![Actions Status](https://github.com/darviarush/perl-aion/actions/workflows/test.yml/badge.svg)](https://github.com/darviarush/perl-aion/actions) [![MetaCPAN Release](https://badge.fury.io/pl/Aion.svg)](https://metacpan.org/release/Aion) [![Coverage Status](http://codecov.io/github/darviarush/perl-aion/coverage.svg?branch=master)](https://codecov.io/github/darviarush/perl-aion?branch=master)
+[![Actions Status](https://github.com/darviarush/perl-aion/actions/workflows/test.yml/badge.svg)](https://github.com/darviarush/perl-aion/actions) [![MetaCPAN Release](https://badge.fury.io/pl/Aion.svg)](https://metacpan.org/release/Aion) [![Coverage Status](https://img.shields.io/coveralls/darviarush/perl-aion/master.svg?style=flat)](https://coveralls.io/r/darviarush/perl-aion?branch=master)
 # NAME
 
 Aion - постмодернистская объектная система для Perl 5, такая как «Mouse», «Moose», «Moo», «Mo» и «M», но с улучшениями
