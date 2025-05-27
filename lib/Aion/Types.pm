@@ -580,7 +580,7 @@ Arguments of the current type. In scalar context returns array ref on the its. A
 First, second, third and fifth argument of the type.
 
 	BEGIN {
-		subtype "Seria[A,B,C,D]", where { A < B < $_ < C < D };
+		subtype "Seria[A,B,C,D]", where { A < B && B < $_ && $_ < C && C < D };
 	}
 	
 	2.5 ~~ Seria[1,2,3,4]   # -> 1
