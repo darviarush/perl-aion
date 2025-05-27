@@ -210,7 +210,7 @@ package Example::Mars {
 ::is scalar do {$name}, "moon", '        $name # => moon';
 ::is scalar do {$value}, scalar do{1}, '        $value # -> 1';
 ::is_deeply scalar do {[sort keys %$construct]}, scalar do {[qw/attr eval get name pkg ret set sub/]}, '        [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]';
-::is_deeply scalar do {[sort keys %$feature]}, scalar do {[qw/construct has name opt/]}, '        [sort keys %$feature] # --> [qw/construct has name opt/]';
+::is_deeply scalar do {[sort keys %$feature]}, scalar do {[qw/construct has name opt order/]}, '        [sort keys %$feature] # --> [qw/construct has name opt order/]';
 
         my $_construct = {
             pkg => $cls,
@@ -243,6 +243,7 @@ package Example::Mars {
             },
             name => $name,
             construct => $_construct,
+            order => 0,
         };
 
 ::is_deeply scalar do {$feature}, scalar do {$_feature}, '        $feature # --> $_feature';

@@ -1,4 +1,4 @@
-!ru:en
+[![Actions Status](https://github.com/darviarush/perl-aion/actions/workflows/test.yml/badge.svg)](https://github.com/darviarush/perl-aion/actions) [![MetaCPAN Release](https://badge.fury.io/pl/Aion.svg)](https://metacpan.org/release/Aion) [![Coverage Status](http://codecov.io/github/darviarush/perl-aion/coverage.svg?branch=master)](https://codecov.io/github/darviarush/perl-aion?branch=master)
 # NAME
 
 Aion - постмодернистская объектная система для Perl 5, такая как «Mouse», «Moose», «Moo», «Mo» и «M», но с улучшениями
@@ -210,7 +210,7 @@ package Example::Mars {
         $name # => moon
         $value # -> 1
         [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]
-        [sort keys %$feature] # --> [qw/construct has name opt/]
+        [sort keys %$feature] # --> [qw/construct has name opt order/]
 
         my $_construct = {
             pkg => $cls,
@@ -243,6 +243,7 @@ package Example::Mars {
             },
             name => $name,
             construct => $_construct,
+            order => 0,
         };
 
         $feature # --> $_feature

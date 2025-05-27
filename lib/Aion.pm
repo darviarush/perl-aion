@@ -670,7 +670,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 	        $name # => moon
 	        $value # -> 1
 	        [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]
-	        [sort keys %$feature] # --> [qw/construct has name opt/]
+	        [sort keys %$feature] # --> [qw/construct has name opt order/]
 	
 	        my $_construct = {
 	            pkg => $cls,
@@ -703,6 +703,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 	            },
 	            name => $name,
 	            construct => $_construct,
+	            order => 0,
 	        };
 	
 	        $feature # --> $_feature

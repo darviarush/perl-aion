@@ -210,7 +210,7 @@ package Example::Mars {
         $name # => moon
         $value # -> 1
         [sort keys %$construct] # --> [qw/attr eval get name pkg ret set sub/]
-        [sort keys %$feature] # --> [qw/construct has name opt/]
+        [sort keys %$feature] # --> [qw/construct has name opt order/]
 
         my $_construct = {
             pkg => $cls,
@@ -243,6 +243,7 @@ package Example::Mars {
             },
             name => $name,
             construct => $_construct,
+            order => 0,
         };
 
         $feature # --> $_feature
