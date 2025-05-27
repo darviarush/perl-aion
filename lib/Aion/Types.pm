@@ -290,7 +290,7 @@ subtype "Any";
 				awhere { &ArrayLike->test && do { my $A = A; all { $A->test } @$_ }};
 				subtype "Lim[A, B?]", as &ArrayLike,
 					init_where => $init_limit,
-					where { SELF->{min} <= @$_ <= SELF->{max} };
+					where { SELF->{min} <= @$_ && @$_ <= SELF->{max} };
 			subtype "HashLike`[A]", as &Ref,
 				where { reftype($_) eq "HASH" || !!overload::Method($_, "%{}") }
 				awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
@@ -298,7 +298,7 @@ subtype "Any";
 						where { my $x = $_; all { exists $x->{$_} } ARGS };
 					subtype "LimKeys[A, B?]", as &HashLike,
 						init_where => $init_limit,
-						where { SELF->{min} <= scalar keys %$_ <= SELF->{max} };
+						where { SELF->{min} <= scalar keys %$_ && scalar keys %$_ <= SELF->{max} };
 
 			subtype "Like", as (&Str | &Object);
 				subtype "HasMethods[m...]", as &Like,
@@ -311,12 +311,12 @@ subtype "Any";
 				subtype "StrLike", as (&Str | Overload(['""']));
 					subtype "Len[A, B?]", as &StrLike,
 						init_where => $init_limit,
-						where { SELF->{min} <= length($_) <= SELF->{max} };
+						where { SELF->{min} <= length($_) && length($_) <= SELF->{max} };
 
 				subtype "NumLike", where { looks_like_number($_) };
-					subtype "Float", as &NumLike, where { -3.402823466E+38 <= $_ <= 3.402823466E+38 };
-					subtype "Double", as &NumLike, where { -1.7976931348623158e+308 <= $_ <= 1.7976931348623158e+308 };
-					subtype "Range[from, to]", as &NumLike, where { A <= $_ <= B };
+					subtype "Float", as &NumLike, where { -3.402823466E+38 <= $_ && $_ <= 3.402823466E+38 };
+					subtype "Double", as &NumLike, where { -1.7976931348623158e+308 <= $_ && $_ <= 1.7976931348623158e+308 };
+					subtype "Range[from, to]", as &NumLike, where { A <= $_ && $_ <= B };
 
 					my $_8bits;
 					subtype "Bytes[N]", as &NumLike,
@@ -329,7 +329,7 @@ subtype "Any";
 							N = -$N;
 							M = $N-1;
 						}
-						where { N <= $_ <= M };
+						where { N <= $_ && $_ <= M };
 					subtype "PositiveBytes[N]", as &NumLike,
 						init_where {
 							my $bits = A < 8? 8: ($_8bits //= do {
@@ -338,7 +338,7 @@ subtype "Any";
 							});
 							M = (1 << ($bits*A)) - 1;
 						}
-						where { 0 <= $_ <= M };
+						where { 0 <= $_ && $_ <= M };
 
 	coerce &Str => from &Undef => via { "" };
 	coerce &Int => from &Num => via { int($_+($_ < 0? -.5: .5)) };
