@@ -17,6 +17,7 @@ requires 'config', '1.3';
 requires 'Attribute::Handlers', '0.99';
 requires 'DDP', '1.002001';
 requires 'List::Util', '1.68';
+requires 'Math::BigFloat', '0';
 requires 'Math::BigInt', '1.999837';
 requires 'Scalar::Util', '1.63';
 requires 'Sub::Util', '1.63';
