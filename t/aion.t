@@ -18,7 +18,7 @@ package Calc {
     has b => (is => 'ro+', isa => Num);
     has op => (is => 'ro', isa => Enum[qw/+ - * \/ **/], default => '+');
 
-    sub result {
+    sub result : Isa(Object => Num) {
         my ($self) = @_;
         eval "${\ $self->a} ${\ $self->op} ${\ $self->b}"
     }
@@ -37,6 +37,8 @@ package Calc {
 # А `is`, `isa`, `default` и так далее в `has` называются **аспектами**.
 # 
 # Помимо стандартных аспектов, роли могут добавлять свои собственные аспекты с помощью подпрограммы **aspect**.
+# 
+# Сигнатура меодов может проверяться с помощью атрибута `:Isa(...)`.
 # 
 # # SUBROUTINES IN CLASSES AND ROLES
 # 

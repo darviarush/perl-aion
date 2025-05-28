@@ -31,3 +31,5 @@ jobs:
         run: find t -name '*.t' -exec env PERL5OPT=-MDevel::Cover perl -Ilib "{}" \;
       - name: Upload coverage on coveralls
         run: cover -report coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
