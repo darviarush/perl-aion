@@ -3,7 +3,7 @@ use 5.22.0;
 no strict; no warnings; no diagnostics;
 use common::sense;
 
-our $VERSION = "0.2";
+our $VERSION = "0.3";
 
 use Scalar::Util qw/blessed weaken/;
 use Aion::Types qw//;
@@ -466,11 +466,11 @@ __END__
 
 =head1 NAME
 
-Aion - постмодернистская объектная система для Perl 5, такая как «Mouse», «Moose», «Moo», «Mo» и «M», но с улучшениями
+Aion - a postmodern object system for Perl 5, such as “Mouse”, “Moose”, “Moo”, “Mo” and “M”, but with improvements
 
 =head1 VERSION
 
-0.2
+0.3
 
 =head1 SYNOPSIS
 
@@ -493,25 +493,25 @@ Aion - постмодернистская объектная система дл
 
 =head1 DESCRIPTION
 
-Aion — ООП-фреймворк для создания классов с B<фичами>, имеет B<аспекты>, B<роли> и так далее.
+Aion is OOP-framework for creating classes with B<features>, has B<aspects>, B<roles> and so on.
 
-Свойства, объявленные через has, называются B<фичами>.
+The properties declared through HAS are called I<* features *>.
 
-А C<is>, C<isa>, C<default> и так далее в C<has> называются B<аспектами>.
+And C<is>,C<isa>, C<default>, and so on inC<has> are called I<* aspects *>.
 
-Помимо стандартных аспектов, роли могут добавлять свои собственные аспекты с помощью подпрограммы B<aspect>.
+In addition to standard aspects, roles can add their own aspects using the B<aspect> subprogram.
 
-Сигнатура методов может проверяться с помощью атрибута C<:Isa(...)>.
+The signature of the methods can be checked using the attribute C<:Isa(...)>.
 
 =head1 SUBROUTINES IN CLASSES AND ROLES
 
-C<use Aion> импортирует типы из модуля C<Aion::Types> и следующие подпрограммы:
+C<Use Aion> imports types from the moduleC<Aion::Types> and the following subprograms:
 
 =head2 has ($name, %aspects)
 
-Создаёт метод для получения/установки функции (свойства) класса.
+Creates a method for obtaining/setting the function (properties) of the class.
 
-Файл lib/Animal.pm:
+lib/Animal.pm file:
 
 	package Animal;
 	use Aion;
@@ -536,9 +536,9 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 
 =head2 with
 
-Добавляет в модуль роли. Для каждой роли вызывается метод C<import_with>.
+Adds to the module of the role. For each role, the C<import_with> method is called.
 
-Файл lib/Role/Keys/Stringify.pm:
+File lib/Role/Keys/Stringify.pm:
 
 	package Role::Keys::Stringify;
 	
@@ -551,7 +551,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 	
 	1;
 
-Файл lib/Role/Values/Stringify.pm:
+File lib/Role/Values/Stringify.pm:
 
 	package Role::Values::Stringify;
 	
@@ -564,7 +564,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 	
 	1;
 
-Файл lib/Class/All/Stringify.pm:
+File lib/Class/All/Stringify.pm:
 
 	package Class::All::Stringify;
 	
@@ -589,7 +589,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 
 =head2 isa ($package)
 
-Проверяет, что C<$package> — это суперкласс для данного или сам этот класс.
+Checks that C<$package> is a super class for a given or this class itself.
 
 	package Ex::X { use Aion; }
 	package Ex::A { use Aion; extends q/Ex::X/; }
@@ -606,7 +606,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 
 =head2 does ($package)
 
-Проверяет, что C<$package> — это роль, которая используется в классе или другой роли.
+Checks that C<$package> is a role that is used in a class or another role.
 
 	package Role::X { use Aion -role; }
 	package Role::A { use Aion; with qw/Role::X/; }
@@ -622,7 +622,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 
 =head2 aspect ($aspect => sub { ... })
 
-Добавляет аспект к C<has> в текущем классе и его классам-наследникам или текущей роли и применяющим её классам.
+Adds the aspect to C<has> in the current class and its classroom classes or the current role and applies its classes.
 
 	package Example::Earth {
 	    use Aion;
@@ -642,21 +642,21 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 	
 	$earth->moon # => Mars
 
-Аспект вызывается каждый раз, когда он указан в C<has>.
+The aspect is called every time it is indicated in C<has>.
 
-Создатель аспекта имеет параметры:
+The creator of the aspect has the parameters:
 
 =over
 
-=item * C<$cls> — пакет с C<has>.
+=item * C<$cls> - a bag with C<has>.
 
-=item * C<$name> — имя фичи.
+=item * C<$name> is the name of feature.
 
-=item * C<$value> — значение аспекта.
+=item * C<$value> is the meaning of the aspect.
 
-=item * C<$construct> — хэш с фрагментами кода для присоединения к методу объекта.
+=item * C<$construct> - a hash with fragments of the code for joining the object method.
 
-=item * C<$feature> — хеш описывающий фичу.
+=item * C<$feature> - a hash describing a feature.
 
 =back
 
@@ -718,7 +718,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 
 =head2 extends (@superclasses)
 
-Расширяет класс другим классом/классами. Он вызывает из каждого наследуемого класса метод C<import_extends>, если он в нём есть.
+Expands the class with another class/classes. It causes from each inherited class the method of C<import_extends>, if it is in it.
 
 	package World { use Aion;
 	
@@ -743,15 +743,15 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 
 =head2 new (%param)
 
-Конструктор.
+The constructor.
 
 =over
 
-=item * Устанавливает C<%param> для фич.
+=item * Installs C<%param> for features.
 
-=item * Проверяет, что параметры соответствуют фичам.
+=item * Checks that the parameters correspond to the features.
 
-=item * Устанавливает значения по умолчанию.
+=item * Sets default values.
 
 =back
 
@@ -778,7 +778,7 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 
 =head2 requires (@subroutine_names)
 
-Проверяет, что в классах использующих эту роль есть указанные подпрограммы или фичи.
+Checks that in classes using this role there are these subprograms or features.
 
 	package Role::Alpha { use Aion -role;
 	
@@ -804,11 +804,11 @@ C<use Aion> импортирует типы из модуля C<Aion::Types> и 
 
 =head2 has ($feature)
 
-Проверяет, что свойство установлено.
+Checks that the property is established.
 
-Фичи имеющие C<< default =E<gt> sub { ... } >> выполняют C<sub> при первом вызове геттера, то есть: являются отложенными.
+Features having C<< default =E<gt> sub {...} >> perform C<sub> during the first call of the Getter, that is: are delayed.
 
-C<< $object-E<gt>has('фича') >> позволяет проверить, что C<default> ещё не вызывался.
+C<< $object-E<gt>has('feature') >> allows you to check that C<default> has not yet been called.
 
 	package ExHas { use Aion;
 	    has x => (is => 'rw');
@@ -824,7 +824,7 @@ C<< $object-E<gt>has('фича') >> позволяет проверить, чт�
 
 =head2 clear (@features)
 
-Удаляет ключи фич из объекта предварительно вызвав на них C<clearer> (если есть).
+He removes the keys of the feature from the object by previously calling them C<clearer> (if exists).
 
 	package ExClearer { use Aion;
 	    has x => (is => 'rw');
@@ -843,39 +843,39 @@ C<< $object-E<gt>has('фича') >> позволяет проверить, чт�
 
 =head1 METHODS IN CLASSES
 
-C<use Aion> включает в модуль следующие методы:
+C<Use Aion> includes the following methods in the module:
 
 =head2 new (%parameters)
 
-Конструктор.
+The constructor.
 
 =head1 ASPECTS
 
-C<use Aion> включает в модуль следующие аспекты для использования в C<has>:
+C<use Aion> includes the following aspects in the module for use in C<has>:
 
 =head2 is => $permissions
 
 =over
 
-=item * C<ro> — создать только геттер.
+=item * C<ro> - create only a gutter.
 
-=item * C<wo> — создать только сеттер.
+=item * C<wo> - create only a setter.
 
-=item * C<rw> — создать геттер и сеттер.
+=item * C<rw> - Create getter and setter.
 
 =back
 
-По умолчанию — C<rw>.
+By default - C<rw>.
 
-Дополнительные разрешения:
+Additional permits:
 
 =over
 
-=item * C<+> — фича обязательна в параметрах конструктора. C<+> не используется с C<->.
+=item * C<+> - feature is required in the parameters of the designer. C<+> is not used with C<->.
 
-=item * C<-> — фича не может быть установлена через конструктор. '-' не используется с C<+>.
+=item * C<-> - a feature cannot be installed through the constructor. '-' is not used with C<+>.
 
-=item * C<*> — не инкрементировать счётчик ссылок на значение (применить C<weaken> к значению после установки его в фичу).
+=item * C<*> - do not increase the counter of links to the value (apply C<weaken> to the value after installing it in a feature).
 
 =back
 
@@ -896,7 +896,7 @@ C<use Aion> включает в модуль следующие аспекты �
 	eval { ExIs->new(ro => 10)->wo }; $@ # ~> has: wo is wo- \(not get\)
 	ExIs->new(ro => 10)->rw(30)->rw  # -> 30
 
-Функция с C<*> не удерживает значение:
+The function with C<*> does not hold the meaning:
 
 	package Node { use Aion;
 	    has parent => (is => "rw*", isa => Maybe[Object["Node"]]);
@@ -918,7 +918,7 @@ C<use Aion> включает в модуль следующие аспекты �
 
 =head2 isa => $type
 
-Указывает тип, а точнее – валидатор, фичи.
+Indicates the type, or rather - a validator, feature.
 
 	package ExIsa { use Aion;
 	    has x => (is => 'ro', isa => Int);
@@ -928,11 +928,11 @@ C<use Aion> включает в модуль следующие аспекты �
 	eval { ExIsa->new->x          }; $@ # ~> Get feature `x` must have the type Int. The it is undef
 	ExIsa->new(x => 10)->x              # -> 10
 
-Список валидаторов см. в L<Aion::Type>.
+For a list of validators, see L<Aion:::Type>.
 
 =head2 default => $value
 
-Значение по умолчанию устанавливается в конструкторе, если параметр с именем фичи отсутствует.
+The default value is set in the designer if there is no parameter with the name of the feature.
 
 	package ExDefault { use Aion;
 	    has x => (is => 'ro', default => 10);
@@ -941,7 +941,7 @@ C<use Aion> включает в модуль следующие аспекты �
 	ExDefault->new->x  # -> 10
 	ExDefault->new(x => 20)->x  # -> 20
 
-Если C<$value> является подпрограммой, то подпрограмма считается конструктором значения фичи. Используется ленивое вычисление.
+If C<$ Value> is a subprogram, then the subprogram is considered a designer of the meaning of the feature. Lazy calculation is used.
 
 	my $count = 10;
 	
@@ -961,8 +961,8 @@ C<use Aion> включает в модуль следующие аспекты �
 
 =head2 trigger => $sub
 
-C<$sub> вызывается после установки свойства в конструкторе (C<new>) или через сеттер.
-Этимология – впустить.
+C<$sub> is called after installing the property in the constructor (C<new>) or through the setter.
+Etymology - let in.
 
 	package ExTrigger { use Aion;
 	    has x => (trigger => sub {
@@ -978,10 +978,10 @@ C<$sub> вызывается после установки свойства в �
 	$ex->x(20);
 	$ex->y      # -> 30
 
-=head2 Release => $ SUB
+=head2 release => $sub
 
-C<$sub> вызывается перед возвратом свойства из объекта через геттер.
-Этимология – выпустить.
+C<$sub> is called before returning the property from the object through the gutter.
+Etymology - release.
 
 	package ExRelease { use Aion;
 	    has x => (release => sub {
@@ -993,9 +993,9 @@ C<$sub> вызывается перед возвратом свойства из
 	my $ex = ExRelease->new(x => 10);
 	$ex->x      # -> 11
 
-=head2 Cleareer => $ SUB
+=head2 clearer => $sub
 
-C<$sub> вызывается при вызове декструктора или C<< $object-E<gt>clear("feature") >>, но только если свойство имеется (см. C<< $object-E<gt>has("feature") >>).
+C<$sub> is called when the deructor is called orC<< $object-E<gt>clear("feature") ``, but only if there is a property (see >>$object->has(" feature ")`).
 
 	package ExClearer { use Aion;
 		
@@ -1023,15 +1023,15 @@ C<$sub> вызывается при вызове декструктора или
 
 =head1 ATTRIBUTES
 
-C<Aion> добавляет в пакет универсальные атрибуты.
+C<Aion> adds universal attributes to the package.
 
 =head2 Isa (@signature)
 
-Атрибут C<Isa> проверяет сигнатуру функции.
+The attribute C<Isa> checks the signature of the function.
 
-B<ВНИМАНИЕ>: использование атрибута «Isa» замедляет работу программы.
+B<Attention>: Using the C<Isa> attribute slows down the program.
 
-B<СОВЕТ>: использования аспекта C<isa> для объектов более чем достаточно, чтобы проверить правильность данных объекта.
+B<COUNCIL>: The use of the C<Isa> aspect for objects is more than enough to check the correctness of the object data.
 
 	package Anim { use Aion;
 	
@@ -1050,7 +1050,7 @@ B<СОВЕТ>: использования аспекта C<isa> для объе�
 	eval { Anim->is_cat("cat") }; $@ # ~> Arguments of method `is_cat` must have the type Tuple\[Object, Str\].
 	eval { my @items = $anim->is_cat("cat") }; $@ # ~> Returns of method `is_cat` must have the type Tuple\[Bool\].
 
-=head1 Author
+=head1 AUTHOR
 
 Yaroslav O. Kosmina L<mailto:dart@cpan.org>
 
@@ -1060,4 +1060,4 @@ Yaroslav O. Kosmina L<mailto:dart@cpan.org>
 
 =head1 COPYRIGHT
 
-The Aion module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.
+The Aion Module Is Copyright © 2023 Yaroslav O. Kosmina. Rusland. All Rights Reserved.
