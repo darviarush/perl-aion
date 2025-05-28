@@ -1,11 +1,11 @@
-!ru:en
+[![Actions Status](https://github.com/darviarush/perl-aion/actions/workflows/test.yml/badge.svg)](https://github.com/darviarush/perl-aion/actions) [![MetaCPAN Release](https://badge.fury.io/pl/Aion.svg)](https://metacpan.org/release/Aion) [![Coverage Status](https://img.shields.io/coveralls/darviarush/perl-aion/master.svg?style=flat)](https://coveralls.io/r/darviarush/perl-aion?branch=master)
 # NAME
 
 Aion - постмодернистская объектная система для Perl 5, такая как «Mouse», «Moose», «Moo», «Mo» и «M», но с улучшениями
 
 # VERSION
 
-0.1
+0.2
 
 # SYNOPSIS
 
@@ -38,7 +38,7 @@ Aion — ООП-фреймворк для создания классов с **�
 
 Помимо стандартных аспектов, роли могут добавлять свои собственные аспекты с помощью подпрограммы **aspect**.
 
-Сигнатура меодов может проверяться с помощью атрибута `:Isa(...)`.
+Сигнатура методов может проверяться с помощью атрибута `:Isa(...)`.
 
 # SUBROUTINES IN CLASSES AND ROLES
 
