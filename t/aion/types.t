@@ -745,9 +745,15 @@ done_testing; }; subtest 'Float' => sub {
 # The machine float number is 8 bytes.
 # 
 done_testing; }; subtest 'Double' => sub { 
-::is scalar do {-4.8 ~~ Double}, scalar do{1}, '-4.8 ~~ Double    					# -> 1';
-::is scalar do {-1.7976931348623158e+308 ~~ Double}, scalar do{1}, '-1.7976931348623158e+308 ~~ Double  # -> 1';
-::is scalar do {+1.7976931348623158e+308 ~~ Double}, scalar do{1}, '+1.7976931348623158e+308 ~~ Double  # -> 1';
+use Scalar::Util qw//;
+
+::is scalar do {Scalar::Util::looks_like_number(-1.7976931348623158e+308)}, scalar do{1}, 'Scalar::Util::looks_like_number(-1.7976931348623158e+308)  # -> 1';
+::is scalar do {Scalar::Util::looks_like_number(+1.7976931348623158e+308)}, scalar do{1}, 'Scalar::Util::looks_like_number(+1.7976931348623158e+308)  # -> 1';
+::is scalar do {Scalar::Util::looks_like_number(-1.7976931348623159e+308)}, scalar do{1}, 'Scalar::Util::looks_like_number(-1.7976931348623159e+308)  # -> 1';
+
+::is scalar do {-4.8 ~~ Double}, scalar do{1}, '-4.8 ~~ Double                     # -> 1';
+::is scalar do {-1.7976931348623158e+308 ~~ Double}, scalar do{1}, '-1.7976931348623158e+308 ~~ Double # -> 1';
+::is scalar do {+1.7976931348623158e+308 ~~ Double}, scalar do{1}, '+1.7976931348623158e+308 ~~ Double # -> 1';
 ::is scalar do {-1.7976931348623159e+308 ~~ Double}, scalar do{""}, '-1.7976931348623159e+308 ~~ Double # -> ""';
 
 # 

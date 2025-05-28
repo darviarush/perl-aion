@@ -28,10 +28,6 @@ jobs:
       - name: Install coverage tools
         run: cpanm -nq Devel::Cover Devel::Cover::Report::Coveralls
       - name: Run tests with coverage
-        env:
-            PERL5OPT: -MDevel::Cover
-        run: prove -lr t
-      - name: Generate Coveralls report
+        run: find t -name '*.t' -exec env PERL5OPT=-MDevel::Cover perl -Ilib "{}" \;
+      - name: Upload coverage on coveralls
         run: cover -report coveralls
-      - name: Upload coverage to Coveralls
-        run: cover -report coveralls -upload

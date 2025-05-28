@@ -745,9 +745,15 @@ The machine float number is 4 bytes.
 The machine float number is 8 bytes.
 
 ```perl
--4.8 ~~ Double    					# -> 1
--1.7976931348623158e+308 ~~ Double  # -> 1
-+1.7976931348623158e+308 ~~ Double  # -> 1
+use Scalar::Util qw//;
+
+Scalar::Util::looks_like_number(-1.7976931348623158e+308)  # -> 1
+Scalar::Util::looks_like_number(+1.7976931348623158e+308)  # -> 1
+Scalar::Util::looks_like_number(-1.7976931348623159e+308)  # -> 1
+
+-4.8 ~~ Double                     # -> 1
+-1.7976931348623158e+308 ~~ Double # -> 1
++1.7976931348623158e+308 ~~ Double # -> 1
 -1.7976931348623159e+308 ~~ Double # -> ""
 ```
 
