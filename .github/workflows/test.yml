@@ -28,7 +28,7 @@ jobs:
       - name: Install coverage tools
         run: cpanm -nq Devel::Cover Devel::Cover::Report::Coveralls
       - name: Run tests with coverage
-        run: find t -name '*.t' -exec env PERL5LIB=`pwd`/lib PERL5OPT=-MDevel::Cover perl -Ilib "{}" \;
+        run: find t -name '*.t' | xargs -n 1 env PERL5LIB=`pwd`/lib PERL5OPT=-MDevel::Cover perl
       - name: Upload coverage on coveralls
         run: cover -report coveralls
         env:
