@@ -315,7 +315,13 @@ subtype "Any";
 
 				subtype "NumLike", where { looks_like_number($_) };
 					subtype "Float", as &NumLike, where { -3.402823466E+38 <= $_ && $_ <= 3.402823466E+38 };
-					subtype "Double", as &NumLike, where { -1.7976931348623157e+308 <= $_ && $_ <= 1.7976931348623157e+308 };
+					
+					my $_from; my $_to;
+					subtype "Double", as &NumLike, where {
+                        $_from //= do { require Math::BigFloat; Math::BigFloat->new('-1.7976931348623157e+308') };
+                        $_to   //= do { require Math::BigFloat; Math::BigFloat->new( '1.7976931348623157e+308') };
+                        $_from <= $_ && $_ <= $_to;
+                    };
 					subtype "Range[from, to]", as &NumLike, where { A <= $_ && $_ <= B };
 
 					my $_8bits;
@@ -1004,9 +1010,9 @@ The machine float number is 8 bytes.
 	use Scalar::Util qw//;
 	
 	-4.8 ~~ Double                     # -> 1
-	-1.7976931348623157e+308 ~~ Double # -> 1
-	+1.7976931348623157e+308 ~~ Double # -> 1
-	-1.7976931348623159e+308 ~~ Double # -> ""
+	'-1.7976931348623157e+308' ~~ Double # -> 1
+	'+1.7976931348623157e+308' ~~ Double # -> 1
+	'-1.7976931348623159e+308' ~~ Double # -> ""
 
 =head2 Range[from, to]
 

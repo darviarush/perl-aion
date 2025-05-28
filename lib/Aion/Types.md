@@ -748,9 +748,9 @@ The machine float number is 8 bytes.
 use Scalar::Util qw//;
 
 -4.8 ~~ Double                     # -> 1
--1.7976931348623157e+308 ~~ Double # -> 1
-+1.7976931348623157e+308 ~~ Double # -> 1
--1.7976931348623159e+308 ~~ Double # -> ""
+'-1.7976931348623157e+308' ~~ Double # -> 1
+'+1.7976931348623157e+308' ~~ Double # -> 1
+'-1.7976931348623159e+308' ~~ Double # -> ""
 ```
 
 ## Range[from, to]

@@ -748,9 +748,9 @@ done_testing; }; subtest 'Double' => sub {
 use Scalar::Util qw//;
 
 ::is scalar do {-4.8 ~~ Double}, scalar do{1}, '-4.8 ~~ Double                     # -> 1';
-::is scalar do {-1.7976931348623157e+308 ~~ Double}, scalar do{1}, '-1.7976931348623157e+308 ~~ Double # -> 1';
-::is scalar do {+1.7976931348623157e+308 ~~ Double}, scalar do{1}, '+1.7976931348623157e+308 ~~ Double # -> 1';
-::is scalar do {-1.7976931348623159e+308 ~~ Double}, scalar do{""}, '-1.7976931348623159e+308 ~~ Double # -> ""';
+::is scalar do {'-1.7976931348623157e+308' ~~ Double}, scalar do{1}, '\'-1.7976931348623157e+308\' ~~ Double # -> 1';
+::is scalar do {'+1.7976931348623157e+308' ~~ Double}, scalar do{1}, '\'+1.7976931348623157e+308\' ~~ Double # -> 1';
+::is scalar do {'-1.7976931348623159e+308' ~~ Double}, scalar do{""}, '\'-1.7976931348623159e+308\' ~~ Double # -> ""';
 
 # 
 # ## Range[from, to]
