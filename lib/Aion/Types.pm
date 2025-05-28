@@ -315,13 +315,7 @@ subtype "Any";
 
 				subtype "NumLike", where { looks_like_number($_) };
 					subtype "Float", as &NumLike, where { -3.402823466E+38 <= $_ && $_ <= 3.402823466E+38 };
-					subtype "Double", as &NumLike, where {
-						if(!$^V or $^V lt 5.30.0) {
-                            use bignum;
-                            return -1.7976931348623158e+308 <= $_ && $_ <= 1.7976931348623158e+308;
-						}
-						-1.7976931348623158e+308 <= $_ && $_ <= 1.7976931348623158e+308
-                    };
+					subtype "Double", as &NumLike, where { -1.7976931348623157e+308 <= $_ && $_ <= 1.7976931348623157e+308 };
 					subtype "Range[from, to]", as &NumLike, where { A <= $_ && $_ <= B };
 
 					my $_8bits;
@@ -1009,13 +1003,9 @@ The machine float number is 8 bytes.
 
 	use Scalar::Util qw//;
 	
-	Scalar::Util::looks_like_number(-1.7976931348623158e+308)  # -> 1
-	Scalar::Util::looks_like_number(+1.7976931348623158e+308)  # -> 1
-	Scalar::Util::looks_like_number(-1.7976931348623159e+308)  # -> 1
-	
 	-4.8 ~~ Double                     # -> 1
-	-1.7976931348623158e+308 ~~ Double # -> 1
-	+1.7976931348623158e+308 ~~ Double # -> 1
+	-1.7976931348623157e+308 ~~ Double # -> 1
+	+1.7976931348623157e+308 ~~ Double # -> 1
 	-1.7976931348623159e+308 ~~ Double # -> ""
 
 =head2 Range[from, to]
