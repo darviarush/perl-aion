@@ -2,6 +2,8 @@ Revision history for Perl extension Aion
 
 {{$NEXT}}
 
+0.4 2025-05-29T17:50:02Z
+
     - fix pod + add coverage on metacpan
 
 0.3 2025-05-28T18:21:33Z
