@@ -1,0 +1,280 @@
+{
+   "runs" : [
+      {
+         "OS" : "linux",
+         "abstract" : null,
+         "dir" : "/ext/__/@lib/perl-aion",
+         "finish" : 1748587180.05079,
+         "name" : null,
+         "perl" : "5.40.2",
+         "run" : "t/aion/type.t",
+         "start" : 1748587180.00214,
+         "version" : null
+      },
+      {
+         "OS" : "linux",
+         "abstract" : null,
+         "dir" : "/ext/__/@lib/perl-aion",
+         "finish" : 1748587180.53173,
+         "name" : null,
+         "perl" : "5.40.2",
+         "run" : "t/aion/types.t",
+         "start" : 1748587180.24725,
+         "version" : null
+      },
+      {
+         "OS" : "linux",
+         "abstract" : null,
+         "dir" : "/ext/__/@lib/perl-aion",
+         "finish" : 1748587180.32598,
+         "name" : null,
+         "perl" : "5.40.2",
+         "run" : "t/aion.t",
+         "start" : 1748587180.2684,
+         "version" : null
+      }
+   ],
+   "summary" : {
+      "/tmp/.liveman/perl-aion/aion/lib/Animal.pm" : {
+         "statement" : {
+            "covered" : 3,
+            "percentage" : 100,
+            "total" : 3
+         },
+         "subroutine" : {
+            "covered" : 1,
+            "percentage" : 100,
+            "total" : 1
+         },
+         "total" : {
+            "covered" : 4,
+            "percentage" : 100,
+            "total" : 4
+         }
+      },
+      "/tmp/.liveman/perl-aion/aion/lib/Class/All/Stringify.pm" : {
+         "statement" : {
+            "covered" : 3,
+            "percentage" : 100,
+            "total" : 3
+         },
+         "subroutine" : {
+            "covered" : 1,
+            "percentage" : 100,
+            "total" : 1
+         },
+         "total" : {
+            "covered" : 4,
+            "percentage" : 100,
+            "total" : 4
+         }
+      },
+      "/tmp/.liveman/perl-aion/aion/lib/Role/Keys/Stringify.pm" : {
+         "pod" : {
+            "error" : 1,
+            "percentage" : 0,
+            "total" : 1
+         },
+         "statement" : {
+            "covered" : 5,
+            "percentage" : 100,
+            "total" : 5
+         },
+         "subroutine" : {
+            "covered" : 2,
+            "percentage" : 100,
+            "total" : 2
+         },
+         "total" : {
+            "covered" : 7,
+            "error" : 1,
+            "percentage" : 87.5,
+            "total" : 8
+         }
+      },
+      "/tmp/.liveman/perl-aion/aion/lib/Role/Values/Stringify.pm" : {
+         "pod" : {
+            "error" : 1,
+            "percentage" : 0,
+            "total" : 1
+         },
+         "statement" : {
+            "covered" : 5,
+            "percentage" : 100,
+            "total" : 5
+         },
+         "subroutine" : {
+            "covered" : 2,
+            "percentage" : 100,
+            "total" : 2
+         },
+         "total" : {
+            "covered" : 7,
+            "error" : 1,
+            "percentage" : 87.5,
+            "total" : 8
+         }
+      },
+      "Total" : {
+         "branch" : {
+            "covered" : 306,
+            "error" : 54,
+            "percentage" : 85,
+            "total" : 360,
+            "uncoverable" : 0
+         },
+         "condition" : {
+            "covered" : 63,
+            "error" : 23,
+            "percentage" : 73.2558139534884,
+            "total" : 86,
+            "uncoverable" : 0
+         },
+         "pod" : {
+            "covered" : 78,
+            "error" : 20,
+            "percentage" : 79.5918367346939,
+            "total" : 98
+         },
+         "statement" : {
+            "covered" : 934,
+            "error" : 100,
+            "percentage" : 90.3288201160542,
+            "total" : 1034
+         },
+         "subroutine" : {
+            "covered" : 201,
+            "error" : 7,
+            "percentage" : 96.6346153846154,
+            "total" : 208
+         },
+         "total" : {
+            "covered" : 1582,
+            "error" : 204,
+            "percentage" : 88.5778275475924,
+            "total" : 1786,
+            "uncoverable" : 0
+         }
+      },
+      "lib/Aion.pm" : {
+         "branch" : {
+            "covered" : 116,
+            "error" : 50,
+            "percentage" : 69.8795180722892,
+            "total" : 166,
+            "uncoverable" : 0
+         },
+         "condition" : {
+            "covered" : 33,
+            "error" : 17,
+            "percentage" : 66,
+            "total" : 50,
+            "uncoverable" : 0
+         },
+         "pod" : {
+            "covered" : 9,
+            "error" : 16,
+            "percentage" : 36,
+            "total" : 25
+         },
+         "statement" : {
+            "covered" : 423,
+            "error" : 95,
+            "percentage" : 81.6602316602317,
+            "total" : 518
+         },
+         "subroutine" : {
+            "covered" : 83,
+            "error" : 7,
+            "percentage" : 92.2222222222222,
+            "total" : 90
+         },
+         "total" : {
+            "covered" : 664,
+            "error" : 185,
+            "percentage" : 78.2096584216726,
+            "total" : 849,
+            "uncoverable" : 0
+         }
+      },
+      "lib/Aion/Type.pm" : {
+         "branch" : {
+            "covered" : 60,
+            "error" : 2,
+            "percentage" : 96.7741935483871,
+            "total" : 62,
+            "uncoverable" : 0
+         },
+         "condition" : {
+            "covered" : 3,
+            "error" : 0,
+            "percentage" : 100,
+            "total" : 3,
+            "uncoverable" : 0
+         },
+         "pod" : {
+            "covered" : 52,
+            "error" : 1,
+            "percentage" : 98.1132075471698,
+            "total" : 53
+         },
+         "statement" : {
+            "covered" : 130,
+            "percentage" : 100,
+            "total" : 130
+         },
+         "subroutine" : {
+            "covered" : 73,
+            "percentage" : 100,
+            "total" : 73
+         },
+         "total" : {
+            "covered" : 318,
+            "error" : 3,
+            "percentage" : 99.0654205607477,
+            "total" : 321,
+            "uncoverable" : 0
+         }
+      },
+      "lib/Aion/Types.pm" : {
+         "branch" : {
+            "covered" : 130,
+            "error" : 2,
+            "percentage" : 98.4848484848485,
+            "total" : 132,
+            "uncoverable" : 0
+         },
+         "condition" : {
+            "covered" : 27,
+            "error" : 6,
+            "percentage" : 81.8181818181818,
+            "total" : 33,
+            "uncoverable" : 0
+         },
+         "pod" : {
+            "covered" : 17,
+            "error" : 1,
+            "percentage" : 94.4444444444444,
+            "total" : 18
+         },
+         "statement" : {
+            "covered" : 365,
+            "error" : 5,
+            "percentage" : 98.6486486486486,
+            "total" : 370
+         },
+         "subroutine" : {
+            "covered" : 39,
+            "percentage" : 100,
+            "total" : 39
+         },
+         "total" : {
+            "covered" : 578,
+            "error" : 14,
+            "percentage" : 97.6351351351351,
+            "total" : 592,
+            "uncoverable" : 0
+         }
+      }
+   }
+}
