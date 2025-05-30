@@ -13,6 +13,8 @@
 nytprof.out
 nytprof/
 
+cover_db/
+
 *.bak
 *.old
 *~
