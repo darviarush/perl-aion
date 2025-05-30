@@ -3,7 +3,7 @@ use 5.22.0;
 no strict; no warnings; no diagnostics;
 use common::sense;
 
-our $VERSION = "0.4";
+our $VERSION = "0.5";
 
 use Scalar::Util qw/blessed weaken/;
 use Aion::Types qw//;
@@ -470,7 +470,7 @@ Aion - a postmodern object system for Perl 5, such as “Mouse”, “Moose”, 
 
 =head1 VERSION
 
-0.4
+0.5
 
 =head1 SYNOPSIS
 

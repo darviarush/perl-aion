@@ -163,11 +163,11 @@ msgid "**ВНИМАНИЕ**: использование атрибута «Isa»
 msgstr "**Attention**: Using the `Isa` attribute slows down the program."
 
 msgid "**СОВЕТ**: использования аспекта `isa` для объектов более чем достаточно, чтобы проверить правильность данных объекта."
-msgstr "**COUNCIL**: The use of the `Isa` aspect for objects is more than enough to check the correctness of the object data."
+msgstr "**COUNCIL**: The use of the `isa` aspect for objects is more than enough to check the correctness of the object data."
 
 msgid "⚖ **GPLv3**"
 msgstr "⚖ **GPLv3**"
 
 msgid "The Aion module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved."
-msgstr "The Aion Module Is Copyright © 2023 Yaroslav O. Kosmina. Rusland. All Rights Reserved."
+msgstr "The Aion module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All Rights Reserved."
 
