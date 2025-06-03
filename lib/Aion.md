@@ -1,4 +1,5 @@
 !ru:en
+[![Coverage](https://raw.githubusercontent.com/darviarush/perl-aion/master/doc/badges/total.svg?sanitize=true)](http://matrix.cpantesters.org/?dist=Aion)
 # NAME
 
 Aion - постмодернистская объектная система для Perl 5, такая как «Mouse», «Moose», «Moo», «Mo» и «M», но с улучшениями

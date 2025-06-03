@@ -464,6 +464,7 @@ __END__
 
 =encoding utf-8
 
+LL<http://matrix.cpantesters.org/?dist=Aion>
 =head1 NAME
 
 Aion - a postmodern object system for Perl 5, such as “Mouse”, “Moose”, “Moo”, “Mo” and “M”, but with improvements
@@ -1031,7 +1032,7 @@ The attribute C<Isa> checks the signature of the function.
 
 B<Attention>: Using the C<Isa> attribute slows down the program.
 
-B<COUNCIL>: The use of the C<Isa> aspect for objects is more than enough to check the correctness of the object data.
+B<COUNCIL>: The use of the C<isa> aspect for objects is more than enough to check the correctness of the object data.
 
 	package Anim { use Aion;
 	
@@ -1060,4 +1061,4 @@ Yaroslav O. Kosmina L<mailto:dart@cpan.org>
 
 =head1 COPYRIGHT
 
-The Aion Module Is Copyright © 2023 Yaroslav O. Kosmina. Rusland. All Rights Reserved.
+The Aion module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All Rights Reserved.
