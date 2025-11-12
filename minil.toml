@@ -6,7 +6,6 @@ license="gpl_3"
 markdown_maker = "Liveman::MinillaPod2Markdown"
 module_maker="ModuleBuildTiny"
 static_install = "auto"
-allow_pureperl = 1
 
 [unsupported]
 os = [
