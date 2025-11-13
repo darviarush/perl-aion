@@ -180,7 +180,7 @@ __END__
 
 =head1 NAME
 
-Aion::Meta::FeatureConstruct - accessor, predicate, initializer and purifier constructor
+Aion::Meta::FeatureConstruct - accessor, predicate, initializer and clearer
 
 =head1 SYNOPSIS
 

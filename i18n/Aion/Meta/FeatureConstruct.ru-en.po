@@ -181,3 +181,4 @@ msgstr "⚖ **GPLv3**"
 
 msgid "The Aion::Meta::FeatureConstruct module is copyright © 2025 Yaroslav O. Kosmina. Rusland. All rights reserved."
 msgstr "The Aion::Meta::FeatureConstruct module is copyright © 2025 Yaroslav O. Kosmina. Rusland. All rights reserved."
+

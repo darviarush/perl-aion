@@ -55,6 +55,9 @@ subref_is_reachable(\&CORE::exit)          # -> 1
 
 ```perl
 Aion::Meta::Util::val_to_str([1,2,{x=>6}])   # => [1, 2, {x => 6}]
+
+Aion::Meta::Util::val_to_str(qr/^[A-Z]/)   # => qr/^[A-Z]/u
+Aion::Meta::Util::val_to_str(qr/^[A-Z]/i)   # => qr/^[A-Z]/ui
 ```
 
 # AUTHOR

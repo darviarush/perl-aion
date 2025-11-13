@@ -75,7 +75,12 @@ sub val_to_str($;$) {
 	else {
 		my $no_str = Scalar::Util::looks_like_number($v)
 		 	|| ref $v;
-		$v = "$v";
+
+		if(ref $v eq 'Regexp') {
+			$v = "$v";
+			$v =~ s{^\(\?\^?([a-z]*):(.*)\)$}{qr/$2/$1}si;
+		}
+		else {$v = "$v"}
 		$v = substr($v, 0, MAX_SCALAR_LENGTH) . '...'
 			if length($v) > MAX_SCALAR_LENGTH;
 		$no_str ? $v : "'${\ $v =~ s/['\\]/\\$&/gr }'"
@@ -139,6 +144,9 @@ Checks whether the subroutine has a body.
 Converts C<$val> to a string.
 
 	Aion::Meta::Util::val_to_str([1,2,{x=>6}])   # => [1, 2, {x => 6}]
+	
+	Aion::Meta::Util::val_to_str(qr/^[A-Z]/)   # => qr/^[A-Z]/u
+	Aion::Meta::Util::val_to_str(qr/^[A-Z]/i)   # => qr/^[A-Z]/ui
 
 =head1 AUTHOR
 
