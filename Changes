@@ -2,6 +2,10 @@ Revision history for Perl extension Aion
 
 {{$NEXT}}
 
+1.1 2025-11-13T10:14:37Z
+
+    - val_to_str added Regexp formatter
+
 1.0 2025-11-12T13:50:06Z
 
     - add coverage on metacpan. step 1
