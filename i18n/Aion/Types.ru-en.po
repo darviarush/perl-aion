@@ -322,6 +322,9 @@ msgstr "Arrays or objects with an overloaded operator or `@{}`."
 msgid "Хэши или объекты с перегруженным оператором `%{}`."
 msgstr "Hashes or objects with the `%{}` operator overloaded."
 
+msgid "Сктроковый тип с преобразованием массивов в строку через разделитель."
+msgstr "String type with conversion of arrays to a string through a delimiter."
+
 msgid "⚖ **GPLv3**"
 msgstr "⚖ **GPLv3**"
 

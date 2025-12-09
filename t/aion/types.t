@@ -1434,6 +1434,36 @@ local ($::_g0 = do {$x ~~ HashLike[Int]}, $::_e0 = do {""}); ::ok defined($::_g0
 local ($::_g0 = do {$x ~~ HashLike[Num]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$x ~~ HashLike[Num] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
+# # Coerces
+# 
+# ## Join\[R] as Str
+# 
+# Сктроковый тип с преобразованием массивов в строку через разделитель.
+# 
+::done_testing; }; subtest 'Join\[R] as Str' => sub { 
+local ($::_g0 = do {Join([' '])->coerce([qw/a b c/])}, $::_e0 = "a b c"); ::ok $::_g0 eq $::_e0, 'Join([\' \'])->coerce([qw/a b c/]) # => a b c' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+package JoinExample { use Aion;
+	has s => (isa => Join[', '], coerce => 1);
+}
+
+local ($::_g0 = do {JoinExample->new(s => [qw/a b c/])->s}, $::_e0 = "a, b, c"); ::ok $::_g0 eq $::_e0, 'JoinExample->new(s => [qw/a b c/])->s # => a, b, c' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+local ($::_g0 = do {JoinExample->new(s => 'string')->s}, $::_e0 = "string"); ::ok $::_g0 eq $::_e0, 'JoinExample->new(s => \'string\')->s # => string' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## Split\[S] as ArrayRef
+# 
+::done_testing; }; subtest 'Split\[S] as ArrayRef' => sub { 
+local ($::_g0 = do {Split([' '])->coerce('a b c')}, $::_e0 = do {[qw/a b c/]}); ::is_deeply $::_g0, $::_e0, 'Split([\' \'])->coerce(\'a b c\') # --> [qw/a b c/]' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+package SplitExample { use Aion;
+	has s => (isa => Split[qr/\s*,\s*/], coerce => 1);
+}
+
+local ($::_g0 = do {SplitExample->new(s => 'a, b, c')->s}, $::_e0 = do {[qw/a b c/]}); ::is_deeply $::_g0, $::_e0, 'SplitExample->new(s => \'a, b, c\')->s # --> [qw/a b c/]' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
 # # AUTHOR
 # 
 # Yaroslav O. Kosmina [dart@cpan.org](mailto:dart@cpan.org)
