@@ -268,7 +268,7 @@ __END__
 
 =head1 NAME
 
-Aion::Type - validator class
+Aion::Type - class of validators
 
 =head1 SYNOPSIS
 

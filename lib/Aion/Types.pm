@@ -401,6 +401,14 @@ subtype "Any";
 	coerce &Str => from &Undef => via { "" };
 	coerce &Int => from &Num => via { int($_+($_ < 0? -.5: .5)) };
 	coerce &Bool => from &Any => via { !!$_ };
+	
+	#coerce &Num => from &Str => via { 0+$_ };
+	
+	#subtype 'Join[R, A]', as &Str, where { B()->() };
+	#coerce &Join, from &ArrayRef, via { join A, @$_ };
+	
+	#subtype 'Split[S, A]', as &Str, where { B()->() };
+	#coerce &Split, from &ArrayRef, via { join A, @$_ };
 };
 
 1;
@@ -411,7 +419,7 @@ __END__
 
 =head1 NAME
 
-Aion::Types is a library of standard validators and is used to create new validators
+Aion::Types - a library of standard validators and it is used to create new validators
 
 =head1 SYNOPSIS
 
