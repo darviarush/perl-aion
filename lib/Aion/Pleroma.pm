@@ -23,7 +23,7 @@ has pleroma => (is => 'ro', isa => HashRef[Str], default => sub {
 	
 	open my $f, '<:utf8', INI or die "Not open ${\$self->ini}: $!";
 	while(<$f>) {
-		die "${\$self->ini} corrupt at line $.: $_" unless /^([\w:]+)#(\w*),\d+=(.*)$/;
+		close($f), die "${\$self->ini} corrupt at line $.: $_" unless /^([\w:]+)#(\w*),\d+=(.*)$/;
 		my ($pkg, $sub, $key) = ($1, $2, $3);
 		my $action = join "#", $pkg, $sub || 'new';
 		
