@@ -38,5 +38,4 @@ requires 'Sub::Util', '1.63';
 requires 'common::sense', '3.75';
 requires 'config', '1.3';
 requires 'constant';
-requires 'feature';
 requires 'overload';

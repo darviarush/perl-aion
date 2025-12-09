@@ -2,7 +2,6 @@ package Aion::Pleroma;
 # Контейнер для эонов (сервисов)
 
 use common::sense;
-use feature "defer";
 
 # Источник конфигурации - аннотации
 use config INI => 'etc/annotation/eon.ann';
@@ -22,7 +21,7 @@ has pleroma => (is => 'ro', isa => HashRef[Str], default => sub {
 	my %pleroma = %{&PLEROMA};
 	return \%pleroma unless defined $self->ini;
 	
-	open my $f, '<:utf8', INI or die "Not open ${\$self->ini}: $!"; defer { close $f };
+	open my $f, '<:utf8', INI or die "Not open ${\$self->ini}: $!";
 	while(<$f>) {
 		die "${\$self->ini} corrupt at line $.: $_" unless /^([\w:]+)#(\w*),\d+=(.*)$/;
 		my ($pkg, $sub, $key) = ($1, $2, $3);
@@ -30,10 +29,12 @@ has pleroma => (is => 'ro', isa => HashRef[Str], default => sub {
 		
 		$key = $key ne ""? $key: $pkg;
 		
-		die "The eon $key is $pleroma{$key}, but added other $action" if exists $pleroma{$key};
+		close($f), die "The eon $key is $pleroma{$key}, but added other $action" if exists $pleroma{$key};
 		
 		$pleroma{$key} = $action;
 	}
+	close $f;
+	
 	\%pleroma
 });
 
