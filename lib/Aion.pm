@@ -1,9 +1,8 @@
 package Aion;
-use 5.22.0;
-no strict; no warnings; no diagnostics;
+
 use common::sense;
 
-our $VERSION = "1.4";
+our $VERSION = "1.5";
 
 use Aion::Types qw//;
 use Aion::Meta::RequiresAnyFunction;
@@ -535,7 +534,7 @@ Aion - a postmodern object system for Perl 5, such as “Mouse”, “Moose”, 
 
 =head1 VERSION
 
-1.4
+1.5
 
 =head1 SYNOPSIS
 

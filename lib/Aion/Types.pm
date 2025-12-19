@@ -1,14 +1,13 @@
 package Aion::Types;
 # Типы-валидаторы для Aion
 
-use 5.22.0;
-no strict; no warnings; no diagnostics;
 use common::sense;
 
 use Aion::Meta::Util qw/subref_is_reachable/;
 use Aion::Type;
 use List::Util qw/all any first/;
 use Exporter qw/import/;
+require overload;
 use Scalar::Util qw/looks_like_number reftype refaddr blessed/;
 use Sub::Util qw//;
 
