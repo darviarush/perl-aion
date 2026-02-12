@@ -94,7 +94,7 @@
          "web" : "https://github.com/darviarush/perl-aion"
       }
    },
-   "version" : "1.5",
+   "version" : "1.6",
    "x_authority" : "cpan:DART",
    "x_contributors" : [
       "Iaroslav O. Kosmina <darviarush@ya.ru>",
