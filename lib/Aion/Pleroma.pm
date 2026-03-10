@@ -9,8 +9,6 @@ use config {
 	AUTOWARE => 1,
 };
 
-use Aion::Fs qw/from_inc/;
-
 use Aion;
 
 # Файл с аннотациями
@@ -56,7 +54,7 @@ sub get {
 		eval "require $pkg" or die unless $pkg->can('new') || $pkg->can('does');
 		$self->{eon}{$key} = $pkg->$method;
 	}
-	elsif(AUTOWARE and $key =~ /^([\w:]+)(#\w+)?$/ and from_inc $1) { $self->autoware($key)->get($key) }
+	elsif(AUTOWARE and $key =~ /^([\w:]+)(#\w+)?$/ and eval "require $1") { $self->autoware($key)->get($key) }
 	else { undef }
 }
 
