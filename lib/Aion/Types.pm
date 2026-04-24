@@ -417,7 +417,8 @@ subtype "Any";
 					awhere { blessed($_) && $_->isa(A) };
 					subtype "Me", as &Object,
 						init_where { M = caller(2) }
-						where { UNIVERSAL::isa($_, M) };
+						where { UNIVERSAL::isa($_, M) }
+						subset { $_->{M}->isa(M) };
 					subtype "Rat", as 'Math::BigRat';
 				subtype "RegexpLike", as &Ref,
 					where { reftype($_) eq "REGEXP" || !!overload::Method($_, 'qr') };

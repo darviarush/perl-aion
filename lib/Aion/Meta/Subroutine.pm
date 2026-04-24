@@ -71,7 +71,7 @@ sub compare {
 	if(@$signature == @{$self->signature}) {
 		for my $type (@{$self->{signature}}) {
 			my $other_type = $signature->[$i++];
-			$fail = 1, last unless $type eq $other_type;
+			$fail = 1, last unless $type <= $other_type;
 		}
 	} else {
 		$fail = 1;
