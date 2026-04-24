@@ -25,6 +25,9 @@ msgstr "`where` and `message` are syntactic sugar, and `subtype` can be used wit
 msgid "Используется с `subtype` для расширения создаваемого типа `$super_type`."
 msgstr "Used with `subtype` to extend the created `$super_type` type."
 
+msgid "`as` может принимать выражения из типов объединённые множественно-теоритическими операторами. Так же в нём допускаются параметры `A`, `B`, `C`, `D`, `ARGS`, `SELF`, `M` и `N`. `M` и `N` могут устанавливаться в секции `init_where` параметризированных типов входящих в `as`."
+msgstr "`as` can accept type expressions combined with set-theoretic operators. It also allows the parameters `A`, `B`, `C`, `D`, `ARGS`, `SELF`, `M` and `N`. `M` and `N` can be set in the `init_where` section of the parameterized types included in `as`."
+
 msgid "Инициализирует тип с новыми аргументами. Используется с `subtype`."
 msgstr "Initializes a type with new arguments. Used with `subtype`."
 
@@ -205,8 +208,8 @@ msgstr "A machine floating point number is 4 bytes."
 msgid "Машинное число с плавающей запятой составляет 8 байт."
 msgstr "A machine floating point number is 8 bytes."
 
-msgid "Числа между `from` и `to`."
-msgstr "Numbers between `from` and `to`."
+msgid "Числа между `from` и `to` включительно."
+msgstr "Numbers between `from` and `to` inclusive."
 
 msgid "Целые числа."
 msgstr "Whole numbers."
@@ -322,8 +325,8 @@ msgstr "An object or class has listed methods. In addition to them, there may be
 msgid "Объект или класс с перегруженными операторами."
 msgstr "An object or class with overloaded operators."
 
-msgid "И у него есть операторы указанные операторы."
-msgstr "And it has operators specified operators."
+msgid "И у него перегружены указанные операторы."
+msgstr "And the specified operators are overloaded."
 
 msgid "Класс или объект наследует классы из списка."
 msgstr "A class or object inherits classes from a list."

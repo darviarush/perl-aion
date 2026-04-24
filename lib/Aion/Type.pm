@@ -1,46 +1,67 @@
 package Aion::Type;
 # Базовый класс для типов и преобразователей
 use common::sense;
+use warnings FATAL => 'recursion';
 
 use Aion::Meta::Util qw//;
-use Scalar::Util qw/looks_like_number/;
+use List::Util qw//;
+use Scalar::Util qw//;
+
+BEGIN {
+	*Aion::Types::Union = sub {
+		my ($type1, $type2) = @{$_[0]};
+		__PACKAGE__->new(name => "Union", args => [$type1, $type2], test => sub { $type1->test || $type2->test });
+	} unless Aion::Types->can('Union');
+
+	*Aion::Types::Intersection = sub {
+		my ($type1, $type2) = @{$_[0]};
+		__PACKAGE__->new(name => "Intersection", args => [$type1, $type2], test => sub { $type1->test && $type2->test });
+	} unless Aion::Types->can('Intersection');
+	
+	*Aion::Types::Exclude = sub {
+		my ($type1) = @{$_[0]};
+		__PACKAGE__->new(name => "Exclude", args => [$type1], test => sub { !$type1->test });
+	} unless Aion::Types->can('Exclude');
+}
 
 use overload
 	"fallback" => 1,
 	"&{}" => sub {
 		my ($self) = @_;
 		sub { $self->test }
-	},	# Чтобы тип мог быть выполнен, как функция
-	'""' => "stringify",									# Отображать тип в трейсбеке в строковом представлении
-	"|" => sub {
-		my ($type1, $type2) = @_;
-		__PACKAGE__->new(name => "Union", args => [$type1, $type2], test => sub { $type1->test || $type2->test });
 	},
-	"&" => sub {
-		my ($type1, $type2) = @_;
-		__PACKAGE__->new(name => "Intersection", args => [$type1, $type2], test => sub { $type1->test && $type2->test });
-	},
-	"~" => sub {
-		my ($type1) = @_;
-		__PACKAGE__->new(name => "Exclude", args => [$type1], test => sub { !$type1->test });
-	},
+	'""' => "stringify",
+	"|" => sub { Aion::Types::Union([shift, shift]) },
+	"&" => sub { Aion::Types::Intersection([shift, shift]) },
+	"~" => sub { Aion::Types::Exclude([shift]) },
 	"~~" => "include",
-	"eq" => "equal",
-	"ne" => "nonequal",
+	"eq" => "identical",
+	"ne" => "distinct",
+	"==" => "equals",
+	"!=" => "differs",
+	">=" => "superset",
+	"<=" => "subset",
+	">" => "superproper",
+	"<" => "subproper",
 	">>" => "coerce",
 ;
 
-Aion::Meta::Util::create_getters(qw/name args as me/);
+Aion::Meta::Util::create_getters(qw/name args as/);
 Aion::Meta::Util::create_accessors(qw/message/);
 
-$Aion::Type::SELF = {
-	A => __PACKAGE__->new(name => "Argument_A"),
-	B => __PACKAGE__->new(name => "Argument_B"),
-	C => __PACKAGE__->new(name => "Argument_C"),
-	D => __PACKAGE__->new(name => "Argument_D"),
-	N => __PACKAGE__->new(name => "Argument_N"),
-	M => __PACKAGE__->new(name => "Argument_M"),
-};
+$Aion::Type::SELF = __PACKAGE__->new(
+		is_param_args => __PACKAGE__->new(name => "Argument_ARGS", is_param => -1024),
+	is_param => -256,
+	name => 'Argument_SELF',
+	args => [
+		__PACKAGE__->new(name => "Argument_A", is_param => 1),
+		__PACKAGE__->new(name => "Argument_B", is_param => 2),
+		__PACKAGE__->new(name => "Argument_C", is_param => 3),
+		__PACKAGE__->new(name => "Argument_D", is_param => 4),
+	],
+	N => __PACKAGE__->new(name => "Argument_N", is_param => -1),
+	M => __PACKAGE__->new(name => "Argument_M", is_param => -2),
+);
 
 # конструктор
 # * name (Str) — Имя типа.
@@ -50,14 +71,16 @@ $Aion::Type::SELF = {
 # * test (CodeRef) — Чекер.
 # * a_test (CodeRef) — Используется для проверки типа с аргументами, если аргументы не указаны, то используется test.
 # * coerce (ArrayRef) — Массив преобразователей в этот тип: [Type => sub {}].
+# * subset (CodeRef) - Проверка на подмножество типа A типу B.
 # * message (CodeRef) — Сообщение об ошибке.
 # * title (Str) — Заголовок.
 # * description (Str) — Описание.
 # * example (Any) — Пример.
-# * me (Str) — Только для типа Me: пакет в котором он был объявлен.
 sub new {
 	my $cls = shift;
-	bless {@_}, $cls;
+	my $self = bless {@_}, $cls;
+	$self->{coerce} = [] unless exists $self->{coerce};
+	$self
 }
 
 # Строковое представление
@@ -79,34 +102,10 @@ sub stringify {
 	join("", $self->{name}, @args? ("[", join(", ", @args), "]") : ());
 }
 
-sub equal {
-	my ($self, $type) = @_;
-
-	return 1 if Scalar::Util::refaddr $self == Scalar::Util::refaddr $type;
-	return "" unless UNIVERSAL::isa($type, __PACKAGE__);	
-	return "" unless $self->{name} eq $type->{name};
-	return "" unless @{$self->{args}} == @{$type->{args}};
-	return "" unless $self->{as} && $self->{as}->equal($type->{as})
-		|| !$self->{as} && !$type->{as};
-
-	my $i = 0;
-	for my $arg (@{$self->{args}}) {
-		return "" unless $arg eq $type->{args}[$i++];
-	}
-
-	return 1;
-}
-
-sub nonequal {
-	my ($self, $type) = @_;
-	!$self->equal($type)
-}
-
 # Тестировать значение в $_
 sub test {
-	my ($self) = @_;
-	local $Aion::Type::SELF = $self;
-	my $ok = $self->{test}->();
+	local ($Aion::Type::SELF) = @_;
+	my $ok = $Aion::Type::SELF->{test}->();
 	$ok
 }
 
@@ -156,24 +155,159 @@ sub val_to_str {
 
 # Преобразовать значение в параметре и вернуть преобразованное
 sub coerce {
-	(my $self, local $_) = @_;
-	local $Aion::Type::SELF = $self;
-	
-	for my $coerce (@{$self->{coerce}}) {
-		return $coerce->[1]() if $coerce->[0]{test}();
+	local ($Aion::Type::SELF, $_) = @_;
+
+	for my $coerce (@{$Aion::Type::SELF->{coerce}}) {
+		return $coerce->[1]() if $coerce->[0]->test;
 	}
 	$_
 }
 
+#@category compare
+
+# Определяет, что тип – множественно-теоретический оператор
+my $set_theoretic = [qw/Union Intersection Exclude/];
+sub is_set_theoretic {
+	my ($self) = @_;
+	$self->{name} ~~ $set_theoretic
+}
+
 # Определяет, что тип является подтипом другого типа
 sub instanceof {
-	my ($self, $name) = @_;
-	$name = $name->{name} if ref $name;
-	for(my $type = $self; $type; $type = $type->{as}) {
-		return 1 if $type->{name} eq $name;
+	my ($self, $other) = @_;
+	return "" unless UNIVERSAL::isa($other, __PACKAGE__);
+
+	my @S = [$self];
+	while(@S) {
+		my ($candidate, $excluded) = @{pop @S};
+
+		unless($excluded) {
+			return 1 if $candidate->identical($other);
+			
+			if($candidate->{subset} && $candidate->{coerce} == $other->{coerce}) {
+				local ($Aion::Type::SELF, $_) = ($candidate, $other);
+				return 1 if $candidate->{subset}();
+				next;
+			}
+		}
+		
+		if($candidate->is_set_theoretic) {
+			push @S, map [$_], @{$candidate->{args}} if !$excluded && $candidate->{name} eq "Intersection";
+			push @S, map [$_, !$excluded], @{$candidate->{args}} if $candidate->{name} eq "Exclude";
+			push @S, map [$_, 1], @{$candidate->{args}} if $excluded && $candidate->{name} eq "Union";
+		} else {
+			push @S, [$candidate->{as}, $excluded] if $candidate->{as};
+		}
 	}
+
 	""
 }
+
+# Тождество
+sub identical {
+	my ($self, $other) = @_;
+
+	return 1 if Scalar::Util::refaddr $self == Scalar::Util::refaddr $other;
+	return "" unless UNIVERSAL::isa($other, __PACKAGE__)	
+	 	&& $self->{coerce} == $other->{coerce}
+		&& @{$self->{args}} == @{$other->{args}}
+	 	&& $self->{as} eq $other->{as};
+
+	my $i = 0;
+	for my $arg (@{$self->{args}}) {
+		my $other_arg = $other->{args}[$i++];
+		return "" unless $arg eq $other_arg;
+	}
+	
+	$self->{N} eq $other->{N} and $self->{M} eq $other->{M}
+}
+
+# Нетождественно
+sub distinct {
+	my ($self, $other) = @_;
+	!$self->identical($other);
+}
+
+# A <= ~B <=> A & B = None (Отсутствие пересечения: XOR)
+sub disjoint {
+	my ($self, $other) = @_;
+	!$self->instanceof($other) && !$other->instanceof($self);
+}
+
+# A <= B = A eq B || A is_subtype B
+sub subset {
+	my ($self, $other) = @_;
+	
+	return 1 if $self->identical($other);
+
+	# 1. Если слева Union: (A | B) <= X <=> A <= X && B <= X
+	if($self->{name} eq 'Union') {
+		return List::Util::all { $_->subset($other) } @{$self->{args}};
+	}
+
+	# 2. Если слева Intersection: (A & B) <= X <=> A <= X || B <= X
+	if($self->{name} eq 'Intersection') {
+		return List::Util::any { $_->subset($other) } @{$self->{args}};
+	}
+
+	# 3. Если справа Union: A <= (B | C) <=> A <= B || A <= C
+	if($other->{name} eq 'Union') {
+		return List::Util::any { $self->subset($_) } @{$other->{args}};
+	}
+
+	# 4. Если справа Intersection: A <= (B & C) <=> A <= B && A <= C
+	if($other->{name} eq 'Intersection') {
+		return List::Util::all { $self->subset($_) } @{$other->{args}};
+	}
+	
+	# 5. Если справа Exclude (~X): A <= ~B <=> A и B не пересекаются
+	if ($other->{name} eq 'Exclude') {
+	    return List::Util::all { $self->disjoint($_) } @{$other->{args}};
+	}
+
+	# 6. Если слева Exclude (~X): ~A <= B <=> A | B поглощают вселенную
+	if ($self->{name} eq 'Exclude') {
+	    return $other->{name} ~~ ['Any', 'Item'];
+	}
+	
+	if($self->{subset} && $self->{coerce} == $other->{coerce}) {
+		local ($Aion::Type::SELF, $_) = ($self, $other);
+		return $self->{subset}();
+	}
+	
+	$self->{as}? $self->{as}->subset($other): ""
+}
+
+# A < B (Строгое включение: подтип, но не равен) = A <= B && !(B <= A)
+sub subproper {
+	my ($self, $other) = @_;
+	$self->subset($other) && !$other->subset($self);
+}
+
+# A >= B = B <= A
+sub superset {
+	my ($self, $other) = @_;
+	$other->subset($self);
+}
+
+# A > B = B < A
+sub superproper {
+	my ($self, $other) = @_;
+	$other->subproper($self);
+}
+
+# A == B (Эквивалентность типов: A является подтипом B И B является подтипом A) = A <= B && B <= A
+sub equals {
+	my ($self, $other) = @_;
+	$self->subset($other) && $other->subset($self);
+}
+
+sub differs {
+	my ($self, $other) = @_;
+	!$self->equals($other);
+}
+
+#@category swagger
 
 # Заголовок
 sub title {
@@ -204,6 +338,8 @@ sub example {
 		bless {%$self, example => $description}, ref $self
 	}
 }
+
+#@category makers
 
 # Создаёт функцию для типа
 sub make {
@@ -429,6 +565,8 @@ Checks that the argument does not belong to the class.
 
 Cast C<$value> to type if the cast from type and function is in C<< $self-E<gt>{coerce} >>.
 
+Corresponds to the C<< E<gt>E<gt> >> operator.
+
 	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+\z/ });
 	my $Num = Aion::Type->new(name => "Num", test => sub { /^-?\d+(\.\d+)?\z/ });
 	my $Bool = Aion::Type->new(name => "Bool", test => sub { /^(1|0|)\z/ });
@@ -480,15 +618,89 @@ Converts C<$val> to a string.
 
 Specifies that a type is a subtype of another C<$type>.
 
-	my $int = Aion::Type->new(name => "Int");
-	my $positiveInt = Aion::Type->new(name => "PositiveInt", as => $int);
+	my $Int = Aion::Type->new(name => "Int");
+	my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
 	
-	$positiveInt->instanceof($int)          # -> 1
-	$positiveInt->instanceof($positiveInt)  # -> 1
-	$positiveInt->instanceof('Int')         # -> 1
-	$positiveInt->instanceof('PositiveInt') # -> 1
-	$int->instanceof('PositiveInt')         # -> ""
-	$int->instanceof('Int')                 # -> 1
+	$PositiveInt->instanceof($Int)          # -> 1
+	$PositiveInt->instanceof($PositiveInt)  # -> 1
+	$Int->instanceof($PositiveInt)          # -> ""
+
+=head2 is_set_theoretic
+
+Checks that the type is set-theoretic (ie - the C<|>, C<&> or C<~> operator).
+
+=head2 identical ($type)
+
+Types are equal if they have the same prototype (C<coerce>), the same number of arguments, parent element, their arguments, and M and N are equal.
+
+	my $Int = Aion::Type->new(name => "Int");
+	my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
+	my $AnotherInt = Aion::Type->new(name => "Int", coerce => $Int->{coerce});
+	my $IntWithArgs = Aion::Type->new(name => "Int", args => [1, 2]);
+	my $AnotherIntWithArgs = Aion::Type->new(name => "Int", args => [1, 2], coerce => $IntWithArgs->{coerce});
+	my $IntWithDifferentArgs = Aion::Type->new(name => "Int", args => [3, 4]);
+	my $Str = Aion::Type->new(name => "Str");
+	
+	$Int->identical($Int)                        # -> 1
+	$Int->identical($AnotherInt)                 # -> 1
+	$IntWithArgs->identical($AnotherIntWithArgs) # -> 1
+	$PositiveInt->identical($PositiveInt)        # -> 1
+	
+	$Int->{coerce} == $Str->{coerce}               # -> ""
+	$Int->identical($Str)                          # -> ""
+	$Int->identical($IntWithArgs)                  # -> ""
+	$IntWithArgs->identical($IntWithDifferentArgs) # -> ""
+	$PositiveInt->identical($Int)                  # -> ""
+	
+	$Int->identical("not a type") # -> ""
+	
+	my $PositiveInt2 = Aion::Type->new(name => "PositiveInt", as => $Str);
+	$PositiveInt->identical($PositiveInt2) # -> ""
+	
+	$Int->identical($PositiveInt) # -> ""
+	$PositiveInt->identical($Int) # -> ""
+	
+	my $PositiveIntWithArgs = Aion::Type->new(name => "PositiveInt", as => $Int, args => [1]);
+	my $PositiveIntWithArgs2 = Aion::Type->new(name => "PositiveInt", as => $Int, args => [2]);
+	$PositiveIntWithArgs->identical($PositiveIntWithArgs2) # -> ""
+
+=head2 distinct ($type)
+
+Reverse operation to C<identical>.
+
+	my $Int = Aion::Type->new(name => "Int");
+	my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
+	
+	$Int->distinct($PositiveInt) # -> 1
+	$Int ne $PositiveInt         # -> 1
+
+=head2 disjoint ($other)
+
+A type does not overlap with another type.
+
+=head2 subset ($type)
+
+Specifies that it is a subset of the specified type.
+
+=head2 superset ($type)
+
+Specifies that it is a superset of the specified type.
+
+=head2 subproper ($other)
+
+A type is a strict subset of another.
+
+=head2 superproper ($other)
+
+A type is a strict superset of another.
+
+=head2 equals ($other)
+
+Type is equal to another.
+
+=head2 differs ($other)
+
+The type is different from another (the reverse operation to C<equals>).
 
 =head2 make ($pkg)
 
@@ -543,50 +755,6 @@ Creates a subroutine with arguments that returns a type.
 If the routine cannot be created, an exception is thrown.
 
 	eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@ # ~> syntax error
-
-=head2 equal ($type)
-
-Types are equal if they have the same name, the same number of arguments, the parent element, and the arguments are equal.
-
-	my $Int = Aion::Type->new(name => "Int");
-	my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
-	my $AnotherInt = Aion::Type->new(name => "Int");
-	my $IntWithArgs = Aion::Type->new(name => "Int", args => [1, 2]);
-	my $AnotherIntWithArgs = Aion::Type->new(name => "Int", args => [1, 2]);
-	my $IntWithDifferentArgs = Aion::Type->new(name => "Int", args => [3, 4]);
-	my $Str = Aion::Type->new(name => "Str");
-	
-	$Int->equal($Int)                        # -> 1
-	$Int->equal($AnotherInt)                 # -> 1
-	$IntWithArgs->equal($AnotherIntWithArgs) # -> 1
-	$PositiveInt->equal($PositiveInt)        # -> 1
-	
-	$Int->equal($Str)                          # -> ""
-	$Int->equal($IntWithArgs)                  # -> ""
-	$IntWithArgs->equal($IntWithDifferentArgs) # -> ""
-	$PositiveInt->equal($Int)                  # -> ""
-	
-	$Int->equal("not a type") # -> ""
-	
-	my $PositiveInt2 = Aion::Type->new(name => "PositiveInt", as => $Str);
-	$PositiveInt->equal($PositiveInt2) # -> ""
-	
-	$Int->equal($PositiveInt) # -> ""
-	$PositiveInt->equal($Int) # -> ""
-	
-	my $PositiveIntWithArgs = Aion::Type->new(name => "PositiveInt", as => $Int, args => [1]);
-	my $PositiveIntWithArgs2 = Aion::Type->new(name => "PositiveInt", as => $Int, args => [2]);
-	$PositiveIntWithArgs->equal($PositiveIntWithArgs2) # -> ""
-
-=head2 nonequal ($type)
-
-The reverse operation of C<equal>.
-
-	my $Int = Aion::Type->new(name => "Int");
-	my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
-	
-	$Int->nonequal($PositiveInt) # -> 1
-	$Int ne $PositiveInt         # -> 1
 
 =head2 args ()
 
@@ -687,27 +855,6 @@ Tests the value.
 	$Int ~~ 3    # -> 1
 	-6   ~~ $Int # -> 1
 
-=head2 eq, ==
-
-Compares two types.
-
-	my $Int1 = Aion::Type->new(name => "Int");
-	my $Int2 = Aion::Type->new(name => "Int");
-	
-	$Int1 eq $Int2 # -> 1
-	$Int1 == $Int2 # -> 1
-
-=head2 ne, !=
-
-Checks that the types are not equal.
-
-	my $Int1 = Aion::Type->new(name => "Int");
-	my $Int2 = Aion::Type->new(name => "Int");
-	
-	$Int1 ne $Int2 # -> ""
-	$Int1 != $Int2 # -> ""
-	123   ne $Int2 # -> 1
-
 =head2 >>
 
 Casting to type.
@@ -718,6 +865,80 @@ Casting to type.
 	5 >> $Int # -> 10
 	
 	$Int >> -4 # -> 1
+
+=head2 eq
+
+The types are identical.
+
+=head2 ne
+
+The types are different.
+
+=head2 ==
+
+Compares two types.
+
+	my $Int1 = Aion::Type->new(name => "Int1");
+	my $Int2 = Aion::Type->new(name => "Int2", coerce => $Int1->{coerce});
+	
+	$Int1 == $Int2 # -> 1
+	$Int1 eq $Int2 # -> 1
+	
+	my $Enum1 = Aion::Type->new(
+		name => "Enum",
+		args => ['red', 'green'],
+		subset => sub {
+			my $other_args = $_->{args};
+			List::Util::all { $_ ~~ $other_args } @{$Aion::Type::SELF->{args}}
+		},
+	);
+	my $Enum2 = Aion::Type->new(
+		name => "Enum",
+		args => ['green', 'red'],
+		coerce => $Enum1->{coerce},
+		subset => $Enum1->{subset},
+	);
+	
+	$Enum1 eq $Enum2 # -> ""
+	$Enum1 == $Enum2 # -> 1
+
+=head2 !=
+
+Checks that the types are not equal.
+
+	my $Int1 = Aion::Type->new(name => "Int");
+	my $Int2 = Aion::Type->new(name => "Int");
+	
+	$Int1 != $Int2 # -> 1
+	123   != $Int2 # -> 1
+
+=head2 <
+
+A is a strict subset of B.
+
+	my $Num = Aion::Type->new(name => "Num");
+	my $Int = Aion::Type->new(name => "Int", as => $Num);
+	my $Str = Aion::Type->new(name => "Str");
+	
+	$Int < $Num # -> 1
+	$Int < ($Int | $Str) # -> 1
+	$Int < ($Num | $Str) # -> 1
+	
+	$Num < $Int # -> ""
+	$Int < $Int # -> ""
+	($Num | $Str) < $Int # -> ""
+
+=head2 >
+
+A is a strict superset of B.
+
+=head2 <=
+
+A is a subset of B.
+
+=head2 >=
+
+A is a superset of B.
 
 =head1 AUTHOR
 

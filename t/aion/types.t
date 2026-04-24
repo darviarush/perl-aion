@@ -75,8 +75,9 @@ local ($::_g0 = do {IntOrArrayRef->coerce(5.5)}, $::_e0 = "6"); ::ok $::_g0 eq $
 # 					StrDate
 # 					StrDateTime
 # 					StrMatch[regexp]
-# 					ClassName
-# 					RoleName
+# 					PackageName
+# 						ClassName
+# 						RoleName
 # 					Join[separator]
 # 					Split[separator]
 # 					StrRat
@@ -102,14 +103,14 @@ local ($::_g0 = do {IntOrArrayRef->coerce(5.5)}, $::_e0 = "6"); ::ok $::_g0 eq $
 # 				GlobRef
 # 					FileHandle
 # 				ArrayRef`[A]
+# 					Tuple[A...]
+# 					CycleTuple[A...]
 # 				HashRef`[A]
+# 					Map[A => B]
+# 					Dict[k => A, ...]
 # 				Object`[class]
 # 					Me
 # 					Rat
-# 				Map[A => B]
-# 				Tuple[A...]
-# 				CycleTuple[A...]
-# 				Dict[k => A, ...]
 # 				RegexpLike
 # 				CodeLike
 # 				ArrayLike`[A]
@@ -125,11 +126,11 @@ local ($::_g0 = do {IntOrArrayRef->coerce(5.5)}, $::_e0 = "6"); ::ok $::_g0 eq $
 # 				StrLike
 # 					Len[from, to?]
 # 				NumLike
-# 					Float
-# 					Double
 # 					Range[from, to]
-# 					Bytes[n]
-# 					PositiveBytes[n]
+# 						Float
+# 						Double
+# 						Bytes[n]
+# 						PositiveBytes[n]
 
 # 
 # # SUBROUTINES
@@ -165,6 +166,38 @@ local ($::_g0 = do {2 ~~ Many}, $::_e0 = do {1}); ::ok defined($::_g0) == define
 # ## as ($super_type)
 # 
 # Используется с `subtype` для расширения создаваемого типа `$super_type`.
+# 
+# `as` может принимать выражения из типов объединённые множественно-теоритическими операторами. Так же в нём допускаются параметры `A`, `B`, `C`, `D`, `ARGS`, `SELF`, `M` и `N`. `M` и `N` могут устанавливаться в секции `init_where` параметризированных типов входящих в `as`.
+# 
+::done_testing; }; subtest 'as ($super_type)' => sub { 
+BEGIN {
+	subtype 'Top[to]', as Range[0, A];
+}
+
+local ($::_g0 = do {+3.0 ~~ Top[3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '+3.0 ~~ Top[3] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {+3.1 ~~ Top[3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '+3.1 ~~ Top[3] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {+0.0 ~~ Top[3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '+0.0 ~~ Top[3] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {-0.1 ~~ Top[3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '-0.1 ~~ Top[3] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+BEGIN {
+	subtype 'RedColor', as Enum['red'];
+	subtype 'BlueColor', as Enum['blue'];
+}
+BEGIN {
+	subtype 'RedBlue', as RedColor | BlueColor;
+}
+
+local ($::_g0 = do {'red'   ~~ RedBlue}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'red\'   ~~ RedBlue # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {'blue'  ~~ RedBlue}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'blue\'  ~~ RedBlue # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {'green' ~~ RedBlue}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'green\' ~~ RedBlue # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+BEGIN {
+	subtype 'RedBlueOther[colors...]', as ~RedBlue & Enum[ARGS];
+}
+
+local ($::_g0 = do {'red' ~~ RedBlueOther['red']}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'red\' ~~ RedBlueOther[\'red\'] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {'green' ~~ RedBlueOther['red', 'green']}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'green\' ~~ RedBlueOther[\'red\', \'green\'] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
 # 
 # ## init_where ($code)
 # 
@@ -803,8 +836,6 @@ local ($::_g0 = do {-3.402823467E+38 ~~ Float}, $::_e0 = do {""}); ::ok defined(
 # Машинное число с плавающей запятой составляет 8 байт.
 # 
 ::done_testing; }; subtest 'Double' => sub { 
-use Scalar::Util qw//;
-
 local ($::_g0 = do {-4.8 ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '                      -4.8 ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {'-1.7976931348623157e+308' ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'-1.7976931348623157e+308\' ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {'+1.7976931348623157e+308' ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+1.7976931348623157e+308\' ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
@@ -813,7 +844,7 @@ local ($::_g0 = do {'-1.7976931348623159e+308' ~~ Double}, $::_e0 = do {""}); ::
 # 
 # ## Range[from, to]
 # 
-# Числа между `from` и `to`.
+# Числа между `from` и `to` включительно.
 # 
 ::done_testing; }; subtest 'Range[from, to]' => sub { 
 local ($::_g0 = do {1 ~~ Range[1, 3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '1 ~~ Range[1, 3]   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
@@ -844,11 +875,11 @@ local ($::_g0 = do {127 ~~ Bytes[1]}, $::_e0 = do {1}); ::ok defined($::_g0) == 
 local ($::_g0 = do {128 ~~ Bytes[1]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '128 ~~ Bytes[1]  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 2 bits power of (8 bits * 8 bytes - 1)
-my $N = 1 << (8*8-1);
-local ($::_g0 = do {(-$N-1) ~~ Bytes[8]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(-$N-1) ~~ Bytes[8] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {(-$N) ~~ Bytes[8]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(-$N) ~~ Bytes[8]   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {($N-1) ~~ Bytes[8]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '($N-1) ~~ Bytes[8]  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {$N ~~ Bytes[8]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$N ~~ Bytes[8]      # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+my $N = 1 << (8*3-1);
+local ($::_g0 = do {(-$N-1) ~~ Bytes[3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(-$N-1) ~~ Bytes[3] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {(-$N) ~~ Bytes[3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(-$N) ~~ Bytes[3]   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {($N-1) ~~ Bytes[3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '($N-1) ~~ Bytes[3]  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$N ~~ Bytes[3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$N ~~ Bytes[3]      # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 require Math::BigInt;
 
@@ -899,8 +930,12 @@ local ($::_g0 = do {0 ~~ PositiveBytes[17]}, $::_e0 = do {1}); ::ok defined($::_
 # Целые числа 1+.
 # 
 ::done_testing; }; subtest 'Nat' => sub { 
-local ($::_g0 = do {0 ~~ Nat}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '0 ~~ Nat	# -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {1 ~~ Nat}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '1 ~~ Nat	# -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {0 ~~ Nat}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '0 ~~ Nat # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {1 ~~ Nat}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '1 ~~ Nat # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+local ($::_g0 = do {Nat->instanceof(Range[1, 'Inf'])}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Nat->instanceof(Range[1, \'Inf\'])    # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Nat->instanceof(Range[2, 'Inf'])}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Nat->instanceof(Range[2, \'Inf\'])    # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Nat->instanceof(Range[-100, 'Inf'])}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Nat->instanceof(Range[-100, \'Inf\']) # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
 # ## Ref
@@ -1011,8 +1046,8 @@ format EXAMPLE_FMT =
 "left",   "middle", "right"
 .
 
-local ($::_g0 = do {*EXAMPLE_FMT{FORMAT} ~~ FormatRef}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '*EXAMPLE_FMT{FORMAT} ~~ FormatRef   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {\1 ~~ FormatRef}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\1 ~~ FormatRef				# -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {*EXAMPLE_FMT{FORMAT} ~~ FormatRef}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '*EXAMPLE_FMT{FORMAT} ~~ FormatRef # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {\1 ~~ FormatRef}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\1 ~~ FormatRef	# -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
 # ## CodeRef
@@ -1354,7 +1389,7 @@ local ($::_g0 = do {"A" ~~ Overload}, $::_e0 = do {""}); ::ok defined($::_g0) ==
 local ($::_g0 = do {bless({}, "A") ~~ Overload}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'bless({}, "A") ~~ Overload               # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
-# И у него есть операторы указанные операторы.
+# И у него перегружены указанные операторы.
 # 
 
 local ($::_g0 = do {"OverloadExample" ~~ Overload['""']}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '"OverloadExample" ~~ Overload[\'""\'] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;

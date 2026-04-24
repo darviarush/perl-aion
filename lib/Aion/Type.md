@@ -156,6 +156,8 @@ $PositiveInt->exclude(-6) # -> 1
 
 Привести `$value` к типу, если приведение из типа и функции находится в `$self->{coerce}`.
 
+Соответствует оператору `>>`.
+
 ```perl
 my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+\z/ });
 my $Num = Aion::Type->new(name => "Num", test => sub { /^-?\d+(\.\d+)?\z/ });
@@ -216,16 +218,94 @@ Aion::Type->new->val_to_str([1,2,{x=>6}]) # => [1, 2, {x => 6}]
 Определяет, что тип является подтипом другого `$type`.
 
 ```perl
-my $int = Aion::Type->new(name => "Int");
-my $positiveInt = Aion::Type->new(name => "PositiveInt", as => $int);
+my $Int = Aion::Type->new(name => "Int");
+my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
 
-$positiveInt->instanceof($int)          # -> 1
-$positiveInt->instanceof($positiveInt)  # -> 1
-$positiveInt->instanceof('Int')         # -> 1
-$positiveInt->instanceof('PositiveInt') # -> 1
-$int->instanceof('PositiveInt')         # -> ""
-$int->instanceof('Int')                 # -> 1
+$PositiveInt->instanceof($Int)          # -> 1
+$PositiveInt->instanceof($PositiveInt)  # -> 1
+$Int->instanceof($PositiveInt)          # -> ""
 ```
+
+## is_set_theoretic
+
+Проверяет, что тип является множественно-теоритическим (т.е. – оператором `|`, `&` или `~`).
+
+## identical ($type)
+
+Типы равны, если они имеют одинаковый прототип (`coerce`), одинаковое количество аргументов, родительский элемент, их аргументы и M и N равны.
+
+```perl
+my $Int = Aion::Type->new(name => "Int");
+my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
+my $AnotherInt = Aion::Type->new(name => "Int", coerce => $Int->{coerce});
+my $IntWithArgs = Aion::Type->new(name => "Int", args => [1, 2]);
+my $AnotherIntWithArgs = Aion::Type->new(name => "Int", args => [1, 2], coerce => $IntWithArgs->{coerce});
+my $IntWithDifferentArgs = Aion::Type->new(name => "Int", args => [3, 4]);
+my $Str = Aion::Type->new(name => "Str");
+
+$Int->identical($Int)                        # -> 1
+$Int->identical($AnotherInt)                 # -> 1
+$IntWithArgs->identical($AnotherIntWithArgs) # -> 1
+$PositiveInt->identical($PositiveInt)        # -> 1
+
+$Int->{coerce} == $Str->{coerce}               # -> ""
+$Int->identical($Str)                          # -> ""
+$Int->identical($IntWithArgs)                  # -> ""
+$IntWithArgs->identical($IntWithDifferentArgs) # -> ""
+$PositiveInt->identical($Int)                  # -> ""
+
+$Int->identical("not a type") # -> ""
+
+my $PositiveInt2 = Aion::Type->new(name => "PositiveInt", as => $Str);
+$PositiveInt->identical($PositiveInt2) # -> ""
+
+$Int->identical($PositiveInt) # -> ""
+$PositiveInt->identical($Int) # -> ""
+
+my $PositiveIntWithArgs = Aion::Type->new(name => "PositiveInt", as => $Int, args => [1]);
+my $PositiveIntWithArgs2 = Aion::Type->new(name => "PositiveInt", as => $Int, args => [2]);
+$PositiveIntWithArgs->identical($PositiveIntWithArgs2) # -> ""
+```
+
+## distinct ($type)
+
+Обратная операция к `identical`.
+
+```perl
+my $Int = Aion::Type->new(name => "Int");
+my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
+
+$Int->distinct($PositiveInt) # -> 1
+$Int ne $PositiveInt         # -> 1
+```
+
+## disjoint ($other)
+
+Тип не пересекается с другим типом.
+
+## subset ($type)
+
+Определяет, что он является подмножеством указанного типа.
+
+## superset ($type)
+
+Определяет, что он является надмножеством указанного типа.
+
+## subproper ($other)
+
+Тип является строгим подмножеством другого.
+
+## superproper ($other)
+
+Тип является строгим надмножеством другого.
+
+## equals ($other)
+
+Тип равен другому.
+
+## differs ($other)
+
+Тип отличается от другого (обратная операция к `equals`).
 
 ## make ($pkg)
 
@@ -293,54 +373,6 @@ BEGIN {
 
 ```perl
 eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@ # ~> syntax error
-```
-
-## equal ($type)
-
-Типы равны, если они имеют одинаковое имя, одинаковое количество аргументов, родительский элемент и аргументы равны.
-
-```perl
-my $Int = Aion::Type->new(name => "Int");
-my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
-my $AnotherInt = Aion::Type->new(name => "Int");
-my $IntWithArgs = Aion::Type->new(name => "Int", args => [1, 2]);
-my $AnotherIntWithArgs = Aion::Type->new(name => "Int", args => [1, 2]);
-my $IntWithDifferentArgs = Aion::Type->new(name => "Int", args => [3, 4]);
-my $Str = Aion::Type->new(name => "Str");
-
-$Int->equal($Int)                        # -> 1
-$Int->equal($AnotherInt)                 # -> 1
-$IntWithArgs->equal($AnotherIntWithArgs) # -> 1
-$PositiveInt->equal($PositiveInt)        # -> 1
-
-$Int->equal($Str)                          # -> ""
-$Int->equal($IntWithArgs)                  # -> ""
-$IntWithArgs->equal($IntWithDifferentArgs) # -> ""
-$PositiveInt->equal($Int)                  # -> ""
-
-$Int->equal("not a type") # -> ""
-
-my $PositiveInt2 = Aion::Type->new(name => "PositiveInt", as => $Str);
-$PositiveInt->equal($PositiveInt2) # -> ""
-
-$Int->equal($PositiveInt) # -> ""
-$PositiveInt->equal($Int) # -> ""
-
-my $PositiveIntWithArgs = Aion::Type->new(name => "PositiveInt", as => $Int, args => [1]);
-my $PositiveIntWithArgs2 = Aion::Type->new(name => "PositiveInt", as => $Int, args => [2]);
-$PositiveIntWithArgs->equal($PositiveIntWithArgs2) # -> ""
-```
-
-## nonequal ($type)
-
-Обратная операция к `equal`.
-
-```perl
-my $Int = Aion::Type->new(name => "Int");
-my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
-
-$Int->nonequal($PositiveInt) # -> 1
-$Int ne $PositiveInt         # -> 1
 ```
 
 ## args ()
@@ -454,31 +486,6 @@ $Int ~~ 3    # -> 1
 -6   ~~ $Int # -> 1
 ```
 
-## eq, ==
-
-Сравнивает два типа.
-
-```perl
-my $Int1 = Aion::Type->new(name => "Int");
-my $Int2 = Aion::Type->new(name => "Int");
-
-$Int1 eq $Int2 # -> 1
-$Int1 == $Int2 # -> 1
-```
-
-## ne, !=
-
-Проверяет, что типы не равны.
-
-```perl
-my $Int1 = Aion::Type->new(name => "Int");
-my $Int2 = Aion::Type->new(name => "Int");
-
-$Int1 ne $Int2 # -> ""
-$Int1 != $Int2 # -> ""
-123   ne $Int2 # -> 1
-```
-
 ## >>
 
 Приведение к типу.
@@ -491,6 +498,86 @@ $Int->{coerce} = [[$Int => sub { $_ + 5 }]];
 
 $Int >> -4 # -> 1
 ```
+
+## eq
+
+Типы тождественны.
+
+## ne
+
+Типы различны.
+
+## ==
+
+Сравнивает два типа.
+
+```perl
+my $Int1 = Aion::Type->new(name => "Int1");
+my $Int2 = Aion::Type->new(name => "Int2", coerce => $Int1->{coerce});
+
+$Int1 == $Int2 # -> 1
+$Int1 eq $Int2 # -> 1
+
+my $Enum1 = Aion::Type->new(
+	name => "Enum",
+	args => ['red', 'green'],
+	subset => sub {
+		my $other_args = $_->{args};
+		List::Util::all { $_ ~~ $other_args } @{$Aion::Type::SELF->{args}}
+	},
+);
+my $Enum2 = Aion::Type->new(
+	name => "Enum",
+	args => ['green', 'red'],
+	coerce => $Enum1->{coerce},
+	subset => $Enum1->{subset},
+);
+
+$Enum1 eq $Enum2 # -> ""
+$Enum1 == $Enum2 # -> 1
+```
+
+## !=
+
+Проверяет, что типы не равны.
+
+```perl
+my $Int1 = Aion::Type->new(name => "Int");
+my $Int2 = Aion::Type->new(name => "Int");
+
+$Int1 != $Int2 # -> 1
+123   != $Int2 # -> 1
+```
+
+## <
+
+A строгое подмножество B.
+
+```perl
+my $Num = Aion::Type->new(name => "Num");
+my $Int = Aion::Type->new(name => "Int", as => $Num);
+my $Str = Aion::Type->new(name => "Str");
+
+$Int < $Num # -> 1
+$Int < ($Int | $Str) # -> 1
+$Int < ($Num | $Str) # -> 1
+
+$Num < $Int # -> ""
+$Int < $Int # -> ""
+($Num | $Str) < $Int # -> ""
+```
+
+## >
+
+A строгое надмножество B.
+
+## <=
+
+A подмножество B.
+
+## >=
+
+A надмножество B.
 
 # AUTHOR
 

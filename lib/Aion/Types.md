@@ -75,8 +75,9 @@ Any
 					StrDate
 					StrDateTime
 					StrMatch[regexp]
-					ClassName
-					RoleName
+					PackageName
+						ClassName
+						RoleName
 					Join[separator]
 					Split[separator]
 					StrRat
@@ -102,14 +103,14 @@ Any
 				GlobRef
 					FileHandle
 				ArrayRef`[A]
+					Tuple[A...]
+					CycleTuple[A...]
 				HashRef`[A]
+					Map[A => B]
+					Dict[k => A, ...]
 				Object`[class]
 					Me
 					Rat
-				Map[A => B]
-				Tuple[A...]
-				CycleTuple[A...]
-				Dict[k => A, ...]
 				RegexpLike
 				CodeLike
 				ArrayLike`[A]
@@ -125,11 +126,11 @@ Any
 				StrLike
 					Len[from, to?]
 				NumLike
-					Float
-					Double
 					Range[from, to]
-					Bytes[n]
-					PositiveBytes[n]
+						Float
+						Double
+						Bytes[n]
+						PositiveBytes[n]
 ```
 
 # SUBROUTINES
@@ -165,6 +166,38 @@ eval { subtype 'Many' }; $@ # ~> subtype Many: main::Many exists!
 ## as ($super_type)
 
 Используется с `subtype` для расширения создаваемого типа `$super_type`.
+
+`as` может принимать выражения из типов объединённые множественно-теоритическими операторами. Так же в нём допускаются параметры `A`, `B`, `C`, `D`, `ARGS`, `SELF`, `M` и `N`. `M` и `N` могут устанавливаться в секции `init_where` параметризированных типов входящих в `as`.
+
+```perl
+BEGIN {
+	subtype 'Top[to]', as Range[0, A];
+}
+
++3.0 ~~ Top[3] # -> 1
++3.1 ~~ Top[3] # -> ""
++0.0 ~~ Top[3] # -> 1
+-0.1 ~~ Top[3] # -> ""
+
+BEGIN {
+	subtype 'RedColor', as Enum['red'];
+	subtype 'BlueColor', as Enum['blue'];
+}
+BEGIN {
+	subtype 'RedBlue', as RedColor | BlueColor;
+}
+
+'red'   ~~ RedBlue # -> 1
+'blue'  ~~ RedBlue # -> 1
+'green' ~~ RedBlue # -> ""
+
+BEGIN {
+	subtype 'RedBlueOther[colors...]', as ~RedBlue & Enum[ARGS];
+}
+
+'red' ~~ RedBlueOther['red'] # -> ""
+'green' ~~ RedBlueOther['red', 'green'] # -> 1
+```
 
 ## init_where ($code)
 
@@ -803,8 +836,6 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 Машинное число с плавающей запятой составляет 8 байт.
 
 ```perl
-use Scalar::Util qw//;
-
                       -4.8 ~~ Double # -> 1
 '-1.7976931348623157e+308' ~~ Double # -> 1
 '+1.7976931348623157e+308' ~~ Double # -> 1
@@ -813,7 +844,7 @@ use Scalar::Util qw//;
 
 ## Range[from, to]
 
-Числа между `from` и `to`.
+Числа между `from` и `to` включительно.
 
 ```perl
 1 ~~ Range[1, 3]   # -> 1
@@ -844,11 +875,11 @@ use Scalar::Util qw//;
 128 ~~ Bytes[1]  # -> ""
 
 # 2 bits power of (8 bits * 8 bytes - 1)
-my $N = 1 << (8*8-1);
-(-$N-1) ~~ Bytes[8] # -> ""
-(-$N) ~~ Bytes[8]   # -> 1
-($N-1) ~~ Bytes[8]  # -> 1
-$N ~~ Bytes[8]      # -> ""
+my $N = 1 << (8*3-1);
+(-$N-1) ~~ Bytes[3] # -> ""
+(-$N) ~~ Bytes[3]   # -> 1
+($N-1) ~~ Bytes[3]  # -> 1
+$N ~~ Bytes[3]      # -> ""
 
 require Math::BigInt;
 
@@ -899,8 +930,12 @@ $N8 . "" ~~ PositiveBytes[8]     # -> 1
 Целые числа 1+.
 
 ```perl
-0 ~~ Nat	# -> ""
-1 ~~ Nat	# -> 1
+0 ~~ Nat # -> ""
+1 ~~ Nat # -> 1
+
+Nat->instanceof(Range[1, 'Inf'])    # -> 1
+Nat->instanceof(Range[2, 'Inf'])    # -> ""
+Nat->instanceof(Range[-100, 'Inf']) # -> 1
 ```
 
 ## Ref
@@ -1011,8 +1046,8 @@ format EXAMPLE_FMT =
 "left",   "middle", "right"
 .
 
-*EXAMPLE_FMT{FORMAT} ~~ FormatRef   # -> 1
-\1 ~~ FormatRef				# -> ""
+*EXAMPLE_FMT{FORMAT} ~~ FormatRef # -> 1
+\1 ~~ FormatRef	# -> ""
 ```
 
 ## CodeRef
@@ -1354,7 +1389,7 @@ bless({}, "OverloadExample") ~~ Overload # -> 1
 bless({}, "A") ~~ Overload               # -> ""
 ```
 
-И у него есть операторы указанные операторы.
+И у него перегружены указанные операторы.
 
 ```perl
 "OverloadExample" ~~ Overload['""'] # -> 1

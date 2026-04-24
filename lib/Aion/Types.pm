@@ -2,17 +2,19 @@ package Aion::Types;
 # Типы-валидаторы для Aion
 
 use common::sense;
+use warnings FATAL => 'recursion';
 
 use Aion::Meta::Util qw/subref_is_reachable/;
 use Aion::Type;
 use List::Util qw/all any first/;
 use Exporter qw/import/;
 require overload;
+use POSIX qw//;
 use Scalar::Util qw/looks_like_number reftype refaddr blessed/;
 use Sub::Util qw//;
 
 our @EXPORT = our @EXPORT_OK = grep {
-	*{$Aion::Types::{$_}}{CODE}	&& !/^(_|(NaN|import|all|any|first|looks_like_number|reftype|refaddr|blessed|subref_is_reachable)\z)/n
+	eval {*{$Aion::Types::{$_}}{CODE}}	&& !/^(_|(NaN|import|all|any|first|looks_like_number|reftype|refaddr|blessed|subref_is_reachable|DBL_MAX)\z)/n
 } keys %Aion::Types::;
 
 # Обрабатываем атрибут :Isa
@@ -57,20 +59,64 @@ sub _Isa {
 
 BEGIN {
 my $TRUE = sub {1};
-my $INIT_ARGS = sub { @{&ARGS} = map External([$_]), @{&ARGS} };
-my $INIT_KW_ARGS = sub { @{&ARGS} = List::Util::pairmap { $a => External([$b]) } @{&ARGS} };
+my $INIT_ARGS = sub { @{&ARGS} = map External([$_]), &ARGS };
+my $INIT_KW_ARGS = sub { @{&ARGS} = List::Util::pairmap { $a => External([$b]) } &ARGS };
+
+my $COMBINE_SUBS = sub {
+    my ($f1, $f2) = @_;
+    sub { $f1->(); $f2->() }
+};
+
+my $COMBINE_WHERE = sub {
+    my ($f1, $f2) = @_;
+    sub { $f1->() && $f2->() }
+};
+
+my $IS_PARAM = sub {
+	my @S = @_;
+	while(@S) {
+		my $arg = pop @S;
+		return 1 if UNIVERSAL::isa($arg, 'Aion::Type') && $arg->{is_param};
+		push @S, @{$arg->{args}};
+	}
+	""
+};
+
+my $REPLACE_PARAM; $REPLACE_PARAM = sub {
+	my ($arg) = @_;
+
+	return $arg unless UNIVERSAL::isa($arg, 'Aion::Type');
+
+	if(my $param = $arg->{is_param}) {
+		return $Aion::Type::SELF->{args}->[$param - 1] if $param > 0;
+		return $Aion::Type::SELF->{N} if $param == -1;
+		return $Aion::Type::SELF->{M} if $param == -2;
+		return $Aion::Type::SELF if $param == -256;
+		return @{$Aion::Type::SELF->{args}} if $param == -1024;
+		die "Parameter number invalid!";
+	}
+
+	return $arg if !$arg->{args} || !List::Util::first { UNIVERSAL::isa($_, 'Aion::Type') } @{$arg->{args}};
+
+	$arg = bless {%$arg}, 'Aion::Type';
+	$arg->{args} = [map $REPLACE_PARAM->($_), @{$arg->{args}}];
+
+	$arg
+};
+
+my $INIT_REPLACE_PARAM = sub {
+	$Aion::Type::SELF->{as} = $REPLACE_PARAM->($Aion::Type::SELF->{as});
+};
 
 # Создание типа
 sub subtype(@) {
 	my $subtype = shift;
 	my %o = @_;
-
-	my ($as, $init_where, $where, $awhere, $message) = delete @o{qw/as init_where where awhere message/};
-
-	$as = External([$as]) if defined $as;
+	
+	my ($as, $init_where, $where, $awhere, $message, $subset) = delete @o{qw/as init_where where awhere message subset/};
 	
 	die "subtype $subtype unused keys left: " . join ", ", keys %o if keys %o;
-
+	
 	die "subtype format is Name or Name[args] or Name`[args]" if $subtype !~ /^([A-Z_]\w*)(?:(\`)?\[(.*)\])?$/i;
 	my ($name, $is_maybe_arg, $is_arg) = ($1, $2, $3);
 
@@ -98,26 +144,38 @@ sub subtype(@) {
 	
 	if($init_types) {
 		$init_where = $init_where
-			? (sub { my ($t, $w) = @_; sub { $t->(); $w->() } })->($init_types, $init_where)
+			? $COMBINE_SUBS->($init_types, $init_where)
 			: $init_types;
 	}
 	
+	$as = External([$as]) if defined $as;
+	
+	if($as && $is_arg && $IS_PARAM->($as)) {
+		$init_where = $init_where
+			? $COMBINE_SUBS->($INIT_REPLACE_PARAM, $init_where)
+			: $INIT_REPLACE_PARAM;
+	}
+	
 	if($as && $as->{test} != $TRUE) {
+		my $as_test = sub { $Aion::Type::SELF->{as}->test };
 		if(!$where && !$awhere) {
-			$where = (sub { my ($as) = @_; sub { $as->test } })->($as);
+			$where = $as_test;
 		} else {
-			$where = (sub { my ($as, $where) = @_; sub { $as->test && $where->(@_) } })->($as, $where) if $where;
-			$awhere = (sub { my ($as, $awhere) = @_; sub { $as->test && $awhere->(@_) } })->($as, $awhere) if $awhere;
+			$where  = $COMBINE_WHERE->($as_test, $where)  if $where;
+			$awhere = $COMBINE_WHERE->($as_test, $awhere) if $awhere;
 		}
 	}
 
 	# Тут coerce - прототип - единый для всех порождаемых типов одного типа с разными аргументами
-	my $type = Aion::Type->new(name => $name, coerce => []);
-
-	$type->{message} = $message if $message;
-	$type->{init} = $init_where if $init_where;
-	$type->{as} = $as if $as;
-
+	my $type = Aion::Type->new(
+		name => $name,
+		coerce => [], # prototype
+		$as? (as => $as): (),
+		$init_where? (init => $init_where): (),
+		$message? (message => $message): (),
+		$subset? (subset => $subset): (),
+	);
+	
 	if($is_maybe_arg) {
 		$type->{test} = $where;
 		$type->{a_test} = $awhere;
@@ -137,9 +195,13 @@ sub init_where(&@) { (init_where => @_) }
 sub where(&@) { (where => @_) }
 sub awhere(&@) { (awhere => @_) }
 sub message(&@) { (message => @_) }
+sub subset(&@) { (subset => @_) }
 
 sub SELF() { $Aion::Type::SELF }
-sub ARGS() { wantarray? @{$Aion::Type::SELF->{args}}: $Aion::Type::SELF->{args} }
+sub ARGS() {
+	return $Aion::Type::SELF->{is_param_args} if $Aion::Type::SELF->{is_param_args};
+	wantarray? @{$Aion::Type::SELF->{args}}: $Aion::Type::SELF->{args}
+}
 sub A() { $Aion::Type::SELF->{args}[0] }
 sub B() { $Aion::Type::SELF->{args}[1] }
 sub C() { $Aion::Type::SELF->{args}[2] }
@@ -166,7 +228,23 @@ sub coerce(@) {
 sub from($) { (from => $_[0]) }
 sub via(&) { (via => $_[0]) }
 
+sub _subset_interval { $_->{args}[0] <= A && B <= $_->{args}[1] }
+
+use constant DBL_MAX => (POSIX::DBL_MAX+0) =~ /inf/i? do {
+	require Math::BigFloat;
+	Math::BigFloat->new(POSIX::DBL_MAX =~ /inf/i? '1.7976931348623157e+308': POSIX::DBL_MAX)
+}: POSIX::DBL_MAX;
+
+
+sub _8BITS() {
+	undef *_8BITS;
+	require Math::BigInt;
+	constant->import(_8BITS => Math::BigInt->new(8));
+}
+
 BEGIN {
+
+undef *Union; undef *Intersection; undef *Exclude;
 
 subtype "Any";
 	subtype "Control", as &Any;
@@ -177,18 +255,11 @@ subtype "Any";
 		subtype "Exclude[A...]", as &Control,
 			where { my $val = $_; !any { $_->include($val) } ARGS };
 		subtype "Option[A]", as &Control,
-			init_where {
-				SELF->{is_option} = 1;
-				Tuple([Object(["Aion::Type"])])->validate(scalar ARGS, "Arguments Option[A]")
-			}
+			init_where { SELF->{is_option} = 1 }
 			where { A->test };
 		subtype "Wantarray[A, S]", as &Control,
-			init_where {
-				SELF->{is_wantarray} = 1;
-				Tuple([Object(["Aion::Type"]), Object(["Aion::Type"])])->validate(scalar ARGS, "Arguments Wantarray[A, S]")
-			}
+			init_where { SELF->{is_wantarray} = 1 }
 			where { ... };
-
 
 	subtype "Item", as &Any;
 		sub External($) {
@@ -212,9 +283,11 @@ subtype "Any";
 			return 1 if overload::Method($_, 'bool');
 			my $m = overload::Method($_, '0+');
 			Bool()->include($m ? $m->($_) : $_) };
-		subtype "Enum[e...]", as &Item, where { $_ ~~ ARGS };
-		subtype "Maybe[A]", as &Item, where { !defined($_) || A->test };
+		subtype "Enum[e...]", as &Item,
+			where { $_ ~~ ARGS }
+			subset { my $other_args = $_->{args}; all { $_ ~~ $other_args } ARGS };
 		subtype "Undef", as &Item, where { !defined $_ };
+		subtype "Maybe[A]", as &Undef | A;
 		subtype "Defined", as &Item, where { defined $_ };
 			subtype "Value", as &Defined, where { "" eq ref $_ };
 				subtype "Version", as &Value, where { "VSTRING" eq ref \$_ };
@@ -236,15 +309,12 @@ subtype "Any";
 					subtype "StrDate", as &Str, where { /^\d{4}-\d{2}-\d{2}\z/ };
 					subtype "StrDateTime", as &Str, where { /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/ };
 					subtype "StrMatch[regexp]", as &Str, where { $_ =~ A };
-					subtype "ClassName", as &Str, where { !!$_->can('new') };
-					subtype "RoleName", as &Str, where { !$_->can('new') && !!(@{"$_\::ISA"} || first { *{$_}{CODE} } values %{"$_\::"}) };
+					subtype "PackageName", as &Str, where { no utf8; use bytes; /^(?:[a-z]\w*(?:::[a-z]\w*)*)\z/ia };
+						subtype "ClassName", as &PackageName, where { !!$_->can('new') };
+						subtype "RoleName", as &PackageName, where { !$_->can('new') && !!(@{"$_\::ISA"} || first { *{$_}{CODE} } values %{"$_\::"}) };
 					subtype "StrRat", as &Str, where { m!\s*/\s*!? &Num->include($`) && &Num->include($`): &Num->test };
 					subtype "Num", as &Str, where { looks_like_number($_) && /[\dfn]\z/i };
-						subtype "PositiveNum", as &Num, where { $_ >= 0 };
 						subtype "Int", as &Num,	where { /^[-+]?\d+\z/ };
-							subtype "PositiveInt", as &Int, where { $_ >= 0 };
-							subtype "Nat", as &Int, where { $_ > 0 };
-
 
 			subtype "Ref", as &Defined, where { "" ne ref $_ };
 				subtype "Tied`[class]", as &Ref,
@@ -299,139 +369,126 @@ subtype "Any";
 				subtype "ArrayRef`[A]", as &Ref,
 					where { ref $_ eq "ARRAY" }
 					awhere { my $A = A; ref $_ eq "ARRAY" && all { $A->test } @$_ };
+					subtype "Tuple[A...]", as &ArrayRef,
+						where {
+							my $k = 0;
+							for my $A (ARGS) {
+								return "" if $A->exclude($_->[$k++]);
+							}
+							$k == @$_
+						};
+					subtype "CycleTuple[A...]", as &ArrayRef,
+						where {
+							my $k = 0;
+							while($k < @$_) {
+								for my $A (ARGS) {
+									return "" if $A->exclude($_->[$k++]);
+								}
+							}
+							$k == @$_
+						};
 				subtype "HashRef`[A]", as &Ref,
 					where { ref $_ eq "HASH" }
 					awhere { my $A = A; ref $_ eq "HASH" && all { $A->test } values %$_ };
+					subtype "Dict[k => A, ...]", as &HashRef,
+						where {
+							my $count = 0; my $k;
+							for my $A (ARGS) {
+								$k = $A, next unless ref $A;
+								if(exists $_->{$k}) {
+									return "" if $A->exclude($_->{$k});
+									$count++;
+								} else {
+									return "" if !exists $A->{is_option};
+								}
+							}
+							$count == keys %$_
+						};
+					subtype "Map[K, V]", as &HashRef,
+						where {
+							my ($K, $V) = ARGS;
+							while(my ($k, $v) = each %$_) {
+								return "" unless $K->include($k) && $V->include($v);
+							}
+							return 1;
+						};
 				subtype "Object`[class]", as &Ref,
 					where { blessed($_) ne "" }
 					awhere { blessed($_) && $_->isa(A) };
 					subtype "Me", as &Object,
-						init_where { SELF->{me} = caller(2) }
-						where { UNIVERSAL::isa($_, SELF->{me}) };
-				subtype "Map[K, V]", as &HashRef,
-					where {
-						my ($K, $V) = ARGS;
-						while(my ($k, $v) = each %$_) {
-							return "" unless $K->include($k) && $V->include($v);
-						}
-						return 1;
-					};
-
-				my $tuple_args = ArrayRef([Object(['Aion::Type'])]);
-				subtype "Tuple[A...]", as &ArrayRef,
-					init_where { $tuple_args->validate(scalar ARGS, "Arguments Tuple[A...]") }
-					where {
-						my $k = 0;
-						for my $A (ARGS) {
-							return "" if $A->exclude($_->[$k++]);
-						}
-						$k == @$_
-					};
-				subtype "CycleTuple[A...]", as &ArrayRef,
-					init_where { $tuple_args->validate(scalar ARGS, "Arguments CycleTuple[A...]") }
-					where {
-						my $k = 0;
-						while($k < @$_) {
-							for my $A (ARGS) {
-								return "" if $A->exclude($_->[$k++]);
-							}
-						}
-						$k == @$_
-					};
-				my $dict_args = CycleTuple([&Str, Object(['Aion::Type'])]);
-				subtype "Dict[k => A, ...]", as &HashRef,
-					init_where { $dict_args->validate(scalar ARGS, "Arguments Dict[k => A, ...]") }
-					where {
-						my $count = 0; my $k;
-						for my $A (ARGS) {
-							$k = $A, next unless ref $A;
-							if(exists $_->{$k}) {
-								return "" if $A->exclude($_->{$k});
-								$count++;
-							} else {
-								return "" if !exists $A->{is_option};
-							}
-						}
-						$count == keys %$_
-					};
-			subtype "RegexpLike", as &Ref,
-				where { reftype($_) eq "REGEXP" || !!overload::Method($_, 'qr') };
-			subtype "CodeLike", as &Ref,
-				where { reftype($_) eq "CODE" || !!overload::Method($_, '&{}') };
-			subtype "ArrayLike`[A]", as &Ref,
-				where { reftype($_) eq "ARRAY" || !!overload::Method($_, '@{}') }
-				awhere { &ArrayLike->test && do { my $A = A; all { $A->test } @$_ }};
-				my $init_limit = sub { if(@{&ARGS} == 1) { SELF->{min} = 0; SELF->{max} = A } else { SELF->{min} = A; SELF->{max} = B } };
-				subtype "Lim[from, to?]", as &ArrayLike,
-					init_where => $init_limit,
-					where { SELF->{min} <= @$_ && @$_ <= SELF->{max} };
-			subtype "HashLike`[A]", as &Ref,
-				where { reftype($_) eq "HASH" || !!overload::Method($_, "%{}") }
-				awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
-					subtype "HasProp[p...]", as &HashLike,
-						where { my $x = $_; all { exists $x->{$_} } ARGS };
-					subtype "LimKeys[from, to?]", as &HashLike,
-						init_where => $init_limit,
-						where { SELF->{min} <= scalar keys %$_ && scalar keys %$_ <= SELF->{max} };
-						
-		subtype "Like", as (&Str | &Object);
-			subtype "HasMethods[m...]", as &Like,
-				where { my $x = $_; all { $x->can($_) } ARGS };
-			subtype "Overload`[m...]", as &Like,
-				where { !!overload::Overloaded($_) }
-				awhere { my $x = $_; all { overload::Method($x, $_) } ARGS };
-			subtype "InstanceOf[class...]", as &Like, where { my $x = $_; all { $x->isa($_) } ARGS };
-			subtype "ConsumerOf[role...]", as &Like, where { my $x = $_; all { $x->DOES($_) } ARGS };
-			subtype "StrLike", as &Like, where { !blessed($_) or !!overload::Method($_, '""') };
-				subtype "Len[from, to?]", as &StrLike,
-					init_where => $init_limit,
-					where { SELF->{min} <= length($_) && length($_) <= SELF->{max} };
-
-			subtype "NumLike", as &Like, where { looks_like_number($_) };
-				subtype "Float", as &NumLike, where { -3.402823466E+38 <= $_ && $_ <= 3.402823466E+38 };
-
-				my $_from; my $_to;
-				subtype "Double", as &NumLike, where {
-					$_from //= do { require Math::BigFloat; Math::BigFloat->new('-1.7976931348623157e+308') };
-					$_to   //= do { require Math::BigFloat; Math::BigFloat->new( '1.7976931348623157e+308') };
-					$_from <= $_ && $_ <= $_to;
-				};
-				subtype "Range[from, to]", as &NumLike, where { A <= $_ && $_ <= B };
-
-				my $_8bits;
-				subtype "Bytes[n]", as &NumLike,
-					init_where {
-						my $bits = A < 8? 8: ($_8bits //= do {
-							require Math::BigInt;
-							Math::BigInt->new(8)
-						});
-						my $N = 1 << ($bits * A - 1);
-						N = -$N;
-						M = $N-1;
-					}
-					where { N <= $_ && $_ <= M };
-				subtype "PositiveBytes[n]", as &NumLike,
-					init_where {
-						my $bits = A < 8? 8: ($_8bits //= do {
-							require Math::BigInt;
-							Math::BigInt->new(8)
-						});
-						M = (1 << ($bits*A)) - 1;
-					}
-					where { 0 <= $_ && $_ <= M };
+						init_where { M = caller(2) }
+						where { UNIVERSAL::isa($_, M) };
+					subtype "Rat", as 'Math::BigRat';
+				subtype "RegexpLike", as &Ref,
+					where { reftype($_) eq "REGEXP" || !!overload::Method($_, 'qr') };
+				subtype "CodeLike", as &Ref,
+					where { reftype($_) eq "CODE" || !!overload::Method($_, '&{}') };
+				subtype "ArrayLike`[A]", as &Ref,
+					where { reftype($_) eq "ARRAY" || !!overload::Method($_, '@{}') }
+					awhere { &ArrayLike->test && do { my $A = A; all { $A->test } @$_ }};
+					subtype "Lim[from, to?]", as &ArrayLike,
+						init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
+						where { A <= @$_ && @$_ <= B }
+						subset \&_subset_interval;
+				subtype "HashLike`[A]", as &Ref,
+					where { reftype($_) eq "HASH" || !!overload::Method($_, "%{}") }
+					awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
+						subtype "HasProp[p...]", as &HashLike,
+							where { my $x = $_; all { exists $x->{$_} } ARGS };
+						subtype "LimKeys[from, to?]", as &HashLike,
+							init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
+							where { A <= scalar keys %$_ && scalar keys %$_ <= B }
+							subset \&_subset_interval;
+		
+			subtype "Like", as &Str | &Object;
+				subtype "HasMethods[m...]", as &Like,
+					where { my $x = $_; all { $x->can($_) } ARGS };
+				subtype "Overload`[m...]", as &Like,
+					where { !!overload::Overloaded($_) }
+					awhere { my $x = $_; all { overload::Method($x, $_) } ARGS };
+				subtype "InstanceOf[class...]", as &Like, where { my $x = $_; all { $x->isa($_) } ARGS };
+				subtype "ConsumerOf[role...]", as &Like, where { my $x = $_; all { $x->DOES($_) } ARGS };
+				subtype "StrLike", as &Like, where { !blessed($_) or !!overload::Method($_, '""') };
+					subtype "Len[from, to?]", as &StrLike,
+						init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
+						where { A <= length($_) && length($_) <= B }
+						subset \&_subset_interval;
+	
+				subtype "NumLike", as &Like, where { looks_like_number($_) };
+					subtype "Range[from, to]", as &NumLike,
+						where { A <= $_ && $_ <= B }
+						subset \&_subset_interval;
+						subtype "Float", as Range([-(POSIX::FLT_MAX), POSIX::FLT_MAX]);
+						subtype "Double", as Range([-(DBL_MAX), DBL_MAX]);
+						subtype "Bytes[n]", as Range([]),
+							init_where {
+								my $N = 1 << (8 * A - 1);
+								$N = 1 << (_8BITS * A - 1) if $N eq 0;
+								SELF->{as} = Range([-$N, $N-1]);
+							};
+						subtype "PositiveBytes[n]", as Range([]),
+							init_where {
+								my $M = (1 << (8*A));
+								$M = (1 << (_8BITS*A)) if $M eq 0;
+								SELF->{as} = Range([0, $M-1]);
+							};
 
 	coerce &Str => from &Undef => via { "" };
 	coerce &Int => from &Num => via { int($_+($_ < 0? -.5: .5)) };
 	coerce &Bool => from &Any => via { !!$_ };
-	
+
 	subtype 'Join[separator]', as &Str;
 	coerce &Join, from &ArrayRef, via { join A, @$_ };
-	
+
 	subtype 'Split[separator]', as &ArrayRef;
 	coerce &Split, from &Str, via { [split A, $_] };
-	
-	subtype "Rat", as 'Math::BigRat';
+
 	coerce &Rat => from &StrRat => via { Math::BigRat->new($_) };
+	
+	subtype "PositiveNum", as &Num & Range([0, 'Inf']);
+	subtype "PositiveInt", as &Int & Range([0, 'Inf']);
+	subtype "Nat", as &Int & Range([1, 'Inf']);
+
 };
 
 1;
@@ -519,8 +576,9 @@ Validator hierarchy:
 						StrDate
 						StrDateTime
 						StrMatch[regexp]
-						ClassName
-						RoleName
+						PackageName
+							ClassName
+							RoleName
 						Join[separator]
 						Split[separator]
 						StrRat
@@ -546,14 +604,14 @@ Validator hierarchy:
 					GlobRef
 						FileHandle
 					ArrayRef`[A]
+						Tuple[A...]
+						CycleTuple[A...]
 					HashRef`[A]
+						Map[A => B]
+						Dict[k => A, ...]
 					Object`[class]
 						Me
 						Rat
-					Map[A => B]
-					Tuple[A...]
-					CycleTuple[A...]
-					Dict[k => A, ...]
 					RegexpLike
 					CodeLike
 					ArrayLike`[A]
@@ -569,11 +627,11 @@ Validator hierarchy:
 					StrLike
 						Len[from, to?]
 					NumLike
-						Float
-						Double
 						Range[from, to]
-						Bytes[n]
-						PositiveBytes[n]
+							Float
+							Double
+							Bytes[n]
+							PositiveBytes[n]
 
 =head1 SUBROUTINES
 
@@ -604,6 +662,36 @@ C<where> and C<message> are syntactic sugar, and C<subtype> can be used without 
 =head2 as ($super_type)
 
 Used with C<subtype> to extend the created C<$super_type> type.
+
+C<as> can accept type expressions combined with set-theoretic operators. It also allows the parameters C<A>, C<B>, C<C>, C<D>, C<ARGS>, C<SELF>, C<M> and C<N>. C<M> and C<N> can be set in the C<init_where> section of the parameterized types included in C<as>.
+
+	BEGIN {
+		subtype 'Top[to]', as Range[0, A];
+	}
+	
+	+3.0 ~~ Top[3] # -> 1
+	+3.1 ~~ Top[3] # -> ""
+	+0.0 ~~ Top[3] # -> 1
+	-0.1 ~~ Top[3] # -> ""
+	
+	BEGIN {
+		subtype 'RedColor', as Enum['red'];
+		subtype 'BlueColor', as Enum['blue'];
+	}
+	BEGIN {
+		subtype 'RedBlue', as RedColor | BlueColor;
+	}
+	
+	'red'   ~~ RedBlue # -> 1
+	'blue'  ~~ RedBlue # -> 1
+	'green' ~~ RedBlue # -> ""
+	
+	BEGIN {
+		subtype 'RedBlueOther[colors...]', as ~RedBlue & Enum[ARGS];
+	}
+	
+	'red' ~~ RedBlueOther['red'] # -> ""
+	'green' ~~ RedBlueOther['red', 'green'] # -> 1
 
 =head2 init_where ($code)
 
@@ -1153,8 +1241,6 @@ A machine floating point number is 4 bytes.
 
 A machine floating point number is 8 bytes.
 
-	use Scalar::Util qw//;
-	
 	                      -4.8 ~~ Double # -> 1
 	'-1.7976931348623157e+308' ~~ Double # -> 1
 	'+1.7976931348623157e+308' ~~ Double # -> 1
@@ -1162,7 +1248,7 @@ A machine floating point number is 8 bytes.
 
 =head2 Range[from, to]
 
-Numbers between C<from> and C<to>.
+Numbers between C<from> and C<to> inclusive.
 
 	1 ~~ Range[1, 3]   # -> 1
 	2.5 ~~ Range[1, 3] # -> 1
@@ -1188,11 +1274,11 @@ Calculates the maximum and minimum numbers that will fit in C<N> bytes and check
 	128 ~~ Bytes[1]  # -> ""
 	
 	# 2 bits power of (8 bits * 8 bytes - 1)
-	my $N = 1 << (8*8-1);
-	(-$N-1) ~~ Bytes[8] # -> ""
-	(-$N) ~~ Bytes[8]   # -> 1
-	($N-1) ~~ Bytes[8]  # -> 1
-	$N ~~ Bytes[8]      # -> ""
+	my $N = 1 << (8*3-1);
+	(-$N-1) ~~ Bytes[3] # -> ""
+	(-$N) ~~ Bytes[3]   # -> 1
+	($N-1) ~~ Bytes[3]  # -> 1
+	$N ~~ Bytes[3]      # -> ""
 	
 	require Math::BigInt;
 	
@@ -1237,8 +1323,12 @@ Calculates the maximum number that will fit in C<N> bytes (assuming there is no 
 
 Integers 1+.
 
-	0 ~~ Nat	# -> ""
-	1 ~~ Nat	# -> 1
+	0 ~~ Nat # -> ""
+	1 ~~ Nat # -> 1
+	
+	Nat->instanceof(Range[1, 'Inf'])    # -> 1
+	Nat->instanceof(Range[2, 'Inf'])    # -> ""
+	Nat->instanceof(Range[-100, 'Inf']) # -> 1
 
 =head2 Ref
 
@@ -1337,8 +1427,8 @@ Format.
 	"left",   "middle", "right"
 	.
 	
-	*EXAMPLE_FMT{FORMAT} ~~ FormatRef   # -> 1
-	\1 ~~ FormatRef				# -> ""
+	*EXAMPLE_FMT{FORMAT} ~~ FormatRef # -> 1
+	\1 ~~ FormatRef	# -> ""
 
 =head2 CodeRef
 
@@ -1623,7 +1713,7 @@ An object or class with overloaded operators.
 	"A" ~~ Overload                          # -> ""
 	bless({}, "A") ~~ Overload               # -> ""
 
-And it has operators specified operators.
+And the specified operators are overloaded.
 
 	"OverloadExample" ~~ Overload['""'] # -> 1
 	"OverloadExample" ~~ Overload['|']  # -> ""
