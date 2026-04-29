@@ -2,10 +2,13 @@ package Aion::Type;
 # Базовый класс для типов и преобразователей
 use common::sense;
 use warnings FATAL => 'recursion';
+#use warnings 'recursion';
 
 use Aion::Meta::Util qw//;
 use List::Util qw//;
 use Scalar::Util qw//;
+
+sub true {1}
 
 BEGIN {
 	*Aion::Types::Union = sub {
@@ -67,10 +70,10 @@ $Aion::Type::SELF = __PACKAGE__->new(
 # * name (Str) — Имя типа.
 # * as (Object[Aion::Type]) — наследуемый тип.
 # * args (ArrayRef) — Список аргументов.
-# * init (CodeRef) — Инициализатор типа.
+# * init (ArrayRef[CodeRef]) — Инициализатор типа.
 # * test (CodeRef) — Чекер.
 # * a_test (CodeRef) — Используется для проверки типа с аргументами, если аргументы не указаны, то используется test.
-# * coerce (ArrayRef) — Массив преобразователей в этот тип: [Type => sub {}].
+# * coerce (ArrayRef) — Массив преобразователей в этот тип: [Type => sub {}]. Общий для экземплятов параметрического типа.
 # * subset (CodeRef) - Проверка на подмножество типа A типу B.
 # * message (CodeRef) — Сообщение об ошибке.
 # * title (Str) — Заголовок.
@@ -79,7 +82,7 @@ $Aion::Type::SELF = __PACKAGE__->new(
 sub new {
 	my $cls = shift;
 	my $self = bless {@_}, $cls;
-	$self->{coerce} = [] unless exists $self->{coerce};
+	$self->{test} = \&true unless $self->{test};
 	$self
 }
 
@@ -102,18 +105,38 @@ sub stringify {
 	join("", $self->{name}, @args? ("[", join(", ", @args), "]") : ());
 }
 
+# Строит кеш для вызова 
+sub _build_as_test_cache {
+	my ($self) = @_;
+	my @as;
+	for(my $i = $self->{as}; $i; $i = $i->{as}) {
+		unshift @as, $i if $i->{test} != \&true;
+	}
+	$self->{as_test_cache} = \@as;
+	$self
+}
+
 # Тестировать значение в $_
 sub test {
-	local ($Aion::Type::SELF) = @_;
-	my $ok = $Aion::Type::SELF->{test}->();
-	$ok
+	my ($self) = @_;
+	
+	local $Aion::Type::SELF;
+	for $Aion::Type::SELF (@{$self->{as_test_cache}}) {
+		return "" unless $Aion::Type::SELF->{test}();
+	}
+	
+	$Aion::Type::SELF = $self;
+	$self->{test}->();
 }
 
 # Инициализировать тип
 sub init {
 	my ($self) = @_;
 	local $Aion::Type::SELF = $self;
-	$self->{init}->();
+	$_->() for @{$self->{init}};
+	
+	$self->_build_as_test_cache unless $self->{as_test_cache};
+
 	$self
 }
 
@@ -172,54 +195,57 @@ sub is_set_theoretic {
 	$self->{name} ~~ $set_theoretic
 }
 
-# Определяет, что тип является подтипом другого типа
-sub instanceof {
-	my ($self, $other) = @_;
-	return "" unless UNIVERSAL::isa($other, __PACKAGE__);
+## Определяет, что тип является подтипом другого типа
+#sub instanceof {
+#	my ($self, $other) = @_;
+#	return "" unless UNIVERSAL::isa($other, __PACKAGE__);
 
-	my @S = [$self];
-	while(@S) {
-		my ($candidate, $excluded) = @{pop @S};
+#	my @S = [$self];
+#	while(@S) {
+#		my ($candidate, $excluded) = @{pop @S};
 
-		unless($excluded) {
-			return 1 if $candidate->identical($other);
+#		unless($excluded) {
+#			return 1 if $candidate->identical($other);
 			
-			if($candidate->{subset} && $candidate->{coerce} == $other->{coerce}) {
-				local ($Aion::Type::SELF, $_) = ($candidate, $other);
-				return 1 if $candidate->{subset}();
-				next;
-			}
-		}
+#			if($candidate->{subset} && $candidate->{coerce} == $other->{coerce}) {
+#				local ($Aion::Type::SELF, $_) = ($candidate, $other);
+#				return 1 if $candidate->{subset}();
+#				next;
+#			}
+#		}
 		
-		if($candidate->is_set_theoretic) {
-			push @S, map [$_], @{$candidate->{args}} if !$excluded && $candidate->{name} eq "Intersection";
-			push @S, map [$_, !$excluded], @{$candidate->{args}} if $candidate->{name} eq "Exclude";
-			push @S, map [$_, 1], @{$candidate->{args}} if $excluded && $candidate->{name} eq "Union";
-		} else {
-			push @S, [$candidate->{as}, $excluded] if $candidate->{as};
-		}
-	}
+#		if($candidate->is_set_theoretic) {
+#			push @S, map [$_], @{$candidate->{args}} if !$excluded && $candidate->{name} eq "Intersection";
+#			push @S, map [$_, !$excluded], @{$candidate->{args}} if $candidate->{name} eq "Exclude";
+#			push @S, map [$_, 1], @{$candidate->{args}} if $excluded && $candidate->{name} eq "Union";
+#		} else {
+#			push @S, [$candidate->{as}, $excluded] if $candidate->{as};
+#		}
+#	}
 
-	""
-}
+#	""
+#}
+
+# (Int & Tel)->instanceof(Int) -> 1; (Int | Tel)->instanceof(Int) -> ""; (~(~Int | Tel))->instanceof(Int) -> 1
+*instanceof = \&subset;
 
 # Тождество
+my $undefined = [];
 sub identical {
 	my ($self, $other) = @_;
 
 	return 1 if Scalar::Util::refaddr $self == Scalar::Util::refaddr $other;
 	return "" unless UNIVERSAL::isa($other, __PACKAGE__)	
 	 	&& $self->{coerce} == $other->{coerce}
-		&& @{$self->{args}} == @{$other->{args}}
-	 	&& $self->{as} eq $other->{as};
+		&& @{$self->{args}} == @{$other->{args}};
 
 	my $i = 0;
 	for my $arg (@{$self->{args}}) {
 		my $other_arg = $other->{args}[$i++];
-		return "" unless $arg eq $other_arg;
+		return "" unless ($arg // $undefined) eq ($other_arg // $undefined);
 	}
 	
-	$self->{N} eq $other->{N} and $self->{M} eq $other->{M}
+	($self->{N} // $undefined) eq ($other->{N} // $undefined) and ($self->{M} // $undefined) eq ($other->{M} // $undefined);
 }
 
 # Нетождественно
@@ -228,10 +254,138 @@ sub distinct {
 	!$self->identical($other);
 }
 
-# A <= ~B <=> A & B = None (Отсутствие пересечения: XOR)
-sub disjoint {
-	my ($self, $other) = @_;
-	!$self->instanceof($other) && !$other->instanceof($self);
+# Вспомогательная функция для удаления дубликатов
+sub _uniqt($) {
+	my ($simplify) = @_;
+	for my $intersection (@$simplify) {
+		my @res;
+		for my $item (@$intersection) {
+			push @res, $item unless List::Util::first { ref $item eq ref $_ && (ref $item eq "REF"? $$item->identical($$_): $item->identical($_)) } @res;
+		}
+		@$intersection = @res;
+    }
+    $simplify
+}
+
+# Упрощает выражение и переводит его в двухуровневую форму
+# A & B | ~(C & X) <=> [[A,B], [\C], [\X]]
+sub _simplify {
+    my ($self) = @_;
+
+    # 1. A | B
+    if ($self->{name} eq 'Union') {
+        return _uniqt [ map { @{$_->_simplify} } @{$self->{args}} ];
+    }
+
+    # 2. A & B
+    if ($self->{name} eq 'Intersection') {
+    	my @args = map $_->_simplify, @{$self->{args}};
+        # Перемножение всех комбинаций (дистрибутивность): (A|B) & (C|D) => AC|AD|BC|BD
+        my $result = List::Util::reduce {
+            [ map { my $comb = $_; map { [@$comb, @$_] } @$b } @$a ]
+        } [[]], @args;
+        return _uniqt $result;
+    }
+
+    # 3. ~((A & B) | (C & ~D)) <=> (~(A & B) & ~(C & ~D)) <=> (~A | ~B) & (~C | D) => \A\C|\AD|\B\C|\BD
+    if ($self->{name} eq 'Exclude') {
+        my $inner = $self->{args}[0]->_simplify;
+        
+        # Шаг 1: отрицаем каждый конъюнкт: [a,b] -> [~a, ~b]
+        my @negated = map [map { ref $_ eq 'REF' ? $$_ : \$_ } @$_], @$inner;
+        
+        return [map [$_], @{$negated[0]}] if @negated == 1;
+        
+        # Шаг 2: перемножаем все комбинации (декартово произведение) между разными ~конъюнктами
+        my $result = List::Util::reduce {
+            [ map { my $comb = $_; map { [@$comb, @$_] } @$b } @$a ]
+        } [[]], \@negated;
+        
+        return _uniqt $result;
+    }
+
+    # 4. A as B => A & B
+    if ($self->{as}) {
+        return [map [$self, @$_], @{$self->{as}->_simplify}];
+    }
+    
+    if ($self ne &Aion::Types::Any) {
+    	return [map [$self, @$_], @{&Aion::Types::Any->_simplify}];
+    }
+
+    # A => [[A]]
+    return [[ $self ]];
+}
+
+# Распознаёт пустые множества
+sub _not_empty {
+	my ($intersection) = @_;
+	my @negated = map $$_, grep ref $_ eq 'REF', @$intersection;
+	return 1 unless scalar @negated;
+	my @positived = grep ref $_ ne 'REF', @$intersection;
+	my $any = &Aion::Types::Any; 
+	for my $neg (@negated) {
+		return "" if $neg eq $any;
+		for my $pos (@positived) {
+			return "" if $neg eq $pos;
+		}
+	}
+	return 1;
+}
+
+# Упрощает выражение
+sub simplify {
+	my ($self) = @_;
+	
+	my $simplify = $self->_simplify;
+	use DDP; p my $x=["hi!", $simplify];
+	# A & ~A = ~Any, ~Any & A = ~Any, Any & ~Any = ~Any
+	# Отбрасываем пустые множества:
+	@$simplify = grep _not_empty($_), @$simplify;
+	
+	my $any = &Aion::Types::Any;
+	return ~$any unless scalar @$simplify;
+	
+	# Any | A = Any
+	return $any if List::Util::first { @$_ == 1 && $_->[0] eq $any } @$simplify;
+	
+	my @uni = map {
+		my @int = map { ref $_ eq 'REF'? ~$$_: $_ } @$_;
+		@int == 1? $int[0]: Aion::Types::Intersection(\@int);
+	} @$simplify;
+	
+	@uni == 1? $uni[0]: Aion::Types::Union(\@uni);
+}
+
+sub _disjoint {
+    my ($self, $other) = @_;
+
+    # 1. Тождественные типы пересекаются (не дизъюнктны)
+    return 0 if $self->identical($other);
+
+    # 2. Если один из них Union (A | B), то он дизъюнктен с X, 
+    # только если И A, И B дизъюнктны с X
+    if ($self->{name} eq 'Union') {
+        return $self->{args}[0]->_disjoint($other)
+            && $self->{args}[1]->_disjoint($other);
+    }
+    if ($other->{name} eq 'Union') {
+        return $other->{args}[0]->_disjoint($self)
+            && $other->{args}[1]->_disjoint($self);
+    }
+
+    # 3. Базовая логика для примитивов
+    # Если это разные встроенные типы, например Int и String
+    if ($self->{is_primitive} && $other->{is_primitive}) {
+        return 1 if $self->{name} ne $other->{name};
+    }
+
+    # 4. Если один наследует другой (через 'as'), они пересекаются
+    return 0 if $self->{as} && $self->{as}->equals($other);
+    return 0 if $other->{as} && $other->{as}->equals($self);
+
+    # По умолчанию считаем, что могут пересекаться (безопасный вариант)
+    return 0;
 }
 
 # A <= B = A eq B || A is_subtype B
@@ -240,42 +394,42 @@ sub subset {
 	
 	return 1 if $self->identical($other);
 
-	# 1. Если слева Union: (A | B) <= X <=> A <= X && B <= X
-	if($self->{name} eq 'Union') {
-		return List::Util::all { $_->subset($other) } @{$self->{args}};
-	}
-
-	# 2. Если слева Intersection: (A & B) <= X <=> A <= X || B <= X
-	if($self->{name} eq 'Intersection') {
-		return List::Util::any { $_->subset($other) } @{$self->{args}};
-	}
-
-	# 3. Если справа Union: A <= (B | C) <=> A <= B || A <= C
-	if($other->{name} eq 'Union') {
-		return List::Util::any { $self->subset($_) } @{$other->{args}};
-	}
-
-	# 4. Если справа Intersection: A <= (B & C) <=> A <= B && A <= C
-	if($other->{name} eq 'Intersection') {
-		return List::Util::all { $self->subset($_) } @{$other->{args}};
-	}
-	
-	# 5. Если справа Exclude (~X): A <= ~B <=> A и B не пересекаются
+	# 1. Если справа Exclude (~X): A <= ~B <=> A и B не пересекаются = None
 	if ($other->{name} eq 'Exclude') {
-	    return List::Util::all { $self->disjoint($_) } @{$other->{args}};
+		return $self->_disjoint($other->{args}[0]);
 	}
 
-	# 6. Если слева Exclude (~X): ~A <= B <=> A | B поглощают вселенную
+	# 2. Если слева Exclude (~X): ~A <= B <=> A | B поглощают вселенную = Any
 	if ($self->{name} eq 'Exclude') {
 	    return $other->{name} ~~ ['Any', 'Item'];
 	}
 	
+	# 3. Если слева Union: (A | B) <= X <=> A <= X && B <= X
+	if($self->{name} eq 'Union') {
+		return $self->{args}[0]->subset($other) && $self->{args}[1]->subset($other);
+	}
+
+	# 4. Если слева Intersection: (A & B) <= X <=> A <= X || B <= X
+	if($self->{name} eq 'Intersection') {
+		return $self->{args}[0]->subset($other) || $self->{args}[1]->subset($other);
+	}
+
+	# 5. Если справа Union: A <= (B | C) <=> A <= B || A <= C
+	if($other->{name} eq 'Union') {
+		return $self->subset($other->{args}[0]) || $self->subset($other->{args}[1]);
+	}
+
+	# 6. Если справа Intersection: A <= (B & C) <=> A <= B && A <= C
+	if($other->{name} eq 'Intersection') {
+		return $self->subset($other->{args}[0]) && $self->subset($other->{args}[1]);
+	}
+		
 	if($self->{subset} && $self->{coerce} == $other->{coerce}) {
 		local ($Aion::Type::SELF, $_) = ($self, $other);
 		return $self->{subset}();
 	}
 	
-	$self->{as}? $self->{as}->subset($other): ""
+	$self->{as}? $self->{as}->subset($other): "";
 }
 
 # A < B (Строгое включение: подтип, но не равен) = A <= B && !(B <= A)
@@ -345,8 +499,8 @@ sub example {
 sub make {
 	my ($self, $pkg) = @_;
 
-	die "init_where won't work in $self" if $self->{init};
-
+	$self->init;
+	
 	my $var = "\$$self->{name}";
 
 	my $code = "package $pkg {
@@ -364,7 +518,6 @@ sub make_arg {
 	my ($self, $pkg, $proto) = @_;
 
 	my $var = "\$$self->{name}";
-	my $init = $self->{init}? "->init": "";
 	$proto //= '$';
 
 	my $code = "package $pkg {
@@ -375,7 +528,7 @@ sub make_arg {
 		Aion::Type->new(
 			%$var,
 			args => \$_[0],
-		)$init
+		)->init
 	}
 }";
 	eval $code;
@@ -389,7 +542,6 @@ sub make_maybe_arg {
 	my ($self, $pkg) = @_;
 
 	my $var = "\$$self->{name}";
-	my $init = $self->{init}? "->init": "";
 
 	my $code = "package $pkg;
 
@@ -401,7 +553,7 @@ sub make_maybe_arg {
 			%$var,
 			args => \$_[0],
 			test => ${var}->{a_test},
-		)$init
+		)->init
 	}
 1";
 	eval $code or die;

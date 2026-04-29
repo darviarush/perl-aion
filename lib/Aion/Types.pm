@@ -58,7 +58,6 @@ sub _Isa {
 }
 
 BEGIN {
-my $TRUE = sub {1};
 my $INIT_ARGS = sub { @{&ARGS} = map External([$_]), &ARGS };
 my $INIT_KW_ARGS = sub { @{&ARGS} = List::Util::pairmap { $a => External([$b]) } &ARGS };
 
@@ -129,6 +128,8 @@ sub subtype(@) {
 		die "subtype $subtype: awhere is excess" if $awhere;
 	}
 
+	my @init = $init_where? $init_where: ();
+	
 	my $init_types = do { given($is_arg) {
 		$INIT_ARGS when /^[A-Z]\w*(,\s*[A-Z]\w*)?\.\.\.$/;
 		$INIT_KW_ARGS when /^[a-z]\w*\s*=>\s*[A-Z],?\s*\.\.\.$/;
@@ -142,49 +143,29 @@ sub subtype(@) {
 		}
 	}};
 	
-	if($init_types) {
-		$init_where = $init_where
-			? $COMBINE_SUBS->($init_types, $init_where)
-			: $init_types;
-	}
+	unshift @init, $init_types if $init_types;
 	
 	$as = External([$as]) if defined $as;
 	
-	if($as && $is_arg && $IS_PARAM->($as)) {
-		$init_where = $init_where
-			? $COMBINE_SUBS->($INIT_REPLACE_PARAM, $init_where)
-			: $INIT_REPLACE_PARAM;
-	}
-	
-	if($as && $as->{test} != $TRUE) {
-		my $as_test = sub { $Aion::Type::SELF->{as}->test };
-		if(!$where && !$awhere) {
-			$where = $as_test;
-		} else {
-			$where  = $COMBINE_WHERE->($as_test, $where)  if $where;
-			$awhere = $COMBINE_WHERE->($as_test, $awhere) if $awhere;
-		}
-	}
+	unshift @init, $INIT_REPLACE_PARAM if $as && $is_arg && $IS_PARAM->($as);
 
 	# Тут coerce - прототип - единый для всех порождаемых типов одного типа с разными аргументами
 	my $type = Aion::Type->new(
 		name => $name,
 		coerce => [], # prototype
 		$as? (as => $as): (),
-		$init_where? (init => $init_where): (),
+		@init? (init => \@init): (),
 		$message? (message => $message): (),
 		$subset? (subset => $subset): (),
+		$where? (test => $where): (),
+		$awhere? (a_test => $awhere): (),
 	);
 	
 	if($is_maybe_arg) {
-		$type->{test} = $where;
-		$type->{a_test} = $awhere;
 		$type->make_maybe_arg($pkg)
-	} elsif($is_arg || $init_where) {
-		$type->{test} = $where;
+	} elsif($is_arg || @init) {
 		$type->make_arg($pkg, $is_arg? '$': '')
 	} else {
-		$type->{test} = $where // $TRUE;
 		$type->make($pkg)
 	}
 }
@@ -248,12 +229,12 @@ undef *Union; undef *Intersection; undef *Exclude;
 
 subtype "Any";
 	subtype "Control", as &Any;
-		subtype "Union[A, B...]", as &Control,
-			where { my $val = $_; any { $_->include($val) } ARGS };
-		subtype "Intersection[A, B...]", as &Control,
-			where { my $val = $_; all { $_->include($val) } ARGS };
-		subtype "Exclude[A...]", as &Control,
-			where { my $val = $_; !any { $_->include($val) } ARGS };
+        subtype "Union[A, B...]", as &Control,
+            where { my $val = $_; any { $_->include($val) } ARGS };
+        subtype "Intersection[A, B...]", as &Control,
+            where { my $val = $_; all { $_->include($val) } ARGS };
+		subtype "Exclude[A]", as &Control,
+			where { !A->test };
 		subtype "Option[A]", as &Control,
 			init_where { SELF->{is_option} = 1 }
 			where { A->test };
@@ -518,17 +499,37 @@ Aion::Types - a library of standard validators and it is used to create new vali
 	
 	
 	BEGIN {
-		subtype IntOrArrayRef => as (Int | ArrayRef);
+		subtype 'IntOrArrayRef[len, B]',
+			as Int & Range[5, A]
+				| ArrayRef[B & Len[A]];
 	}
 	
-	[] ~~ IntOrArrayRef  # -> 1
-	35 ~~ IntOrArrayRef  # -> 1
-	"" ~~ IntOrArrayRef  # -> ""
+	35 ~~ IntOrArrayRef[35, Tel] # -> 1
+	35 ~~ IntOrArrayRef[34, Tel] # -> ""
+	
+	'+23456789'  ~~ Tel # -> 1
+	'+234567890' ~~ Tel # -> 1
+	'+23456789'  ~~ (Tel & Len[9]) # -> 1
+	'+234567890' ~~ (Tel & Len[9]) # -> ""
+	
+	use DDP; p my $x=["hi!", IntOrArrayRef[8, Tel]];
+	
+	['+23456789',  '+23456789'] ~~ IntOrArrayRef[9, Tel] # -> 1
+	['+234567890', '+23456789'] ~~ IntOrArrayRef[9, Tel] # -> ""
+	
+	"" ~~ IntOrArrayRef[8, Tel]  # -> ""
 	
 	
-	coerce IntOrArrayRef, from Num, via { int($_ + .5) };
+	coerce IntOrArrayRef[35, Str], from Num, via { int($_ + .5) };
 	
-	IntOrArrayRef->coerce(5.5) # => 6
+	IntOrArrayRef([35, Str])->coerce(5.5) # => 6
+	
+	5.5 >> IntOrArrayRef[35, Str] # => 6
+	
+	
+	IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Str] # -> 1
+	IntOrArrayRef[35, Tel] <= IntOrArrayRef[34, Str] # -> ""
+	IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Url] # -> ""
 
 =head1 DESCRIPTION
 
@@ -1044,6 +1045,7 @@ Specifies a length value from C<from> to C<to>, or from 0 to C<from> if C<to> is
 Perl version.
 
 	1.1.0 ~~ Version   # -> 1
+	1.1.0.5 ~~ Version # -> 1
 	v1.1.0 ~~ Version  # -> 1
 	v1.1 ~~ Version    # -> 1
 	v1 ~~ Version      # -> 1

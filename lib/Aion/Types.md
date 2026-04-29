@@ -20,17 +20,35 @@ SpeakOfKitty->validate("abc", "This") # @-> Speak is'nt included kitty!
 
 
 BEGIN {
-	subtype IntOrArrayRef => as (Int | ArrayRef);
+	subtype 'IntOrArrayRef[len, B]',
+		as Int & Range[5, A]
+			| ArrayRef[B & Len[A]];
 }
 
-[] ~~ IntOrArrayRef  # -> 1
-35 ~~ IntOrArrayRef  # -> 1
-"" ~~ IntOrArrayRef  # -> ""
+35 ~~ IntOrArrayRef[35, Tel] # -> 1
+35 ~~ IntOrArrayRef[34, Tel] # -> ""
+
+'+23456789'  ~~ Tel # -> 1
+'+234567890' ~~ Tel # -> 1
+'+23456789'  ~~ (Tel & Len[9]) # -> 1
+'+234567890' ~~ (Tel & Len[9]) # -> ""
+
+['+23456789',  '+23456789'] ~~ IntOrArrayRef[9, Tel] # -> 1
+['+234567890', '+23456789'] ~~ IntOrArrayRef[9, Tel] # -> ""
+
+"" ~~ IntOrArrayRef[8, Tel]  # -> ""
 
 
-coerce IntOrArrayRef, from Num, via { int($_ + .5) };
+coerce IntOrArrayRef[35, Str], from Num, via { int($_ + .5) };
 
-IntOrArrayRef->coerce(5.5) # => 6
+IntOrArrayRef([35, Str])->coerce(5.5) # => 6
+
+5.5 >> IntOrArrayRef[35, Str] # => 6
+
+
+IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Str] # -> 1
+IntOrArrayRef[35, Tel] <= IntOrArrayRef[34, Str] # -> ""
+IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Url] # -> ""
 ```
 
 # DESCRIPTION
@@ -594,6 +612,7 @@ Perl версии.
 
 ```perl
 1.1.0 ~~ Version   # -> 1
+1.1.0.5 ~~ Version # -> 1
 v1.1.0 ~~ Version  # -> 1
 v1.1 ~~ Version    # -> 1
 v1 ~~ Version      # -> 1

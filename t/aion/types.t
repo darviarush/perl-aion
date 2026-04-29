@@ -20,17 +20,37 @@ eval {SpeakOfKitty->validate("abc", "This")}; local ($::_g0 = $@, $::_e0 = 'Spea
 
 
 BEGIN {
-	subtype IntOrArrayRef => as (Int | ArrayRef);
+	subtype 'IntOrArrayRef[len, B]',
+		as Int & Range[5, A]
+			| ArrayRef[B & Len[A]];
 }
 
-local ($::_g0 = do {[] ~~ IntOrArrayRef}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '[] ~~ IntOrArrayRef  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {35 ~~ IntOrArrayRef}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '35 ~~ IntOrArrayRef  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {"" ~~ IntOrArrayRef}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '"" ~~ IntOrArrayRef  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {35 ~~ IntOrArrayRef[35, Tel]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '35 ~~ IntOrArrayRef[35, Tel] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {35 ~~ IntOrArrayRef[34, Tel]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '35 ~~ IntOrArrayRef[34, Tel] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+local ($::_g0 = do {'+23456789'  ~~ Tel}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+23456789\'  ~~ Tel # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {'+234567890' ~~ Tel}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+234567890\' ~~ Tel # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {'+23456789'  ~~ (Tel & Len[9])}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+23456789\'  ~~ (Tel & Len[9]) # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {'+234567890' ~~ (Tel & Len[9])}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+234567890\' ~~ (Tel & Len[9]) # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+use DDP; p my $x=["hi!", IntOrArrayRef[8, Tel]];
+
+local ($::_g0 = do {['+23456789',  '+23456789'] ~~ IntOrArrayRef[9, Tel]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '[\'+23456789\',  \'+23456789\'] ~~ IntOrArrayRef[9, Tel] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {['+234567890', '+23456789'] ~~ IntOrArrayRef[9, Tel]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '[\'+234567890\', \'+23456789\'] ~~ IntOrArrayRef[9, Tel] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+local ($::_g0 = do {"" ~~ IntOrArrayRef[8, Tel]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '"" ~~ IntOrArrayRef[8, Tel]  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 
-coerce IntOrArrayRef, from Num, via { int($_ + .5) };
+coerce IntOrArrayRef[35, Str], from Num, via { int($_ + .5) };
 
-local ($::_g0 = do {IntOrArrayRef->coerce(5.5)}, $::_e0 = "6"); ::ok $::_g0 eq $::_e0, 'IntOrArrayRef->coerce(5.5) # => 6' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {IntOrArrayRef([35, Str])->coerce(5.5)}, $::_e0 = "6"); ::ok $::_g0 eq $::_e0, 'IntOrArrayRef([35, Str])->coerce(5.5) # => 6' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+local ($::_g0 = do {5.5 >> IntOrArrayRef[35, Str]}, $::_e0 = "6"); ::ok $::_g0 eq $::_e0, '5.5 >> IntOrArrayRef[35, Str] # => 6' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+
+local ($::_g0 = do {IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Str]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Str] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {IntOrArrayRef[35, Tel] <= IntOrArrayRef[34, Str]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'IntOrArrayRef[35, Tel] <= IntOrArrayRef[34, Str] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Url]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Url] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
 # # DESCRIPTION
@@ -594,6 +614,7 @@ local ($::_g0 = do {"123" ~~ Len[1, 2]}, $::_e0 = do {""}); ::ok defined($::_g0)
 # 
 ::done_testing; }; subtest 'Version' => sub { 
 local ($::_g0 = do {1.1.0 ~~ Version}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '1.1.0 ~~ Version   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {1.1.0.5 ~~ Version}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '1.1.0.5 ~~ Version # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {v1.1.0 ~~ Version}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'v1.1.0 ~~ Version  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {v1.1 ~~ Version}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'v1.1 ~~ Version    # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {v1 ~~ Version}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'v1 ~~ Version      # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
