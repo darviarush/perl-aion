@@ -24,7 +24,7 @@ BEGIN {
 	*Aion::Types::Exclude = sub {
 		my ($type1) = @{$_[0]};
 		__PACKAGE__->new(name => "Exclude", args => [$type1], test => sub { !$type1->test });
-	} unless Aion::Types->can('Exclude');
+	} unless Aion::Types->can('Exclude');	
 }
 
 use overload
@@ -82,7 +82,8 @@ $Aion::Type::SELF = __PACKAGE__->new(
 sub new {
 	my $cls = shift;
 	my $self = bless {@_}, $cls;
-	$self->{test} = \&true unless $self->{test};
+	$self->{test} //= \&test;
+	$self->{coerce} //= [];
 	$self
 }
 
@@ -105,37 +106,47 @@ sub stringify {
 	join("", $self->{name}, @args? ("[", join(", ", @args), "]") : ());
 }
 
-# Строит кеш для вызова 
+# Строит кеш для вызова только для примитивного типа
 sub _build_as_test_cache {
 	my ($self) = @_;
 	my @as;
 	for(my $i = $self->{as}; $i; $i = $i->{as}) {
+		return "" if $i->is_set_theoretic;
 		unshift @as, $i if $i->{test} != \&true;
 	}
-	$self->{as_test_cache} = \@as;
-	$self
+	
+	\@as;
+}
+
+# Это - примитивный тип, то есть тот, в иерархии которого нет множественно-теоритических операторов
+sub is_primitive {
+	my ($self) = @_;
+	!!($self->{as_test_cache} //= $self->_build_as_test_cache);
 }
 
 # Тестировать значение в $_
 sub test {
 	my ($self) = @_;
 	
-	local $Aion::Type::SELF;
-	for $Aion::Type::SELF (@{$self->{as_test_cache}}) {
-		return "" unless $Aion::Type::SELF->{test}();
+	if($self->{as_test_cache} //= $self->_build_as_test_cache) {
+		local $Aion::Type::SELF;
+		for $Aion::Type::SELF (@{$self->{as_test_cache}}) {
+			return "" unless $Aion::Type::SELF->{test}->();
+		}
+	} else {
+		return "" if $self->{as} && !$self->{as}->test;
 	}
 	
-	$Aion::Type::SELF = $self;
+	local $Aion::Type::SELF = $self;
 	$self->{test}->();
 }
 
 # Инициализировать тип
 sub init {
 	my ($self) = @_;
+	
 	local $Aion::Type::SELF = $self;
 	$_->() for @{$self->{init}};
-	
-	$self->_build_as_test_cache unless $self->{as_test_cache};
 
 	$self
 }
@@ -269,17 +280,17 @@ sub _uniqt($) {
 
 # Упрощает выражение и переводит его в двухуровневую форму
 # A & B | ~(C & X) <=> [[A,B], [\C], [\X]]
-sub _simplify {
+sub _simplify2level {
     my ($self) = @_;
 
     # 1. A | B
     if ($self->{name} eq 'Union') {
-        return _uniqt [ map { @{$_->_simplify} } @{$self->{args}} ];
+        return _uniqt [ map { @{$_->_simplify2level} } @{$self->{args}} ];
     }
 
     # 2. A & B
     if ($self->{name} eq 'Intersection') {
-    	my @args = map $_->_simplify, @{$self->{args}};
+    	my @args = map $_->_simplify2level, @{$self->{args}};
         # Перемножение всех комбинаций (дистрибутивность): (A|B) & (C|D) => AC|AD|BC|BD
         my $result = List::Util::reduce {
             [ map { my $comb = $_; map { [@$comb, @$_] } @$b } @$a ]
@@ -289,7 +300,7 @@ sub _simplify {
 
     # 3. ~((A & B) | (C & ~D)) <=> (~(A & B) & ~(C & ~D)) <=> (~A | ~B) & (~C | D) => \A\C|\AD|\B\C|\BD
     if ($self->{name} eq 'Exclude') {
-        my $inner = $self->{args}[0]->_simplify;
+        my $inner = $self->{args}[0]->_simplify2level;
         
         # Шаг 1: отрицаем каждый конъюнкт: [a,b] -> [~a, ~b]
         my @negated = map [map { ref $_ eq 'REF' ? $$_ : \$_ } @$_], @$inner;
@@ -306,11 +317,11 @@ sub _simplify {
 
     # 4. A as B => A & B
     if ($self->{as}) {
-        return [map [$self, @$_], @{$self->{as}->_simplify}];
+        return [map [$self, @$_], @{$self->{as}->_simplify2level}];
     }
     
     if ($self ne &Aion::Types::Any) {
-    	return [map [$self, @$_], @{&Aion::Types::Any->_simplify}];
+    	return [map [$self, @$_], @{Aion::Types::Any()->_simplify2level}];
     }
 
     # A => [[A]]
@@ -333,15 +344,24 @@ sub _not_empty {
 	return 1;
 }
 
+# 
+sub _simplify {
+	my ($self) = @_;
+
+	my $simplify = $self->_simplify2level;
+	use DDP; p my $x=["hi!", $simplify];
+	# A & ~A = ~Any, ~Any & A = ~Any, Any & ~Any = ~Any
+	# Отбрасываем пустые множества:
+	@$simplify = grep _not_empty($_), @$simplify;
+	
+	$simplify
+}
+
 # Упрощает выражение
 sub simplify {
 	my ($self) = @_;
 	
 	my $simplify = $self->_simplify;
-	use DDP; p my $x=["hi!", $simplify];
-	# A & ~A = ~Any, ~Any & A = ~Any, Any & ~Any = ~Any
-	# Отбрасываем пустые множества:
-	@$simplify = grep _not_empty($_), @$simplify;
 	
 	my $any = &Aion::Types::Any;
 	return ~$any unless scalar @$simplify;
@@ -498,8 +518,6 @@ sub example {
 # Создаёт функцию для типа
 sub make {
 	my ($self, $pkg) = @_;
-
-	$self->init;
 	
 	my $var = "\$$self->{name}";
 
@@ -555,9 +573,9 @@ sub make_maybe_arg {
 			test => ${var}->{a_test},
 		)->init
 	}
-1";
+";
 	eval $code or die;
-
+	
 	$self
 }
 
@@ -674,9 +692,9 @@ Validator initializer.
 	my $Range = Aion::Type->new(
 		name => "Range",
 		args => [3, 5],
-		init => sub {
+		init => [sub {
 			@{$Aion::Type::SELF}{qw/min max/} = @{$Aion::Type::SELF->{args}};
-		},
+		}],
 		test => sub { $Aion::Type::SELF->{min} <= $_ && $_ <= $Aion::Type::SELF->{max} },
 	);
 	

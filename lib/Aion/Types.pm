@@ -155,10 +155,10 @@ sub subtype(@) {
 		coerce => [], # prototype
 		$as? (as => $as): (),
 		@init? (init => \@init): (),
-		$message? (message => $message): (),
-		$subset? (subset => $subset): (),
 		$where? (test => $where): (),
 		$awhere? (a_test => $awhere): (),
+		$message? (message => $message): (),
+		$subset? (subset => $subset): (),
 	);
 	
 	if($is_maybe_arg) {

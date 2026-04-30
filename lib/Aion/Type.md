@@ -107,9 +107,9 @@ $PositiveInt->test  # -> ""
 my $Range = Aion::Type->new(
 	name => "Range",
 	args => [3, 5],
-	init => sub {
+	init => [sub {
 		@{$Aion::Type::SELF}{qw/min max/} = @{$Aion::Type::SELF->{args}};
-	},
+	}],
 	test => sub { $Aion::Type::SELF->{min} <= $_ && $_ <= $Aion::Type::SELF->{max} },
 );
 
