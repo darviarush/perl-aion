@@ -211,6 +211,12 @@ msgstr "A machine floating point number is 8 bytes."
 msgid "Числа между `from` и `to` включительно."
 msgstr "Numbers between `from` and `to` inclusive."
 
+msgid "Открытая граница."
+msgstr "Open border."
+
+msgid "`Inf` и `-Inf` всегда закрыты:"
+msgstr "`Inf` and `-Inf` are always closed:"
+
 msgid "Целые числа."
 msgstr "Whole numbers."
 

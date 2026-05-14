@@ -7,6 +7,7 @@ use common::sense; use open qw/:std :utf8/;  use Carp qw//; use Cwd qw//; use Fi
 # 
 subtest 'SYNOPSIS' => sub { 
 use Aion::Type;
+use Aion::Types qw//;
 
 my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
 local ($::_g0 = do {12   ~~ $Int}, $::_e0 = "1"); ::ok $::_g0 eq $::_e0, '12   ~~ $Int # => 1' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
@@ -66,6 +67,15 @@ my $Int = Aion::Type->new(
 
 local ($::_g0 = do {$Int->stringify}, $::_e0 = "Int[3, 5]"); ::ok $::_g0 eq $::_e0, '$Int->stringify  #=> Int[3, 5]' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
+my $Monet = Aion::Type->new(
+	name => "Monet",
+	args => [8, 5],
+	M => 55,
+	N => 77,
+);
+
+local ($::_g0 = do {$Monet->stringify}, $::_e0 = "Monet[8, 5]{N=77, M=55}"); ::ok $::_g0 eq $::_e0, '$Monet->stringify  #=> Monet[8, 5]{N=77, M=55}' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
 # 
 # Операции так же преобразуются в строку:
 # 
@@ -78,7 +88,7 @@ local ($::_g0 = do {(~$Int)->stringify}, $::_e0 = "~Int[3, 5]"); ::ok $::_g0 eq 
 # Операции — это объекты `Aion::Type` со специальными именами:
 # 
 
-local ($::_g0 = do {Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify}, $::_e0 = "~( Int[3, 5] | Char )"); ::ok $::_g0 eq $::_e0, 'Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify   # => ~( Int[3, 5] | Char )' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Type->new(name => "Exclude", args => [$Char])->stringify}, $::_e0 = "~Char"); ::ok $::_g0 eq $::_e0, 'Aion::Type->new(name => "Exclude", args => [$Char])->stringify   # => ~Char' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify}, $::_e0 = "( Int[3, 5] | Char )"); ::ok $::_g0 eq $::_e0, 'Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify   # => ( Int[3, 5] | Char )' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify}, $::_e0 = "( Int[3, 5] & Char )"); ::ok $::_g0 eq $::_e0, 'Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify   # => ( Int[3, 5] & Char )' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
@@ -166,7 +176,7 @@ my $Bool = Aion::Type->new(name => "Bool", test => sub { /^(1|0|)\z/ });
 push @{$Int->{coerce}}, [$Bool, sub { 0+$_ }];
 push @{$Int->{coerce}}, [$Num, sub { int($_+.5) }];
 
-local ($::_g0 = do {$Int->coerce(5.5)}, $::_e0 = "6"); ::ok $::_g0 eq $::_e0, '$Int->coerce(5.5)	# => 6' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$Int->coerce(5.5)}, $::_e0 = "6"); ::ok $::_g0 eq $::_e0, '$Int->coerce(5.5)	 # => 6' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {$Int->coerce(undef)}, $::_e0 = "0"); ::ok $::_g0 eq $::_e0, '$Int->coerce(undef)  # => 0' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {$Int->coerce("abc")}, $::_e0 = "abc"); ::ok $::_g0 eq $::_e0, '$Int->coerce("abc")  # => abc' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
@@ -181,13 +191,11 @@ my $Int = Aion::Type->new(name => "Int");
 local ($::_g0 = do {$Int->detail(-5, "Feature car")}, $::_e0 = "Feature car must have the type Int. The it is -5!"); ::ok $::_g0 eq $::_e0, '$Int->detail(-5, "Feature car") # => Feature car must have the type Int. The it is -5!' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 my $Num = Aion::Type->new(name => "Num", message => sub {
-	"Error: $_ is'nt $Aion::Type::SELF->{N}!"
+	"Error: $_ is'nt $Aion::Type::SELF->{property}!"
 });
 
 local ($::_g0 = do {$Num->detail("x", "car")}, $::_e0 = "Error: x is'nt car!"); ::ok $::_g0 eq $::_e0, '$Num->detail("x", "car") # => Error: x is\'nt car!' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
-# 
-# `$Aion::Type::SELF->{N}` equivalent to `N` in context of `Aion::Types`.
 # 
 # ## validate ($element, $feature)
 # 
@@ -215,15 +223,20 @@ local ($::_g0 = do {Aion::Type->new->val_to_str([1,2,{x=>6}])}, $::_e0 = "[1, 2,
 # 
 # ## instanceof ($type)
 # 
-# Определяет, что тип является подтипом другого `$type`.
+# Определяет, что тип является подтипом другого `$type` по имени типа.
+# 
+# В `|` и `~` не заходит. Аргументы не проверяет.
 # 
 ::done_testing; }; subtest 'instanceof ($type)' => sub { 
 my $Int = Aion::Type->new(name => "Int");
 my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
 
-local ($::_g0 = do {$PositiveInt->instanceof($Int)}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$PositiveInt->instanceof($Int)          # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {$PositiveInt->instanceof($PositiveInt)}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$PositiveInt->instanceof($PositiveInt)  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {$Int->instanceof($PositiveInt)}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Int->instanceof($PositiveInt)          # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$PositiveInt->instanceof('Int');}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$PositiveInt->instanceof(\'Int\');          # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$PositiveInt->instanceof('PositiveInt');}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$PositiveInt->instanceof(\'PositiveInt\');  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$Int->instanceof('PositiveInt');}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Int->instanceof(\'PositiveInt\');          # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+my $MyEnum = Aion::Type->new(name => "MyEnum", args => [3, 5, 'car']);
+local ($::_g0 = do {($MyEnum & $PositiveInt)->instanceof('Int');}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '($MyEnum & $PositiveInt)->instanceof(\'Int\'); # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
 # ## is_set_theoretic
@@ -319,7 +332,7 @@ BEGIN {
 local ($::_g0 = do {"IX" ~~ Rim}, $::_e0 = "1"); ::ok $::_g0 eq $::_e0, '"IX" ~~ Rim	 # => 1' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
-# Свойство `init` не может использоваться с `make`.
+# Если указан `init` то при каждом использовании подпрограммы будет создаваться тип и инициализироваться.
 # 
 
 ::like scalar do {eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@}, qr{init_where won't work in Rim}, 'eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@ # ~> init_where won\'t work in Rim'; undef $::_g0; undef $::_e0;
@@ -353,7 +366,7 @@ local ($::_g0 = do {"IX" ~~ Len[2,2]}, $::_e0 = "1"); ::ok $::_g0 eq $::_e0, '"I
 # 
 # ## make_maybe_arg ($pkg)
 # 
-# Создает подпрограмму с аргументами, которая возвращает тип.
+# Создает подпрограмму с аргументами или без.
 # 
 ::done_testing; }; subtest 'make_maybe_arg ($pkg)' => sub { 
 BEGIN {
@@ -503,6 +516,26 @@ local ($::_g0 = do {$Int >> -4}, $::_e0 = do {1}); ::ok defined($::_g0) == defin
 # 
 # Типы тождественны.
 # 
+::done_testing; }; subtest 'eq' => sub { 
+my $Int1 = Aion::Type->new(name => "Int1");
+my $Int2 = Aion::Type->new(name => "Int2", coerce => $Int1->{coerce});
+
+local ($::_g0 = do {$Int1 eq $Int2;}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Int1 eq $Int2; # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+delete $Int1->{key};
+$Int1->{M} = 2;
+
+local ($::_g0 = do {$Int1 eq $Int2;}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Int1 eq $Int2; # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+my $Enum1 = Aion::Type->new(name => "Enum", args => ['red', 'green']);
+my $Enum2 = Aion::Type->new(name => "Enum", args => ['green', 'red'], coerce => $Enum1->{coerce});
+
+$Enum1->keyfn(\&Aion::Type::sorted_args_key);
+
+local ($::_g0 = do {$Enum1 eq $Enum2}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Enum1 eq $Enum2 # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$Enum1->key eq $Enum2->key}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Enum1->key eq $Enum2->key # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
 # ## ne
 # 
 # Типы различны.
@@ -512,25 +545,14 @@ local ($::_g0 = do {$Int >> -4}, $::_e0 = do {1}); ::ok defined($::_g0) == defin
 # Сравнивает два типа.
 # 
 ::done_testing; }; subtest '==' => sub { 
-my $Int1 = Aion::Type->new(name => "Int1");
-my $Int2 = Aion::Type->new(name => "Int2", coerce => $Int1->{coerce});
-
-local ($::_g0 = do {$Int1 == $Int2}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Int1 == $Int2 # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {$Int1 eq $Int2}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Int1 eq $Int2 # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-
 my $Enum1 = Aion::Type->new(
 	name => "Enum",
 	args => ['red', 'green'],
-	subset => sub {
-		my $other_args = $_->{args};
-		List::Util::all { $_ ~~ $other_args } @{$Aion::Type::SELF->{args}}
-	},
 );
 my $Enum2 = Aion::Type->new(
 	name => "Enum",
 	args => ['green', 'red'],
 	coerce => $Enum1->{coerce},
-	subset => $Enum1->{subset},
 );
 
 local ($::_g0 = do {$Enum1 eq $Enum2}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Enum1 eq $Enum2 # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;

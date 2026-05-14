@@ -33,8 +33,6 @@ local ($::_g0 = do {'+234567890' ~~ Tel}, $::_e0 = do {1}); ::ok defined($::_g0)
 local ($::_g0 = do {'+23456789'  ~~ (Tel & Len[9])}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+23456789\'  ~~ (Tel & Len[9]) # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {'+234567890' ~~ (Tel & Len[9])}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+234567890\' ~~ (Tel & Len[9]) # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
-use DDP; p my $x=["hi!", IntOrArrayRef[8, Tel]];
-
 local ($::_g0 = do {['+23456789',  '+23456789'] ~~ IntOrArrayRef[9, Tel]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '[\'+23456789\',  \'+23456789\'] ~~ IntOrArrayRef[9, Tel] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {['+234567890', '+23456789'] ~~ IntOrArrayRef[9, Tel]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '[\'+234567890\', \'+23456789\'] ~~ IntOrArrayRef[9, Tel] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
@@ -869,10 +867,27 @@ local ($::_g0 = do {'-1.7976931348623159e+308' ~~ Double}, $::_e0 = do {""}); ::
 # 
 ::done_testing; }; subtest 'Range[from, to]' => sub { 
 local ($::_g0 = do {1 ~~ Range[1, 3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '1 ~~ Range[1, 3]   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {1 ~~ Range[Opened[1], 3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '1 ~~ Range[Opened[1], 3] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {2.5 ~~ Range[1, 3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '2.5 ~~ Range[1, 3] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {3 ~~ Range[1, 3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '3 ~~ Range[1, 3]   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {3.1 ~~ Range[1, 3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '3.1 ~~ Range[1, 3] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {0.9 ~~ Range[1, 3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '0.9 ~~ Range[1, 3] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## Opened[num]
+# 
+# Открытая граница.
+# 
+::done_testing; }; subtest 'Opened[num]' => sub { 
+local ($::_g0 = do {1 ~~ Range[Opened[1], 3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '1 ~~ Range[Opened[1], 3] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {3 ~~ Range[1, Opened[3]]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '3 ~~ Range[1, Opened[3]] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# `Inf` и `-Inf` всегда закрыты:
+# 
+
+local ($::_g0 = do {Opened['+Inf']}, $::_e0 = "Closed['Inf']"); ::ok $::_g0 eq $::_e0, 'Opened[\'+Inf\'] # => Closed[\'Inf\']' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Opened['-Inf']}, $::_e0 = "Closed['-Inf']"); ::ok $::_g0 eq $::_e0, 'Opened[\'-Inf\'] # => Closed[\'-Inf\']' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
 # ## Int

@@ -867,10 +867,27 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 
 ```perl
 1 ~~ Range[1, 3]   # -> 1
+1 ~~ Range[Opened[1], 3] # -> ""
 2.5 ~~ Range[1, 3] # -> 1
 3 ~~ Range[1, 3]   # -> 1
 3.1 ~~ Range[1, 3] # -> ""
 0.9 ~~ Range[1, 3] # -> ""
+```
+
+## Opened[num]
+
+Открытая граница.
+
+```perl
+1 ~~ Range[Opened[1], 3] # -> ""
+3 ~~ Range[1, Opened[3]] # -> ""
+```
+
+`Inf` и `-Inf` всегда закрыты:
+
+```perl
+Opened['+Inf'] # => Closed['Inf']
+Opened['-Inf'] # => Closed['-Inf']
 ```
 
 ## Int

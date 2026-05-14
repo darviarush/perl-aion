@@ -7,6 +7,7 @@ Aion::Type - класс валидаторов
 
 ```perl
 use Aion::Type;
+use Aion::Types qw//;
 
 my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
 12   ~~ $Int # => 1
@@ -65,6 +66,15 @@ my $Int = Aion::Type->new(
 );
 
 $Int->stringify  #=> Int[3, 5]
+
+my $Monet = Aion::Type->new(
+	name => "Monet",
+	args => [8, 5],
+	M => 55,
+	N => 77,
+);
+
+$Monet->stringify  #=> Monet[8, 5]{N=77, M=55}
 ```
 
 Операции так же преобразуются в строку:
@@ -78,7 +88,7 @@ $Int->stringify  #=> Int[3, 5]
 Операции — это объекты `Aion::Type` со специальными именами:
 
 ```perl
-Aion::Type->new(name => "Exclude", args => [$Int, $Char])->stringify   # => ~( Int[3, 5] | Char )
+Aion::Type->new(name => "Exclude", args => [$Char])->stringify   # => ~Char
 Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify   # => ( Int[3, 5] | Char )
 Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify   # => ( Int[3, 5] & Char )
 ```
@@ -166,7 +176,7 @@ my $Bool = Aion::Type->new(name => "Bool", test => sub { /^(1|0|)\z/ });
 push @{$Int->{coerce}}, [$Bool, sub { 0+$_ }];
 push @{$Int->{coerce}}, [$Num, sub { int($_+.5) }];
 
-$Int->coerce(5.5)	# => 6
+$Int->coerce(5.5)	 # => 6
 $Int->coerce(undef)  # => 0
 $Int->coerce("abc")  # => abc
 ```
@@ -181,13 +191,11 @@ my $Int = Aion::Type->new(name => "Int");
 $Int->detail(-5, "Feature car") # => Feature car must have the type Int. The it is -5!
 
 my $Num = Aion::Type->new(name => "Num", message => sub {
-	"Error: $_ is'nt $Aion::Type::SELF->{N}!"
+	"Error: $_ is'nt $Aion::Type::SELF->{property}!"
 });
 
 $Num->detail("x", "car") # => Error: x is'nt car!
 ```
-
-`$Aion::Type::SELF->{N}` equivalent to `N` in context of `Aion::Types`.
 
 ## validate ($element, $feature)
 
@@ -215,15 +223,20 @@ Aion::Type->new->val_to_str([1,2,{x=>6}]) # => [1, 2, {x => 6}]
 
 ## instanceof ($type)
 
-Определяет, что тип является подтипом другого `$type`.
+Определяет, что тип является подтипом другого `$type` по имени типа.
+
+В `|` и `~` не заходит. Аргументы не проверяет.
 
 ```perl
 my $Int = Aion::Type->new(name => "Int");
 my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
 
-$PositiveInt->instanceof($Int)          # -> 1
-$PositiveInt->instanceof($PositiveInt)  # -> 1
-$Int->instanceof($PositiveInt)          # -> ""
+$PositiveInt->instanceof('Int');          # -> 1
+$PositiveInt->instanceof('PositiveInt');  # -> 1
+$Int->instanceof('PositiveInt');          # -> ""
+
+my $MyEnum = Aion::Type->new(name => "MyEnum", args => [3, 5, 'car']);
+($MyEnum & $PositiveInt)->instanceof('Int'); # -> 1
 ```
 
 ## is_set_theoretic
@@ -319,7 +332,7 @@ BEGIN {
 "IX" ~~ Rim	 # => 1
 ```
 
-Свойство `init` не может использоваться с `make`.
+Если указан `init` то при каждом использовании подпрограммы будет создаваться тип и инициализироваться.
 
 ```perl
 eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@ # ~> init_where won't work in Rim
@@ -353,7 +366,7 @@ eval { Aion::Type->new(name=>"Rim")->make_arg }; $@ # ~> syntax error
 
 ## make_maybe_arg ($pkg)
 
-Создает подпрограмму с аргументами, которая возвращает тип.
+Создает подпрограмму с аргументами или без.
 
 ```perl
 BEGIN {
@@ -503,6 +516,26 @@ $Int >> -4 # -> 1
 
 Типы тождественны.
 
+```perl
+my $Int1 = Aion::Type->new(name => "Int1");
+my $Int2 = Aion::Type->new(name => "Int2", coerce => $Int1->{coerce});
+
+$Int1 eq $Int2; # -> 1
+
+delete $Int1->{key};
+$Int1->{M} = 2;
+
+$Int1 eq $Int2; # -> ""
+
+my $Enum1 = Aion::Type->new(name => "Enum", args => ['red', 'green']);
+my $Enum2 = Aion::Type->new(name => "Enum", args => ['green', 'red'], coerce => $Enum1->{coerce});
+
+$Enum1->keyfn(\&Aion::Type::sorted_args_key);
+
+$Enum1 eq $Enum2 # -> 1
+$Enum1->key eq $Enum2->key # -> 1
+```
+
 ## ne
 
 Типы различны.
@@ -512,25 +545,14 @@ $Int >> -4 # -> 1
 Сравнивает два типа.
 
 ```perl
-my $Int1 = Aion::Type->new(name => "Int1");
-my $Int2 = Aion::Type->new(name => "Int2", coerce => $Int1->{coerce});
-
-$Int1 == $Int2 # -> 1
-$Int1 eq $Int2 # -> 1
-
 my $Enum1 = Aion::Type->new(
 	name => "Enum",
 	args => ['red', 'green'],
-	subset => sub {
-		my $other_args = $_->{args};
-		List::Util::all { $_ ~~ $other_args } @{$Aion::Type::SELF->{args}}
-	},
 );
 my $Enum2 = Aion::Type->new(
 	name => "Enum",
 	args => ['green', 'red'],
 	coerce => $Enum1->{coerce},
-	subset => $Enum1->{subset},
 );
 
 $Enum1 eq $Enum2 # -> ""

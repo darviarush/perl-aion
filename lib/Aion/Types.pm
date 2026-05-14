@@ -6,6 +6,7 @@ use warnings FATAL => 'recursion';
 
 use Aion::Meta::Util qw/subref_is_reachable/;
 use Aion::Type;
+use Aion::Type::Lim;
 use List::Util qw/all any first/;
 use Exporter qw/import/;
 require overload;
@@ -112,7 +113,7 @@ sub subtype(@) {
 	my $subtype = shift;
 	my %o = @_;
 	
-	my ($as, $init_where, $where, $awhere, $message, $subset) = delete @o{qw/as init_where where awhere message subset/};
+	my ($as, $init_where, $where, $awhere, $message) = delete @o{qw/as init_where where awhere message/};
 	
 	die "subtype $subtype unused keys left: " . join ", ", keys %o if keys %o;
 	
@@ -142,7 +143,7 @@ sub subtype(@) {
 			} })->(\@typeno);
 		}
 	}};
-	
+
 	unshift @init, $init_types if $init_types;
 	
 	$as = External([$as]) if defined $as;
@@ -153,12 +154,11 @@ sub subtype(@) {
 	my $type = Aion::Type->new(
 		name => $name,
 		coerce => [], # prototype
+		test => $where // \&Aion::Type::true,
 		$as? (as => $as): (),
 		@init? (init => \@init): (),
-		$where? (test => $where): (),
 		$awhere? (a_test => $awhere): (),
 		$message? (message => $message): (),
-		$subset? (subset => $subset): (),
 	);
 	
 	if($is_maybe_arg) {
@@ -176,7 +176,6 @@ sub init_where(&@) { (init_where => @_) }
 sub where(&@) { (where => @_) }
 sub awhere(&@) { (awhere => @_) }
 sub message(&@) { (message => @_) }
-sub subset(&@) { (subset => @_) }
 
 sub SELF() { $Aion::Type::SELF }
 sub ARGS() {
@@ -224,8 +223,6 @@ sub _8BITS() {
 }
 
 BEGIN {
-
-undef *Union; undef *Intersection; undef *Exclude;
 
 subtype "Any";
 	subtype "Control", as &Any;
@@ -397,9 +394,7 @@ subtype "Any";
 					where { blessed($_) ne "" }
 					awhere { blessed($_) && $_->isa(A) };
 					subtype "Me", as &Object,
-						init_where { M = caller(2) }
-						where { UNIVERSAL::isa($_, M) }
-						subset { $_->{M}->isa(M) };
+						init_where { SELF->{as} = Object([caller(2)]) };
 					subtype "Rat", as 'Math::BigRat';
 				subtype "RegexpLike", as &Ref,
 					where { reftype($_) eq "REGEXP" || !!overload::Method($_, 'qr') };
@@ -410,8 +405,7 @@ subtype "Any";
 					awhere { &ArrayLike->test && do { my $A = A; all { $A->test } @$_ }};
 					subtype "Lim[from, to?]", as &ArrayLike,
 						init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
-						where { A <= @$_ && @$_ <= B }
-						subset \&_subset_interval;
+						where { A <= @$_ && @$_ <= B };
 				subtype "HashLike`[A]", as &Ref,
 					where { reftype($_) eq "HASH" || !!overload::Method($_, "%{}") }
 					awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
@@ -419,8 +413,7 @@ subtype "Any";
 							where { my $x = $_; all { exists $x->{$_} } ARGS };
 						subtype "LimKeys[from, to?]", as &HashLike,
 							init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
-							where { A <= scalar keys %$_ && scalar keys %$_ <= B }
-							subset \&_subset_interval;
+							where { A <= scalar keys %$_ && scalar keys %$_ <= B };
 		
 			subtype "Like", as &Str | &Object;
 				subtype "HasMethods[m...]", as &Like,
@@ -433,13 +426,11 @@ subtype "Any";
 				subtype "StrLike", as &Like, where { !blessed($_) or !!overload::Method($_, '""') };
 					subtype "Len[from, to?]", as &StrLike,
 						init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
-						where { A <= length($_) && length($_) <= B }
-						subset \&_subset_interval;
+						where { A <= length($_) && length($_) <= B };
 	
 				subtype "NumLike", as &Like, where { looks_like_number($_) };
-					subtype "Range[from, to]", as &NumLike,
-						where { A <= $_ && $_ <= B }
-						subset \&_subset_interval;
+					sub Opened($) { Aion::Type::Lim->from(ref $_[0] eq "ARRAY"? $_[0][0]: $_[0])->opened(1) };
+					subtype "Range[from, to]", as &NumLike, where { A <= $_ && $_ <= B };
 						subtype "Float", as Range([-(POSIX::FLT_MAX), POSIX::FLT_MAX]);
 						subtype "Double", as Range([-(DBL_MAX), DBL_MAX]);
 						subtype "Bytes[n]", as Range([]),
@@ -472,6 +463,11 @@ subtype "Any";
 	subtype "Nat", as &Int & Range([1, 'Inf']);
 
 };
+
+$_->keyfn(\&Aion::Type::typed_sorted_args_key) for Union[], Intersection[], Enum[];
+(Enum[])->keyfn(\&Aion::Type::sorted_args_key);
+
+%Aion::Type::range_type = map { (Scalar::Util::refaddr $_->{coerce} => $_->{name} eq 'Range'? '-Inf': 0) } Range[], Lim[], LimKeys[], Len[];
 
 1;
 
@@ -511,8 +507,6 @@ Aion::Types - a library of standard validators and it is used to create new vali
 	'+234567890' ~~ Tel # -> 1
 	'+23456789'  ~~ (Tel & Len[9]) # -> 1
 	'+234567890' ~~ (Tel & Len[9]) # -> ""
-	
-	use DDP; p my $x=["hi!", IntOrArrayRef[8, Tel]];
 	
 	['+23456789',  '+23456789'] ~~ IntOrArrayRef[9, Tel] # -> 1
 	['+234567890', '+23456789'] ~~ IntOrArrayRef[9, Tel] # -> ""
@@ -1254,10 +1248,23 @@ A machine floating point number is 8 bytes.
 Numbers between C<from> and C<to> inclusive.
 
 	1 ~~ Range[1, 3]   # -> 1
+	1 ~~ Range[Opened[1], 3] # -> ""
 	2.5 ~~ Range[1, 3] # -> 1
 	3 ~~ Range[1, 3]   # -> 1
 	3.1 ~~ Range[1, 3] # -> ""
 	0.9 ~~ Range[1, 3] # -> ""
+
+=head2 Opened[num]
+
+Open border.
+
+	1 ~~ Range[Opened[1], 3] # -> ""
+	3 ~~ Range[1, Opened[3]] # -> ""
+
+C<Inf> and C<-Inf> are always closed:
+
+	Opened['+Inf'] # => Closed['Inf']
+	Opened['-Inf'] # => Closed['-Inf']
 
 =head2 Int
 
