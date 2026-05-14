@@ -4,7 +4,7 @@ package Aion::Types;
 use common::sense;
 use warnings FATAL => 'recursion';
 
-use Aion::Meta::Util qw/subref_is_reachable/;
+use Aion::Meta::Util qw/subref_is_reachable val_to_str/;
 use Aion::Type;
 use Aion::Type::Lim;
 use List::Util qw/all any first/;
@@ -15,7 +15,7 @@ use Scalar::Util qw/looks_like_number reftype refaddr blessed/;
 use Sub::Util qw//;
 
 our @EXPORT = our @EXPORT_OK = grep {
-	eval {*{$Aion::Types::{$_}}{CODE}}	&& !/^(_|(NaN|import|all|any|first|looks_like_number|reftype|refaddr|blessed|subref_is_reachable|DBL_MAX)\z)/n
+	eval {*{$Aion::Types::{$_}}{CODE}}	&& !/^(_|(NaN|import|all|any|first|looks_like_number|reftype|refaddr|blessed|subref_is_reachable|val_to_str|DBL_MAX)\z)/n
 } keys %Aion::Types::;
 
 # Обрабатываем атрибут :Isa
@@ -164,7 +164,7 @@ sub subtype(@) {
 	if($is_maybe_arg) {
 		$type->make_maybe_arg($pkg)
 	} elsif($is_arg || @init) {
-		$type->make_arg($pkg, $is_arg? '$': '')
+		$type->make_arg($pkg, $is_arg)
 	} else {
 		$type->make($pkg)
 	}
@@ -208,8 +208,6 @@ sub coerce(@) {
 sub from($) { (from => $_[0]) }
 sub via(&) { (via => $_[0]) }
 
-sub _subset_interval { $_->{args}[0] <= A && B <= $_->{args}[1] }
-
 use constant DBL_MAX => (POSIX::DBL_MAX+0) =~ /inf/i? do {
 	require Math::BigFloat;
 	Math::BigFloat->new(POSIX::DBL_MAX =~ /inf/i? '1.7976931348623157e+308': POSIX::DBL_MAX)
@@ -244,7 +242,7 @@ subtype "Any";
 			local $_ = $_[0][0];
 			UNIVERSAL::isa($_, 'Aion::Type')? $_:
 			defined($_) && ref $_ eq ""? Object([$_]): do {
-				CodeLike()->validate($_, "External type");
+				die "Not External[${\val_to_str($_)}]" unless reftype($_) eq "CODE" || overload::Method($_, '&{}');
 				Aion::Type->new(
 					name => 'External',
 					as => &Item,
@@ -261,9 +259,7 @@ subtype "Any";
 			return 1 if overload::Method($_, 'bool');
 			my $m = overload::Method($_, '0+');
 			Bool()->include($m ? $m->($_) : $_) };
-		subtype "Enum[e...]", as &Item,
-			where { $_ ~~ ARGS }
-			subset { my $other_args = $_->{args}; all { $_ ~~ $other_args } ARGS };
+		subtype "Enum[e...]", as &Item, where { $_ ~~ ARGS };
 		subtype "Undef", as &Item, where { !defined $_ };
 		subtype "Maybe[A]", as &Undef | A;
 		subtype "Defined", as &Item, where { defined $_ };
@@ -318,7 +314,7 @@ subtype "Any";
 					subtype "Isa[type...]", as &CodeRef,
 						init_where {
 						    my $pkg = caller(2);
-							SELF->{args} = [ map { External([UNIVERSAL::isa($_, 'Aion::Type')? $_: $pkg->can($_)? $pkg->can($_)->(): $_]) } ARGS ]
+							SELF->{args} = [ map { External([UNIVERSAL::isa($_, 'Aion::Type')? $_: $pkg->can($_)? $pkg->can($_)->(): $_]) } ARGS ];
 						}
 						where {
 							my $subroutine = $Aion::Isa{pack "J", refaddr $_} or return "";
@@ -467,7 +463,7 @@ subtype "Any";
 $_->keyfn(\&Aion::Type::typed_sorted_args_key) for Union[], Intersection[], Enum[];
 (Enum[])->keyfn(\&Aion::Type::sorted_args_key);
 
-%Aion::Type::range_type = map { (Scalar::Util::refaddr $_->{coerce} => $_->{name} eq 'Range'? '-Inf': 0) } Range[], Lim[], LimKeys[], Len[];
+%Aion::Type::range_lbound = map { (Scalar::Util::refaddr $_->{coerce} => $_->{name} eq 'Range'? '-Inf': 0) } Range[], Lim[], LimKeys[], Len[];
 
 1;
 
@@ -899,20 +895,14 @@ The intersection of several types. Similar to the C<$type1 & $type2> operator.
 
 	15 ~~ Intersection[Int, StrMatch[/5/]] # -> 1
 
-=head2 Exclude[A, B...]
+=head2 Exclude[A]
 
-Exclusion of several types. Similar to the C<~$type> operator.
+Type value exception. Similar to the C<~$type> operator.
 
 	-5  ~~ Exclude[PositiveInt] # -> 1
 	"a" ~~ Exclude[PositiveInt] # -> 1
 	5   ~~ Exclude[PositiveInt] # -> ""
 	5.5 ~~ Exclude[PositiveInt] # -> 1
-
-If C<Exclude> has many arguments, then it is analogous to C<~ ($type1 | $type2 ...)>.
-
-	-5  ~~ Exclude[PositiveInt, Enum[-2]] # -> 1
-	-2  ~~ Exclude[PositiveInt, Enum[-2]] # -> ""
-	0   ~~ Exclude[PositiveInt, Enum[-2]] # -> ""
 
 =head2 Option[A]
 
@@ -1248,23 +1238,42 @@ A machine floating point number is 8 bytes.
 Numbers between C<from> and C<to> inclusive.
 
 	1 ~~ Range[1, 3]   # -> 1
-	1 ~~ Range[Opened[1], 3] # -> ""
 	2.5 ~~ Range[1, 3] # -> 1
 	3 ~~ Range[1, 3]   # -> 1
 	3.1 ~~ Range[1, 3] # -> ""
 	0.9 ~~ Range[1, 3] # -> ""
+	
+	1 ~~ Range[Opened[1], 3] # -> ""
+	2 ~~ Range[Opened[1], 3] # -> 1
 
 =head2 Opened[num]
 
 Open border.
 
-	1 ~~ Range[Opened[1], 3] # -> ""
-	3 ~~ Range[1, Opened[3]] # -> ""
+	Opened[3] == 3 # -> ""
+	Opened[3] != 3 # -> 1
+	Opened[3] < 4  # -> 1
+	Opened[3] > 2  # -> 1
+	Opened[3] <= 4 # -> 1
+	Opened[3] >= 2 # -> 1
+	Opened[3] >= 3 # -> ""
+	Opened[3] <= 3 # -> ""
+	
+	[sort { $a <=> $b } 1, 2, Opened[3], 3, 4, 5] # --> [1, 2, Opened[3], 3, 4, 5]
+	
+	Opened[3] == Opened[3] # -> ""
+	Opened[3] != Opened[3] # -> 1
+	Opened[3] < Opened[4]  # -> 1
+	Opened[3] > Opened[2]  # -> 1
+	Opened[3] <= Opened[4] # -> 1
+	Opened[3] >= Opened[2] # -> 1
+	Opened[3] >= Opened[3] # -> ""
+	Opened[3] <= Opened[3] # -> ""
 
 C<Inf> and C<-Inf> are always closed:
 
-	Opened['+Inf'] # => Closed['Inf']
-	Opened['-Inf'] # => Closed['-Inf']
+	Opened['+Inf'] # => Closed[+Inf]
+	Opened['-Inf'] # => Closed[-Inf]
 
 =head2 Int
 
@@ -1336,9 +1345,12 @@ Integers 1+.
 	0 ~~ Nat # -> ""
 	1 ~~ Nat # -> 1
 	
-	Nat->instanceof(Range[1, 'Inf'])    # -> 1
-	Nat->instanceof(Range[2, 'Inf'])    # -> ""
-	Nat->instanceof(Range[-100, 'Inf']) # -> 1
+	Nat->instanceof('Range')  # -> 1
+	Nat->instanceof('Int')    # -> 1
+	
+	Nat <= Range[1, 'Inf']    # -> 1
+	Nat <= Range[2, 'Inf']    # -> ""
+	Nat <= Range[-100, 'Inf'] # -> 1
 
 =head2 Ref
 
@@ -1628,9 +1640,9 @@ Blessed links.
 Blessed references to objects of the current package.
 
 	package A1 {
-	 use Aion;
-	 bless({}, __PACKAGE__) ~~ Me  # -> 1
-	 bless({}, "A2") ~~ Me         # -> ""
+		use Aion;
+		bless({}, __PACKAGE__) ~~ Me  # -> 1
+		bless({}, "A2") ~~ Me         # -> ""
 	}
 
 =head2 Map[K, V]

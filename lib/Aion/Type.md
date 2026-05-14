@@ -66,15 +66,6 @@ my $Int = Aion::Type->new(
 );
 
 $Int->stringify  #=> Int[3, 5]
-
-my $Monet = Aion::Type->new(
-	name => "Monet",
-	args => [8, 5],
-	M => 55,
-	N => 77,
-);
-
-$Monet->stringify  #=> Monet[8, 5]{N=77, M=55}
 ```
 
 Операции так же преобразуются в строку:

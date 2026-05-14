@@ -80,7 +80,9 @@ sub new {
 # Клонировать тип
 sub clone {
 	my $self = shift;
-	bless { %$self, @_ }, ref $self
+	$self = bless { %$self, @_ }, ref $self;
+	delete @$self{qw/key as_test_cache/};
+	$self
 }
 
 # Инициализировать тип
@@ -101,9 +103,9 @@ sub stringify {
 
 	my @args = map Aion::Meta::Util::val_to_str($_), @{$self->{args}};
 
-	$self->{name} eq "Union"? join "", "( ", join(" | ", @args), " )":
-	$self->{name} eq "Intersection"? join "", "( ", join(" & ", @args), " )":
-	$self->{name} eq "Exclude"? "~$args[0]":
+	$self->is_union? join "", "( ", join(" | ", @args), " )":
+	$self->is_intersection? join "", "( ", join(" & ", @args), " )":
+	$self->is_exclude? "~$args[0]":
 	join("", $self->{name}, @args? ("[", join(", ", @args), "]") : ());
 }
 
@@ -235,7 +237,7 @@ sub key {
 					my $key = UNIVERSAL::isa($_, __PACKAGE__)? $_->key: "" . ($_ // $undefined);
 					join ":", length($key), $key 
 				} @{$self->{args}})
-				: ()
+				: ();
 	};
 }
 
@@ -259,9 +261,9 @@ sub instanceof {
 	while(@S) {
 		my $x = pop @S;
 		return 1 if $x->{name} eq $name;
-		return "" if $x->is_exclude || $x->is_union;
-		push @S, @{$x->{args}} if $x->is_intersection;
-		push @S, $x->{as} if $x->{as};
+		if($x->is_intersection) { push @S, @{$x->{args}} }
+		elsif($x->is_set_theoretic) {}
+		else { push @S, $x->{as} if $x->{as} }
 	}
 	
 	""
@@ -317,19 +319,20 @@ sub _pushing {
 		return _intersection(map { (~$_)->_pushing } @{$inner->{args}}) if $inner->is_union;
 		# ~(A & B) => ~A | ~B
 		return _union(map { (~$_)->_pushing } @{$inner->{args}}) if $inner->is_intersection;
-		# Range[A, B] => Range[-Inf, A] | Range[B, Inf]
+		# Range[A, B] => Range[-Inf, Invert[A]] | Range[Invert[B], Inf]
 		if($inner->is_range_type) {
 			my ($min, $max) = @{$inner->{args}};
 			if($inner->is_range) {
-				$min = Aion::Type::Lim->from($min)->invert;
-				$max = Aion::Type::Lim->from($max)->invert;
-				return Aion::Types::Range(['-Inf', $min]) | Aion::Types::Range([$max, 'Inf']);
+				return None if $min == '-Inf' && $max == 'Inf';
+				return Aion::Types::Range([Aion::Type::Lim->from($max)->invert, 'Inf']) if $min == '-Inf';
+				return Aion::Types::Range(['-Inf', Aion::Type::Lim->from($min)->invert]) if $max == 'Inf';
+		        return Aion::Types::Range(['-Inf', Aion::Type::Lim->from($min)->invert]) | Aion::Types::Range([Aion::Type::Lim->from($max)->invert, 'Inf']);
 			}
 			
-			return None if $min == 0 && $max == 'Inf';		
-			return Aion::Types::Range([$max+1, 'Inf']) if $min == 0;		
-			return Aion::Types::Range([0, $min-1]) if $max == 'Inf';		
-			return Aion::Types::Range([0, $min-1]) | Aion::Types::Range([$max+1, 'Inf']);
+			return None if $min == 0 && $max == 'Inf';	
+			return $inner->clone(args => [$max+1, 'Inf']) if $min == 0;		
+			return $inner->clone(args => [0, $min-1]) if $max == 'Inf';		
+			return $inner->clone(args => [0, $min-1]) | $inner->clone(args => [$max+1, 'Inf']);
 		}
 		return $self;
 	}
@@ -550,21 +553,25 @@ sub make {
 
 # Создаёт функцию для типа c аргументом
 sub make_arg {
-	my ($self, $pkg, $proto) = @_;
+	my ($self, $pkg, $is_arg) = @_;
 
-	my $var = "\$$self->{name}";
-	$proto //= '$';
+	my $hash = "%$self->{name}";
+	my $proto = $is_arg? '$': '';
 
-	my $code = "package $pkg {
-
-	my $var = \$self;
-
-	sub $self->{name} ($proto) {
-		Aion::Type->new(
-			%$var,
-			args => \$_[0],
-		)->init
+	if($is_arg) {
+		my $init = $self->{init}? '->init': '';
+		my $code = "package $pkg {
+		my $hash = %\$self;
+		sub $self->{name} (\$) { Aion::Type->new($hash, args => \$_[0])$init }
+	}";
+		eval $code;
+		die if $@;
+		return $self;
 	}
+	
+	my $code = "package $pkg {
+	my $hash = %\$self;
+	sub $self->{name} () { Aion::Type->new($hash)->init }
 }";
 	eval $code;
 	die if $@;
@@ -572,23 +579,27 @@ sub make_arg {
 	$self
 }
 
-# Создаёт функцию для типа c аргументом или без
+# Создаёт функцию для типа c аргументом или без.
+# init вызывается только для типа с аргументами. Без аргументов возвращается один и тот же тип
 sub make_maybe_arg {
 	my ($self, $pkg) = @_;
 
 	my $var = "\$$self->{name}";
+	my $hash = "%$self->{name}";
+	my $init = $self->{init}? '->init': '';
 
 	my $code = "package $pkg;
 
 	my $var = \$self;
+	my $hash = %\$self;
 
 	sub $self->{name} (;\$) {
 		\@_==0? $var:
 		Aion::Type->new(
-			%$var,
+			$hash,
 			args => \$_[0],
 			test => ${var}->{a_test},
-		)->init
+		)$init
 	}
 ";
 	eval $code or die;
@@ -676,15 +687,6 @@ String conversion of object (name with arguments):
 	);
 	
 	$Int->stringify  #=> Int[3, 5]
-	
-	my $Monet = Aion::Type->new(
-		name => "Monet",
-		args => [8, 5],
-		M => 55,
-		N => 77,
-	);
-	
-	$Monet->stringify  #=> Monet[8, 5]{N=77, M=55}
 
 Operations are also converted to a string:
 

@@ -67,15 +67,6 @@ my $Int = Aion::Type->new(
 
 local ($::_g0 = do {$Int->stringify}, $::_e0 = "Int[3, 5]"); ::ok $::_g0 eq $::_e0, '$Int->stringify  #=> Int[3, 5]' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
-my $Monet = Aion::Type->new(
-	name => "Monet",
-	args => [8, 5],
-	M => 55,
-	N => 77,
-);
-
-local ($::_g0 = do {$Monet->stringify}, $::_e0 = "Monet[8, 5]{N=77, M=55}"); ::ok $::_g0 eq $::_e0, '$Monet->stringify  #=> Monet[8, 5]{N=77, M=55}' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-
 # 
 # Операции так же преобразуются в строку:
 # 

@@ -5,7 +5,13 @@ use common::sense;
 
 use overload
 	"fallback" => 1,
-	"<=>" => "compare",
+	"==" => sub { my ($self, $other) = _up(@_); $self->{lim} == $other->{lim} && !$self->{excluded} && !$other->{excluded} },
+	"!=" => sub { my ($self, $other) = _up(@_); !($self == $other) },
+	"<" => sub { my ($self, $other) = _up(@_); $self->{lim} < $other->{lim} },
+	">" => sub { my ($self, $other) = _up(@_); $self->{lim} > $other->{lim} },
+	"<=" => sub { my ($self, $other) = _up(@_); $self->{excluded} || $other->{excluded}? $self->{lim} < $other->{lim}: $self->{lim} <= $other->{lim} },
+	">=" => sub { my ($self, $other) = _up(@_); $self->{excluded} || $other->{excluded}? $self->{lim} > $other->{lim}: $self->{lim} >= $other->{lim} },
+	"<=>" => sub { my ($self, $other) = _up(@_); $self->{lim} == $other->{lim}? $other->{exclude} <=> $self->{exclude}: $self->{lim} <=> $other->{lim} },
 	'""' => sub { my ($self) = @_; $self->{excluded}? "Opened[$self->{lim}]": "Closed[$self->{lim}]" },
 ;
 
@@ -16,19 +22,14 @@ sub from {
 	bless { lim => $lim }, $cls;
 }
 
-# Сравнивает две границы
-sub compare {
+# Преобразователь
+sub _up {
 	my ($self, $other, $right) = @_;
-
 	unless(UNIVERSAL::isa($other, __PACKAGE__)) {
 		$other = __PACKAGE__->from($other);
 		($other, $self) = ($self, $other) if $right;
 	}
-	
-	$self->{lim} == $other->{lim} && !$self->{excluded} && !$other->{excluded}? 0:
-	$self->{lim} < $other->{lim}
-	|| $self->{lim} == $other->{lim} && $self->{excluded} && !$other->{excluded}? -1:
-	1
+	return $self, $other;
 }
 
 sub lim { my ($self, $val) = @_; @_>1? do { $self->{lim} = $val; $self }: $self->{lim} }

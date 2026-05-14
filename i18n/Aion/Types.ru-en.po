@@ -91,11 +91,8 @@ msgstr "Union of several types. Similar to the `$type1 | $type2`."
 msgid "Пересечение нескольких типов. Аналогичен оператору `$type1 & $type2`."
 msgstr "The intersection of several types. Similar to the `$type1 & $type2` operator."
 
-msgid "Исключение нескольких типов. Аналогичен оператору `~ $type`."
-msgstr "Exclusion of several types. Similar to the `~$type` operator."
-
-msgid "Если `Exclude` имеет много аргументов, то это аналог `~ ($type1 | $type2 ...)`."
-msgstr "If `Exclude` has many arguments, then it is analogous to `~ ($type1 | $type2 ...)`."
+msgid "Исключение значения типа. Аналогичен оператору `~ $type`."
+msgstr "Type value exception. Similar to the `~$type` operator."
 
 msgid "Дополнительные ключи в `Dict`."
 msgstr "Additional keys in `Dict`."
