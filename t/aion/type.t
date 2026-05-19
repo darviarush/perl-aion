@@ -343,7 +343,7 @@ local ($::_g0 = do {"IX" ~~ Rim}, $::_e0 = "1"); ::ok $::_g0 eq $::_e0, '"IX" ~~
 BEGIN {
 	Aion::Type->new(name=>"Len", test => sub {
 		$Aion::Type::SELF->{args}[0] <= length($_) && length($_) <= $Aion::Type::SELF->{args}[1]
-	})->make_arg(__PACKAGE__);
+	})->make_arg(__PACKAGE__, 1);
 }
 
 local ($::_g0 = do {"IX" ~~ Len[2,2]}, $::_e0 = "1"); ::ok $::_g0 eq $::_e0, '"IX" ~~ Len[2,2] # => 1' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
@@ -533,34 +533,11 @@ local ($::_g0 = do {$Enum1->key eq $Enum2->key}, $::_e0 = do {1}); ::ok defined(
 # 
 # ## ==
 # 
-# Сравнивает два типа.
-# 
-::done_testing; }; subtest '==' => sub { 
-my $Enum1 = Aion::Type->new(
-	name => "Enum",
-	args => ['red', 'green'],
-);
-my $Enum2 = Aion::Type->new(
-	name => "Enum",
-	args => ['green', 'red'],
-	coerce => $Enum1->{coerce},
-);
-
-local ($::_g0 = do {$Enum1 eq $Enum2}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Enum1 eq $Enum2 # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {$Enum1 == $Enum2}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Enum1 == $Enum2 # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-
+# Сравнивает два типа. Синоним `eq`.
 # 
 # ## !=
 # 
-# Проверяет, что типы не равны.
-# 
-::done_testing; }; subtest '!=' => sub { 
-my $Int1 = Aion::Type->new(name => "Int");
-my $Int2 = Aion::Type->new(name => "Int");
-
-local ($::_g0 = do {$Int1 != $Int2}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Int1 != $Int2 # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {123   != $Int2}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '123   != $Int2 # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-
+# Проверяет, что типы не равны. Синоним `ne`.
 # 
 # ## <
 # 

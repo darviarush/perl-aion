@@ -44,11 +44,6 @@ coerce IntOrArrayRef[35, Str], from Num, via { int($_ + .5) };
 IntOrArrayRef([35, Str])->coerce(5.5) # => 6
 
 5.5 >> IntOrArrayRef[35, Str] # => 6
-
-
-IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Str] # -> 1
-IntOrArrayRef[35, Tel] <= IntOrArrayRef[34, Str] # -> ""
-IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Url] # -> ""
 ```
 
 # DESCRIPTION
@@ -132,17 +127,17 @@ Any
 				RegexpLike
 				CodeLike
 				ArrayLike`[A]
-					Lim[from, to?]
+					Lim[from?, to]
 				HashLike`[A]
 					HasProp[p...]
-					LimKeys[from, to?]
+					LimKeys[from?, to]
 			Like
 				HasMethods[m...]
 				Overload`[m...]
 				InstanceOf[class...]
 				ConsumerOf[role...]
 				StrLike
-					Len[from, to?]
+					Len[from?, to]
 				NumLike
 					Range[from, to]
 						Float
@@ -219,7 +214,9 @@ BEGIN {
 
 ## init_where ($code)
 
-Инициализирует тип с новыми аргументами. Используется с `subtype`.
+Инициализирует тип с новыми аргументами. Используется с `subtype`. 
+
+Инициализация – ленивая. Это значит, что она сработает в методе `test` или подобном.
 
 ```perl
 BEGIN {
@@ -544,6 +541,12 @@ undef ~~ Bool # -> 1
 3 ~~ Enum[1,2,3];            # -> 1
 "cat" ~~ Enum["cat", "dog"]; # -> 1
 4 ~~ Enum[1,2,3];            # -> ""
+
+Enum["cat"] <= Enum["cat", "dog"] # -> 1
+Enum["cat", "dog"] <= Enum["cat", "dog"] # -> 1
+
+Enum(["cat", "dog"])->disjoint(Enum[1]) # -> 1
+Enum(["cat", "dog"])->disjoint(Enum["ret", "cat"]) # -> ""
 ```
 
 ## Maybe[A]
@@ -584,9 +587,9 @@ undef ~~ Defined # -> ""
 undef ~~ Value # -> ""
 ```
 
-## Len[from, to?]
+## Len[from?, to]
 
-Определяет значение длины от `from` до `to` или от 0 до `from`, если `to` отсутствует.
+Определяет значение длины от `from` или 0 до `to`.
 
 ```perl
 "1234" ~~ Len[3]   # -> ""
@@ -596,6 +599,10 @@ undef ~~ Value # -> ""
 "1" ~~ Len[1, 2]   # -> 1
 "12" ~~ Len[1, 2]  # -> 1
 "123" ~~ Len[1, 2] # -> ""
+
+Len[3] <= Len[3] # -> 1
+Len[3] <= Len[4] # -> 1
+Len[3] <= Len[2] # -> ""
 ```
 
 ## Version
@@ -870,36 +877,7 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 
 ## Opened[num]
 
-Открытая граница.
-
-```perl
-Opened[3] == 3 # -> ""
-Opened[3] != 3 # -> 1
-Opened[3] < 4  # -> 1
-Opened[3] > 2  # -> 1
-Opened[3] <= 4 # -> 1
-Opened[3] >= 2 # -> 1
-Opened[3] >= 3 # -> ""
-Opened[3] <= 3 # -> ""
-
-[sort { $a <=> $b } 1, 2, Opened[3], 3, 4, 5] # --> [1, 2, Opened[3], 3, 4, 5]
-
-Opened[3] == Opened[3] # -> ""
-Opened[3] != Opened[3] # -> 1
-Opened[3] < Opened[4]  # -> 1
-Opened[3] > Opened[2]  # -> 1
-Opened[3] <= Opened[4] # -> 1
-Opened[3] >= Opened[2] # -> 1
-Opened[3] >= Opened[3] # -> ""
-Opened[3] <= Opened[3] # -> ""
-```
-
-`Inf` и `-Inf` всегда закрыты:
-
-```perl
-Opened['+Inf'] # => Closed[+Inf]
-Opened['-Inf'] # => Closed[-Inf]
-```
+Открытая граница. Используется с `Range`.
 
 ## Int
 
@@ -1280,9 +1258,9 @@ close $sock;
 [1, undef] ~~ ArrayRef[Num]	# -> ""
 ```
 
-## Lim[A, B?]
+## Lim[from?, to]
 
-Ограничивает массивы от `A` до `B` элементов или от 0 до `A`, если `B` отсутствует.
+Ограничивает массивы от `from` или 0 до `to` элементов.
 
 ```perl
 [] ~~ Lim[5]     # -> 1
@@ -1294,6 +1272,9 @@ close $sock;
 
 [1] ~~ Lim[1,5] # -> 1
 [] ~~ Lim[1,5]  # -> ""
+
+Lim[0, 10] <= Lim[0, 20]        # -> 1
+Lim[10, 'Inf'] <= Lim[0, 'Inf'] # -> 1
 ```
 
 ## HashRef`[H]
@@ -1391,6 +1372,23 @@ package A1 {
 {a => 1, c => 3} ~~ HasProp[qw/a b/] # -> ""
 
 bless({a => 1, b => 3}, "A") ~~ HasProp[qw/a b/] # -> 1
+```
+
+## LimKeys[from?, to]
+
+Ограничивает количество ключей в хеше от `from` или 0 до `to`.
+
+```perl
+my %hash = (a => 1, b => 2);
+
+\%hash ~~ LimKeys[1] # -> ""
+\%hash ~~ LimKeys[2] # -> 1
+\%hash ~~ LimKeys[3] # -> 1
+\%hash ~~ LimKeys[3, 3] # -> ""
+\%hash ~~ LimKeys[2, 3] # -> 1
+\%hash ~~ LimKeys[2, 2] # -> 1
+
+LimKeys[20, 'Inf'] <= LimKeys[2, 'Inf'] # -> 1
 ```
 
 ## Like

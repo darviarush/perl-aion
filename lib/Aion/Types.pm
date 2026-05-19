@@ -100,6 +100,7 @@ my $REPLACE_PARAM; $REPLACE_PARAM = sub {
 
 	$arg = bless {%$arg}, 'Aion::Type';
 	$arg->{args} = [map $REPLACE_PARAM->($_), @{$arg->{args}}];
+	$arg->init if $arg->{init};
 
 	$arg
 };
@@ -259,7 +260,9 @@ subtype "Any";
 			return 1 if overload::Method($_, 'bool');
 			my $m = overload::Method($_, '0+');
 			Bool()->include($m ? $m->($_) : $_) };
-		subtype "Enum[e...]", as &Item, where { $_ ~~ ARGS };
+		subtype "Enum[e...]", as &Item,
+			init_where { M = +{ map {($_ => $_)} ARGS } }
+			where { exists M->{$_} };
 		subtype "Undef", as &Item, where { !defined $_ };
 		subtype "Maybe[A]", as &Undef | A;
 		subtype "Defined", as &Item, where { defined $_ };
@@ -425,8 +428,13 @@ subtype "Any";
 						where { A <= length($_) && length($_) <= B };
 	
 				subtype "NumLike", as &Like, where { looks_like_number($_) };
-					sub Opened($) { Aion::Type::Lim->from(ref $_[0] eq "ARRAY"? $_[0][0]: $_[0])->opened(1) };
-					subtype "Range[from, to]", as &NumLike, where { A <= $_ && $_ <= B };
+					sub Opened($) { Aion::Type::Lim->from(ref $_[0] eq "ARRAY"? $_[0][0]: $_[0]) };
+					subtype "Range[from, to]", as &NumLike,
+						init_where {
+							SELF->{args}[0] = A->inc if UNIVERSAL::isa(A, 'Aion::Type::Lim');
+							SELF->{args}[1] = B->dec if UNIVERSAL::isa(B, 'Aion::Type::Lim');
+						}
+						where { A <= $_ && $_ <= B };
 						subtype "Float", as Range([-(POSIX::FLT_MAX), POSIX::FLT_MAX]);
 						subtype "Double", as Range([-(DBL_MAX), DBL_MAX]);
 						subtype "Bytes[n]", as Range([]),
@@ -515,11 +523,6 @@ Aion::Types - a library of standard validators and it is used to create new vali
 	IntOrArrayRef([35, Str])->coerce(5.5) # => 6
 	
 	5.5 >> IntOrArrayRef[35, Str] # => 6
-	
-	
-	IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Str] # -> 1
-	IntOrArrayRef[35, Tel] <= IntOrArrayRef[34, Str] # -> ""
-	IntOrArrayRef[35, Tel] <= IntOrArrayRef[70, Url] # -> ""
 
 =head1 DESCRIPTION
 
@@ -607,17 +610,17 @@ Validator hierarchy:
 					RegexpLike
 					CodeLike
 					ArrayLike`[A]
-						Lim[from, to?]
+						Lim[from?, to]
 					HashLike`[A]
 						HasProp[p...]
-						LimKeys[from, to?]
+						LimKeys[from?, to]
 				Like
 					HasMethods[m...]
 					Overload`[m...]
 					InstanceOf[class...]
 					ConsumerOf[role...]
 					StrLike
-						Len[from, to?]
+						Len[from?, to]
 					NumLike
 						Range[from, to]
 							Float
@@ -688,6 +691,8 @@ C<as> can accept type expressions combined with set-theoretic operators. It also
 =head2 init_where ($code)
 
 Initializes a type with new arguments. Used with C<subtype>.
+
+Initialization is lazy. This means that it will work in the C<test> method or similar.
 
 	BEGIN {
 		subtype 'LessThen[n]',
@@ -981,6 +986,12 @@ Enumeration.
 	3 ~~ Enum[1,2,3];            # -> 1
 	"cat" ~~ Enum["cat", "dog"]; # -> 1
 	4 ~~ Enum[1,2,3];            # -> ""
+	
+	Enum["cat"] <= Enum["cat", "dog"] # -> 1
+	Enum["cat", "dog"] <= Enum["cat", "dog"] # -> 1
+	
+	Enum(["cat", "dog"])->disjoint(Enum[1]) # -> 1
+	Enum(["cat", "dog"])->disjoint(Enum["ret", "cat"]) # -> ""
 
 =head2 Maybe[A]
 
@@ -1012,9 +1023,9 @@ Defined values without references.
 	\3 ~~ Value    # -> ""
 	undef ~~ Value # -> ""
 
-=head2 Len[from, to?]
+=head2 Len[from?, to]
 
-Specifies a length value from C<from> to C<to>, or from 0 to C<from> if C<to> is missing.
+Specifies a length value from C<from> or 0 to C<to>.
 
 	"1234" ~~ Len[3]   # -> ""
 	"123" ~~ Len[3]    # -> 1
@@ -1023,6 +1034,10 @@ Specifies a length value from C<from> to C<to>, or from 0 to C<from> if C<to> is
 	"1" ~~ Len[1, 2]   # -> 1
 	"12" ~~ Len[1, 2]  # -> 1
 	"123" ~~ Len[1, 2] # -> ""
+	
+	Len[3] <= Len[3] # -> 1
+	Len[3] <= Len[4] # -> 1
+	Len[3] <= Len[2] # -> ""
 
 =head2 Version
 
@@ -1248,32 +1263,7 @@ Numbers between C<from> and C<to> inclusive.
 
 =head2 Opened[num]
 
-Open border.
-
-	Opened[3] == 3 # -> ""
-	Opened[3] != 3 # -> 1
-	Opened[3] < 4  # -> 1
-	Opened[3] > 2  # -> 1
-	Opened[3] <= 4 # -> 1
-	Opened[3] >= 2 # -> 1
-	Opened[3] >= 3 # -> ""
-	Opened[3] <= 3 # -> ""
-	
-	[sort { $a <=> $b } 1, 2, Opened[3], 3, 4, 5] # --> [1, 2, Opened[3], 3, 4, 5]
-	
-	Opened[3] == Opened[3] # -> ""
-	Opened[3] != Opened[3] # -> 1
-	Opened[3] < Opened[4]  # -> 1
-	Opened[3] > Opened[2]  # -> 1
-	Opened[3] <= Opened[4] # -> 1
-	Opened[3] >= Opened[2] # -> 1
-	Opened[3] >= Opened[3] # -> ""
-	Opened[3] <= Opened[3] # -> ""
-
-C<Inf> and C<-Inf> are always closed:
-
-	Opened['+Inf'] # => Closed[+Inf]
-	Opened['-Inf'] # => Closed[-Inf]
+Open border. Used with C<Range>.
 
 =head2 Int
 
@@ -1600,9 +1590,9 @@ Array references.
 	[1, 1.1] ~~ ArrayRef[Num]	# -> 1
 	[1, undef] ~~ ArrayRef[Num]	# -> ""
 
-=head2 Lim[A, B?]
+=head2 Lim[from?, to]
 
-Limits arrays from C<A> to C<B> elements, or from 0 to C<A> if C<B> is missing.
+Limits arrays from C<from> or 0 to C<to> elements.
 
 	[] ~~ Lim[5]     # -> 1
 	[1..5] ~~ Lim[5] # -> 1
@@ -1613,6 +1603,9 @@ Limits arrays from C<A> to C<B> elements, or from 0 to C<A> if C<B> is missing.
 	
 	[1] ~~ Lim[1,5] # -> 1
 	[] ~~ Lim[1,5]  # -> ""
+	
+	Lim[0, 10] <= Lim[0, 20]        # -> 1
+	Lim[10, 'Inf'] <= Lim[0, 'Inf'] # -> 1
 
 =head2 HashRef`[H]
 
@@ -1694,6 +1687,21 @@ A hash has the following properties. In addition to them, he may have others.
 	{a => 1, c => 3} ~~ HasProp[qw/a b/] # -> ""
 	
 	bless({a => 1, b => 3}, "A") ~~ HasProp[qw/a b/] # -> 1
+
+=head2 LimKeys[from?, to]
+
+Limits the number of keys in the hash from C<from> or 0 to C<to>.
+
+	my %hash = (a => 1, b => 2);
+	
+	\%hash ~~ LimKeys[1] # -> ""
+	\%hash ~~ LimKeys[2] # -> 1
+	\%hash ~~ LimKeys[3] # -> 1
+	\%hash ~~ LimKeys[3, 3] # -> ""
+	\%hash ~~ LimKeys[2, 3] # -> 1
+	\%hash ~~ LimKeys[2, 2] # -> 1
+	
+	LimKeys[20, 'Inf'] <= LimKeys[2, 'Inf'] # -> 1
 
 =head2 Like
 

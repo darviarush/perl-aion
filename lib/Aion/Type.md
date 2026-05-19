@@ -303,13 +303,13 @@ $Int ne $PositiveInt         # -> 1
 
 Тип является строгим надмножеством другого.
 
-## equals ($other)
+## disjoint ($other)
 
-Тип равен другому.
+Тип не имеет пересечений с другим типом.
 
-## differs ($other)
+## intersects ($other)
 
-Тип отличается от другого (обратная операция к `equals`).
+Тип имеет пересечение или пересечения с другим типом.
 
 ## make ($pkg)
 
@@ -343,7 +343,7 @@ eval { Aion::Type->new(name=>"Rim")->make }; $@ # ~> syntax error
 BEGIN {
 	Aion::Type->new(name=>"Len", test => sub {
 		$Aion::Type::SELF->{args}[0] <= length($_) && length($_) <= $Aion::Type::SELF->{args}[1]
-	})->make_arg(__PACKAGE__);
+	})->make_arg(__PACKAGE__, 1);
 }
 
 "IX" ~~ Len[2,2] # => 1
@@ -533,34 +533,11 @@ $Enum1->key eq $Enum2->key # -> 1
 
 ## ==
 
-Сравнивает два типа.
-
-```perl
-my $Enum1 = Aion::Type->new(
-	name => "Enum",
-	args => ['red', 'green'],
-);
-my $Enum2 = Aion::Type->new(
-	name => "Enum",
-	args => ['green', 'red'],
-	coerce => $Enum1->{coerce},
-);
-
-$Enum1 eq $Enum2 # -> ""
-$Enum1 == $Enum2 # -> 1
-```
+Сравнивает два типа. Синоним `eq`.
 
 ## !=
 
-Проверяет, что типы не равны.
-
-```perl
-my $Int1 = Aion::Type->new(name => "Int");
-my $Int2 = Aion::Type->new(name => "Int");
-
-$Int1 != $Int2 # -> 1
-123   != $Int2 # -> 1
-```
+Проверяет, что типы не равны. Синоним `ne`.
 
 ## <
 

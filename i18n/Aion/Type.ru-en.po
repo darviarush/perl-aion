@@ -157,11 +157,11 @@ msgstr "The types are identical."
 msgid "Типы различны."
 msgstr "The types are different."
 
-msgid "Сравнивает два типа."
-msgstr "Compares two types."
+msgid "Сравнивает два типа. Синоним `eq`."
+msgstr "Compares two types. Synonym for `eq`."
 
-msgid "Проверяет, что типы не равны."
-msgstr "Checks that the types are not equal."
+msgid "Проверяет, что типы не равны. Синоним `ne`."
+msgstr "Checks that the types are not equal. Synonym for `ne`."
 
 msgid "A строгое подмножество B."
 msgstr "A is a strict subset of B."

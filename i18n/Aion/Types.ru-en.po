@@ -31,6 +31,9 @@ msgstr "`as` can accept type expressions combined with set-theoretic operators. 
 msgid "Инициализирует тип с новыми аргументами. Используется с `subtype`."
 msgstr "Initializes a type with new arguments. Used with `subtype`."
 
+msgid "Инициализация – ленивая. Это значит, что она сработает в методе `test` или подобном."
+msgstr "Initialization is lazy. This means that it will work in the `test` method or similar."
+
 msgid "Использует `$code` как тест. Значение для теста передаётся в `$_`."
 msgstr "Uses `$code` as a test. The value for the test is passed to `$_`."
 
@@ -130,8 +133,8 @@ msgstr "Everything except `undef`."
 msgid "Определённые значения без ссылок."
 msgstr "Defined values without references."
 
-msgid "Определяет значение длины от `from` до `to` или от 0 до `from`, если `to` отсутствует."
-msgstr "Specifies a length value from `from` to `to`, or from 0 to `from` if `to` is missing."
+msgid "Определяет значение длины от `from` или 0 до `to`."
+msgstr "Specifies a length value from `from` or 0 to `to`."
 
 msgid "Perl версии."
 msgstr "Perl version."
@@ -208,11 +211,8 @@ msgstr "A machine floating point number is 8 bytes."
 msgid "Числа между `from` и `to` включительно."
 msgstr "Numbers between `from` and `to` inclusive."
 
-msgid "Открытая граница."
-msgstr "Open border."
-
-msgid "`Inf` и `-Inf` всегда закрыты:"
-msgstr "`Inf` and `-Inf` are always closed:"
+msgid "Открытая граница. Используется с `Range`."
+msgstr "Open border. Used with `Range`."
 
 msgid "Целые числа."
 msgstr "Whole numbers."
@@ -292,8 +292,8 @@ msgstr "File descriptor."
 msgid "Ссылки на массивы."
 msgstr "Array references."
 
-msgid "Ограничивает массивы от `A` до `B` элементов или от 0 до `A`, если `B` отсутствует."
-msgstr "Limits arrays from `A` to `B` elements, or from 0 to `A` if `B` is missing."
+msgid "Ограничивает массивы от `from` или 0 до `to` элементов."
+msgstr "Limits arrays from `from` or 0 to `to` elements."
 
 msgid "Ссылки на хеши."
 msgstr "Links to hashes."
@@ -318,6 +318,9 @@ msgstr "Dictionary."
 
 msgid "Хэш имеет перечисленные свойства. Кроме них он может иметь и другие."
 msgstr "A hash has the following properties. In addition to them, he may have others."
+
+msgid "Ограничивает количество ключей в хеше от `from` или 0 до `to`."
+msgstr "Limits the number of keys in the hash from `from` or 0 to `to`."
 
 msgid "Объект или строка."
 msgstr "Object or string."
