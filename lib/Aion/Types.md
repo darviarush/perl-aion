@@ -44,6 +44,8 @@ coerce IntOrArrayRef[35, Str], from Num, via { int($_ + .5) };
 IntOrArrayRef([35, Str])->coerce(5.5) # => 6
 
 5.5 >> IntOrArrayRef[35, Str] # => 6
+
+(Tel & Len[9]) < (Tel & Len[10]) # => 1
 ```
 
 # DESCRIPTION

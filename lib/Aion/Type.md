@@ -303,6 +303,14 @@ $Int ne $PositiveInt         # -> 1
 
 Тип является строгим надмножеством другого.
 
+## equals ($other)
+
+Тип эквивалентен другому типу.
+
+## differs ($other)
+
+Тип не эквивалентен другому типу.
+
 ## disjoint ($other)
 
 Тип не имеет пересечений с другим типом.
@@ -533,11 +541,20 @@ $Enum1->key eq $Enum2->key # -> 1
 
 ## ==
 
-Сравнивает два типа. Синоним `eq`.
+Эквивалентность двух типов.
+
+```perl
+my $Enum1 = Aion::Type->new(name => "Enum", args => ['red', 'green']);
+my $Enum2 = Aion::Type->new(name => "Enum", args => ['green'], coerce => $Enum1->{coerce});
+my $Enum3 = Aion::Type->new(name => "Enum", args => ['red'], coerce => $Enum1->{coerce});
+
+$Enum1 == ($Enum2 | $Enum3) # -> 1
+$Enum1 eq ($Enum2 | $Enum3) # -> ""
+```
 
 ## !=
 
-Проверяет, что типы не равны. Синоним `ne`.
+Неэквивалентность двух типов. Операция противоположная эквивалентности.
 
 ## <
 

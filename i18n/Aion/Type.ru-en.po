@@ -88,11 +88,17 @@ msgstr "A type is a strict subset of another."
 msgid "Тип является строгим надмножеством другого."
 msgstr "A type is a strict superset of another."
 
-msgid "Тип равен другому."
-msgstr "Type is equal to another."
+msgid "Тип эквивалентен другому типу."
+msgstr "A type is equivalent to another type."
 
-msgid "Тип отличается от другого (обратная операция к `equals`)."
-msgstr "The type is different from another (the reverse operation to `equals`)."
+msgid "Тип не эквивалентен другому типу."
+msgstr "A type is not equivalent to another type."
+
+msgid "Тип не имеет пересечений с другим типом."
+msgstr "A type has no overlap with another type."
+
+msgid "Тип имеет пересечение или пересечения с другим типом."
+msgstr "A type has an intersection or intersections with another type."
 
 msgid "Создаёт подпрограмму без аргументов, которая возвращает тип."
 msgstr "Creates a subroutine with no arguments that returns a type."
@@ -157,11 +163,11 @@ msgstr "The types are identical."
 msgid "Типы различны."
 msgstr "The types are different."
 
-msgid "Сравнивает два типа. Синоним `eq`."
-msgstr "Compares two types. Synonym for `eq`."
+msgid "Эквивалентность двух типов."
+msgstr "Equivalence of two types."
 
-msgid "Проверяет, что типы не равны. Синоним `ne`."
-msgstr "Checks that the types are not equal. Synonym for `ne`."
+msgid "Неэквивалентность двух типов. Операция противоположная эквивалентности."
+msgstr "Non-equivalence of two types. The operation is the opposite of equivalence."
 
 msgid "A строгое подмножество B."
 msgstr "A is a strict subset of B."

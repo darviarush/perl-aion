@@ -523,6 +523,8 @@ Aion::Types - a library of standard validators and it is used to create new vali
 	IntOrArrayRef([35, Str])->coerce(5.5) # => 6
 	
 	5.5 >> IntOrArrayRef[35, Str] # => 6
+	
+	(Tel & Len[9]) < (Tel & Len[10]) # => 1
 
 =head1 DESCRIPTION
 

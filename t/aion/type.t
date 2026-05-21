@@ -305,11 +305,19 @@ local ($::_g0 = do {$Int ne $PositiveInt}, $::_e0 = do {1}); ::ok defined($::_g0
 # 
 # ## equals ($other)
 # 
-# Тип равен другому.
+# Тип эквивалентен другому типу.
 # 
 # ## differs ($other)
 # 
-# Тип отличается от другого (обратная операция к `equals`).
+# Тип не эквивалентен другому типу.
+# 
+# ## disjoint ($other)
+# 
+# Тип не имеет пересечений с другим типом.
+# 
+# ## intersects ($other)
+# 
+# Тип имеет пересечение или пересечения с другим типом.
 # 
 # ## make ($pkg)
 # 
@@ -533,11 +541,20 @@ local ($::_g0 = do {$Enum1->key eq $Enum2->key}, $::_e0 = do {1}); ::ok defined(
 # 
 # ## ==
 # 
-# Сравнивает два типа. Синоним `eq`.
+# Эквивалентность двух типов.
+# 
+::done_testing; }; subtest '==' => sub { 
+my $Enum1 = Aion::Type->new(name => "Enum", args => ['red', 'green']);
+my $Enum2 = Aion::Type->new(name => "Enum", args => ['green'], coerce => $Enum1->{coerce});
+my $Enum3 = Aion::Type->new(name => "Enum", args => ['red'], coerce => $Enum1->{coerce});
+
+local ($::_g0 = do {$Enum1 == ($Enum2 | $Enum3)}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Enum1 == ($Enum2 | $Enum3) # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$Enum1 eq ($Enum2 | $Enum3)}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$Enum1 eq ($Enum2 | $Enum3) # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
 # 
 # ## !=
 # 
-# Проверяет, что типы не равны. Синоним `ne`.
+# Неэквивалентность двух типов. Операция противоположная эквивалентности.
 # 
 # ## <
 # 

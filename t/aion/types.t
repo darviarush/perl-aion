@@ -45,6 +45,8 @@ local ($::_g0 = do {IntOrArrayRef([35, Str])->coerce(5.5)}, $::_e0 = "6"); ::ok 
 
 local ($::_g0 = do {5.5 >> IntOrArrayRef[35, Str]}, $::_e0 = "6"); ::ok $::_g0 eq $::_e0, '5.5 >> IntOrArrayRef[35, Str] # => 6' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
+local ($::_g0 = do {(Tel & Len[9]) < (Tel & Len[10])}, $::_e0 = "1"); ::ok $::_g0 eq $::_e0, '(Tel & Len[9]) < (Tel & Len[10]) # => 1' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
 # 
 # # DESCRIPTION
 # 

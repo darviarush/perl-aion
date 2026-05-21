@@ -30,8 +30,8 @@ use overload
 	"le" => sub {die "le do'nt used!"},
 	"ge" => sub {die "ge do'nt used!"},
 	"cmp" => sub {die "ge do'nt used!"},
-	"==" => "identical",
-	"!=" => "distinct",
+	"==" => "equals",
+	"!=" => "differs",
 	">=" => "superset",
 	"<=" => "subset",
 	">" => "superproper",
@@ -533,6 +533,18 @@ sub superproper {
 	$other->subproper($self);
 }
 
+# A == B (Эквивалентность типов: A является подтипом B И B является подтипом A) = A <= B && B <= A
+sub equals {
+	my ($self, $other) = @_;
+	$self eq $other || $self->subset($other) && $other->subset($self);
+}
+
+# A != B
+sub differs {
+	my ($self, $other) = @_;
+	!$self->equals($other);
+}
+
 # Пересекаются
 sub intersects {
 	my ($self, $other) = @_;
@@ -655,3 +667,550 @@ sub make_maybe_arg {
 
 
 1;
+
+__END__
+
+=encoding utf-8
+
+=head1 NAME
+
+Aion::Type - class of validators
+
+=head1 SYNOPSIS
+
+	use Aion::Type;
+	use Aion::Types qw//;
+	
+	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+	12   ~~ $Int # => 1
+	12.1 ~~ $Int # -> ""
+	
+	my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
+	$Char->include("a")	 # => 1
+	$Char->exclude("ab") # => 1
+	
+	my $IntOrChar = $Int | $Char;
+	77   ~~ $IntOrChar # => 1
+	"a"  ~~ $IntOrChar # => 1
+	"ab" ~~ $IntOrChar # -> ""
+	
+	my $Digit = $Int & $Char;
+	7  ~~ $Digit # => 1
+	77 ~~ $Digit # -> ""
+	
+	"a" ~~ ~$Int; # => 1
+	5   ~~ ~$Int; # -> ""
+	
+	eval { $Int->validate("a", "..Eval..") }; $@ # ~> ..Eval.. must have the type Int. The it is 'a'
+
+=head1 DESCRIPTION
+
+Spawns validators. Used in C<Aion::Types::subtype>.
+
+=head1 METHODS
+
+=head2 new (%ARGUMENTS)
+
+Constructor.
+
+=head3 ARGUMENTS
+
+=over
+
+=item * name (Str) — Type name.
+
+=item * args (ArrayRef) — List of type arguments.
+
+=item * init (CodeRef) — Type initializer.
+
+=item * test (CodeRef) - Checker.
+
+=item * a_test (CodeRef) — Value checker for types with optional arguments.
+
+=item * coerce (ArrayRef[Tuple[Aion::Type, CodeRef]]) - Array of pairs: type and transition.
+
+=back
+
+=head2 stringify
+
+String conversion of object (name with arguments):
+
+	my $Char = Aion::Type->new(name => "Char");
+	
+	$Char->stringify # => Char
+	
+	my $Int = Aion::Type->new(
+		name => "Int",
+		args => [3, 5],
+	);
+	
+	$Int->stringify  #=> Int[3, 5]
+
+Operations are also converted to a string:
+
+	($Int & $Char)->stringify   # => ( Int[3, 5] & Char )
+	($Int | $Char)->stringify   # => ( Int[3, 5] | Char )
+	(~$Int)->stringify		  # => ~Int[3, 5]
+
+Operations are C<Aion::Type> objects with special names:
+
+	Aion::Type->new(name => "Exclude", args => [$Char])->stringify   # => ~Char
+	Aion::Type->new(name => "Union", args => [$Int, $Char])->stringify   # => ( Int[3, 5] | Char )
+	Aion::Type->new(name => "Intersection", args => [$Int, $Char])->stringify   # => ( Int[3, 5] & Char )
+
+=head2 test
+
+Tests that C<$_> belongs to a class.
+
+	my $PositiveInt = Aion::Type->new(
+		name => "PositiveInt",
+		test => sub { /^\d+$/ },
+	);
+	
+	local $_ = 5;
+	$PositiveInt->test  # -> 1
+	local $_ = -6;
+	$PositiveInt->test  # -> ""
+
+=head2 init
+
+Validator initializer.
+
+	my $Range = Aion::Type->new(
+		name => "Range",
+		args => [3, 5],
+		init => [sub {
+			@{$Aion::Type::SELF}{qw/min max/} = @{$Aion::Type::SELF->{args}};
+		}],
+		test => sub { $Aion::Type::SELF->{min} <= $_ && $_ <= $Aion::Type::SELF->{max} },
+	);
+	
+	$Range->init;
+	
+	3 ~~ $Range  # -> 1
+	4 ~~ $Range  # -> 1
+	5 ~~ $Range  # -> 1
+	
+	2 ~~ $Range  # -> ""
+	6 ~~ $Range  # -> ""
+
+=head2 include ($element)
+
+Checks whether the argument belongs to the class.
+
+	my $PositiveInt = Aion::Type->new(
+		name => "PositiveInt",
+		test => sub { /^\d+$/ },
+	);
+	
+	$PositiveInt->include(5) # -> 1
+	$PositiveInt->include(-6) # -> ""
+
+=head2 exclude ($element)
+
+Checks that the argument does not belong to the class.
+
+	my $PositiveInt = Aion::Type->new(
+		name => "PositiveInt",
+		test => sub { /^\d+$/ },
+	);
+	
+	$PositiveInt->exclude(5)  # -> ""
+	$PositiveInt->exclude(-6) # -> 1
+
+=head2 coerce ($value)
+
+Cast C<$value> to type if the cast from type and function is in C<< $self-E<gt>{coerce} >>.
+
+Corresponds to the C<< E<gt>E<gt> >> operator.
+
+	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+\z/ });
+	my $Num = Aion::Type->new(name => "Num", test => sub { /^-?\d+(\.\d+)?\z/ });
+	my $Bool = Aion::Type->new(name => "Bool", test => sub { /^(1|0|)\z/ });
+	
+	push @{$Int->{coerce}}, [$Bool, sub { 0+$_ }];
+	push @{$Int->{coerce}}, [$Num, sub { int($_+.5) }];
+	
+	$Int->coerce(5.5)	 # => 6
+	$Int->coerce(undef)  # => 0
+	$Int->coerce("abc")  # => abc
+
+=head2 detail ($element, $feature)
+
+Generates an error message.
+
+	my $Int = Aion::Type->new(name => "Int");
+	
+	$Int->detail(-5, "Feature car") # => Feature car must have the type Int. The it is -5!
+	
+	my $Num = Aion::Type->new(name => "Num", message => sub {
+		"Error: $_ is'nt $Aion::Type::SELF->{property}!"
+	});
+	
+	$Num->detail("x", "car") # => Error: x is'nt car!
+
+=head2 validate ($element, $feature)
+
+Checks C<$element> and throws a C<detail> message if the element does not belong to the class.
+
+	my $PositiveInt = Aion::Type->new(
+		name => "PositiveInt",
+		test => sub { /^\d+$/ },
+	);
+	
+	eval {
+		$PositiveInt->validate(-1, "Neg")
+	};
+	$@ # ~> Neg must have the type PositiveInt. The it is -1
+
+=head2 val_to_str ($val)
+
+Converts C<$val> to a string.
+
+	Aion::Type->new->val_to_str([1,2,{x=>6}]) # => [1, 2, {x => 6}]
+
+=head2 instanceof ($type)
+
+Determines that a type is a subtype of another C<$type> by type name.
+
+Doesn't work in C<|> and C<~>. Doesn't check arguments.
+
+	my $Int = Aion::Type->new(name => "Int");
+	my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
+	
+	$PositiveInt->instanceof('Int');          # -> 1
+	$PositiveInt->instanceof('PositiveInt');  # -> 1
+	$Int->instanceof('PositiveInt');          # -> ""
+	
+	my $MyEnum = Aion::Type->new(name => "MyEnum", args => [3, 5, 'car']);
+	($MyEnum & $PositiveInt)->instanceof('Int'); # -> 1
+
+=head2 is_set_theoretic
+
+Checks that the type is set-theoretic (ie - the C<|>, C<&> or C<~> operator).
+
+=head2 identical ($type)
+
+Types are equal if they have the same prototype (C<coerce>), the same number of arguments, parent element, their arguments, and M and N are equal.
+
+	my $Int = Aion::Type->new(name => "Int");
+	my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
+	my $AnotherInt = Aion::Type->new(name => "Int", coerce => $Int->{coerce});
+	my $IntWithArgs = Aion::Type->new(name => "Int", args => [1, 2]);
+	my $AnotherIntWithArgs = Aion::Type->new(name => "Int", args => [1, 2], coerce => $IntWithArgs->{coerce});
+	my $IntWithDifferentArgs = Aion::Type->new(name => "Int", args => [3, 4]);
+	my $Str = Aion::Type->new(name => "Str");
+	
+	$Int->identical($Int)                        # -> 1
+	$Int->identical($AnotherInt)                 # -> 1
+	$IntWithArgs->identical($AnotherIntWithArgs) # -> 1
+	$PositiveInt->identical($PositiveInt)        # -> 1
+	
+	$Int->{coerce} == $Str->{coerce}               # -> ""
+	$Int->identical($Str)                          # -> ""
+	$Int->identical($IntWithArgs)                  # -> ""
+	$IntWithArgs->identical($IntWithDifferentArgs) # -> ""
+	$PositiveInt->identical($Int)                  # -> ""
+	
+	$Int->identical("not a type") # -> ""
+	
+	my $PositiveInt2 = Aion::Type->new(name => "PositiveInt", as => $Str);
+	$PositiveInt->identical($PositiveInt2) # -> ""
+	
+	$Int->identical($PositiveInt) # -> ""
+	$PositiveInt->identical($Int) # -> ""
+	
+	my $PositiveIntWithArgs = Aion::Type->new(name => "PositiveInt", as => $Int, args => [1]);
+	my $PositiveIntWithArgs2 = Aion::Type->new(name => "PositiveInt", as => $Int, args => [2]);
+	$PositiveIntWithArgs->identical($PositiveIntWithArgs2) # -> ""
+
+=head2 distinct ($type)
+
+Reverse operation to C<identical>.
+
+	my $Int = Aion::Type->new(name => "Int");
+	my $PositiveInt = Aion::Type->new(name => "PositiveInt", as => $Int);
+	
+	$Int->distinct($PositiveInt) # -> 1
+	$Int ne $PositiveInt         # -> 1
+
+=head2 disjoint ($other)
+
+A type does not overlap with another type.
+
+=head2 subset ($type)
+
+Specifies that it is a subset of the specified type.
+
+=head2 superset ($type)
+
+Specifies that it is a superset of the specified type.
+
+=head2 subproper ($other)
+
+A type is a strict subset of another.
+
+=head2 superproper ($other)
+
+A type is a strict superset of another.
+
+=head2 equals ($other)
+
+A type is equivalent to another type.
+
+=head2 differs ($other)
+
+A type is not equivalent to another type.
+
+=head2 disjoint ($other)
+
+A type has no overlap with another type.
+
+=head2 intersects ($other)
+
+A type has an intersection or intersections with another type.
+
+=head2 make ($pkg)
+
+Creates a subroutine with no arguments that returns a type.
+
+	BEGIN {
+		Aion::Type->new(name=>"Rim", test => sub { /^[IVXLCDM]+$/i })->make(__PACKAGE__);
+	}
+	
+	"IX" ~~ Rim	 # => 1
+
+If C<init> is specified, then each time the subroutine is used, a type will be created and initialized.
+
+	eval { Aion::Type->new(name=>"Rim", init => sub {...})->make(__PACKAGE__) }; $@ # ~> init_where won't work in Rim
+
+If the routine cannot be created, an exception is thrown.
+
+	eval { Aion::Type->new(name=>"Rim")->make }; $@ # ~> syntax error
+
+=head2 make_arg ($pkg)
+
+Creates a subroutine with arguments that returns a type.
+
+	BEGIN {
+		Aion::Type->new(name=>"Len", test => sub {
+			$Aion::Type::SELF->{args}[0] <= length($_) && length($_) <= $Aion::Type::SELF->{args}[1]
+		})->make_arg(__PACKAGE__, 1);
+	}
+	
+	"IX" ~~ Len[2,2] # => 1
+
+If the routine cannot be created, an exception is thrown.
+
+	eval { Aion::Type->new(name=>"Rim")->make_arg }; $@ # ~> syntax error
+
+=head2 make_maybe_arg ($pkg)
+
+Creates a subroutine with or without arguments.
+
+	BEGIN {
+		Aion::Type->new(
+			name => "Enum123",
+			test => sub { $_ ~~ [1,2,3] },
+			a_test => sub { $_ ~~ $Aion::Type::SELF->{args} },
+		)->make_maybe_arg(__PACKAGE__);
+	}
+	
+	3 ~~ Enum123        # -> 1
+	3 ~~ Enum123[4,5,6] # -> ""
+	5 ~~ Enum123[4,5,6] # -> 1
+
+If the routine cannot be created, an exception is thrown.
+
+	eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@ # ~> syntax error
+
+=head2 args ()
+
+List of arguments.
+
+=head2 name ()
+
+Type name.
+
+=head2 as ()
+
+Parent type.
+
+=head2 message (;&message)
+
+Message accessor. Uses C<&message> to generate an error message.
+
+=head2 title (;$title)
+
+Header accessor (used to create the B<swagger> schema).
+
+=head2 description (;$description)
+
+Description accessor (used to create a B<swagger> schema).
+
+=head2 example (;$example)
+
+Example accessor (used to create the B<swagger> schema).
+
+=head1 OPERATORS
+
+=head2 &{}
+
+Tests C<$_>.
+
+	my $PositiveInt = Aion::Type->new(
+		name => "PositiveInt",
+		test => sub { /^\d+$/ },
+	);
+	
+	local $_ = 10;
+	$PositiveInt->()	# -> 1
+	
+	$_ = -1;
+	$PositiveInt->()	# -> ""
+
+=head2 ""
+
+Strings an object.
+
+	Aion::Type->new(name => "Int") . ""   # => Int
+	
+	my $Enum = Aion::Type->new(name => "Enum", args => [qw/A B C/]);
+	
+	"$Enum" # => Enum['A', 'B', 'C']
+
+=head2 |
+
+Or. Creates a new type as a union of two.
+
+	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+	my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
+	
+	my $IntOrChar = $Int | $Char;
+	
+	77   ~~ $IntOrChar # -> 1
+	"a"  ~~ $IntOrChar # -> 1
+	"ab" ~~ $IntOrChar # -> ""
+
+=head2 &
+
+I. Creates a new type as the intersection of two.
+
+	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+	my $Char = Aion::Type->new(name => "Char", test => sub { /^.\z/ });
+	
+	my $Digit = $Int & $Char;
+	
+	7  ~~ $Digit # -> 1
+	77 ~~ $Digit # -> ""
+	"a" ~~ $Digit # -> ""
+
+=head2 ~
+
+Not. Creates a new type as an exception to the given one.
+
+	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+	
+	"a" ~~ ~$Int; # -> 1
+	5   ~~ ~$Int; # -> ""
+
+=head2 ~~
+
+Tests the value.
+
+	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+	
+	$Int ~~ 3    # -> 1
+	-6   ~~ $Int # -> 1
+
+=head2 >>
+
+Casting to type.
+
+	my $Int = Aion::Type->new(name => "Int", test => sub { /^-?\d+$/ });
+	$Int->{coerce} = [[$Int => sub { $_ + 5 }]];
+	
+	5 >> $Int # -> 10
+	
+	$Int >> -4 # -> 1
+
+=head2 eq
+
+The types are identical.
+
+	my $Int1 = Aion::Type->new(name => "Int1");
+	my $Int2 = Aion::Type->new(name => "Int2", coerce => $Int1->{coerce});
+	
+	$Int1 eq $Int2; # -> 1
+	
+	delete $Int1->{key};
+	$Int1->{M} = 2;
+	
+	$Int1 eq $Int2; # -> ""
+	
+	my $Enum1 = Aion::Type->new(name => "Enum", args => ['red', 'green']);
+	my $Enum2 = Aion::Type->new(name => "Enum", args => ['green', 'red'], coerce => $Enum1->{coerce});
+	
+	$Enum1->keyfn(\&Aion::Type::sorted_args_key);
+	
+	$Enum1 eq $Enum2 # -> 1
+	$Enum1->key eq $Enum2->key # -> 1
+
+=head2 ne
+
+The types are different.
+
+=head2 ==
+
+Equivalence of two types.
+
+	my $Enum1 = Aion::Type->new(name => "Enum", args => ['red', 'green']);
+	my $Enum2 = Aion::Type->new(name => "Enum", args => ['green'], coerce => $Enum1->{coerce});
+	my $Enum3 = Aion::Type->new(name => "Enum", args => ['red'], coerce => $Enum1->{coerce});
+	
+	$Enum1 == ($Enum2 | $Enum3) # -> 1
+	$Enum1 eq ($Enum2 | $Enum3) # -> ""
+
+=head2 !=
+
+Non-equivalence of two types. The operation is the opposite of equivalence.
+
+=head2 <
+
+A is a strict subset of B.
+
+	my $Num = Aion::Type->new(name => "Num");
+	my $Int = Aion::Type->new(name => "Int", as => $Num);
+	my $Str = Aion::Type->new(name => "Str");
+	
+	$Int < $Num # -> 1
+	$Int < ($Int | $Str) # -> 1
+	$Int < ($Num | $Str) # -> 1
+	
+	$Num < $Int # -> ""
+	$Int < $Int # -> ""
+	($Num | $Str) < $Int # -> ""
+
+=head2 >
+
+A is a strict superset of B.
+
+=head2 <=
+
+A is a subset of B.
+
+=head2 >=
+
+A is a superset of B.
+
+=head1 AUTHOR
+
+Yaroslav O. Kosmina L<mailto:dart@cpan.org>
+
+=head1 LICENSE
+
+⚖ B<GPLv3>
+
+=head1 COPYRIGHT
+
+The Aion::Type module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.
