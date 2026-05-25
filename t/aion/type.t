@@ -234,6 +234,39 @@ local ($::_g0 = do {($MyEnum & $PositiveInt)->instanceof('Int');}, $::_e0 = do {
 # 
 # Проверяет, что тип является множественно-теоритическим (т.е. – оператором `|`, `&` или `~`).
 # 
+# ## simplify
+# 
+# Упрощает сложное выражение типа, приводя его к дизъюнктивной нормальной форме (ДНФ) и выполняя слияние пересечений и объединений для диапазонов и перечислений.
+# 
+::done_testing; }; subtest 'simplify' => sub { 
+package Aion::Types;
+
+my $type = (Enum[1,2] | Enum[2,3]) & Enum[2,3,4];
+local ($::_g0 = do {$type->simplify;}, $::_e0 = "Enum[2,3]"); ::ok $::_g0 eq $::_e0, '$type->simplify; # => Enum[2,3]' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+my $range = (Range[1,5] | Range[6,10]) & Range[4,8];
+local ($::_g0 = do {$range->simplify;}, $::_e0 = "Range[4,5] | Range[6,8]"); ::ok $::_g0 eq $::_e0, '$range->simplify; # => Range[4,5] | Range[6,8]' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## Any
+# 
+# Константа для типа включающего все значения.
+# 
+::done_testing; }; subtest 'Any' => sub { 
+package Aion::Type;
+
+local ($::_g0 = do {Any->include(42)}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Any->include(42)   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {None->include(42)}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'None->include(42)  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+local ($::_g0 = do {Any->subset(Any)}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Any->subset(Any)   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {None->subset(Any)}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'None->subset(Any)  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Any->subset(None)}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Any->subset(None)  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## None
+# 
+# Константа для пустого типа, не включающего ничего.
+# 
 # ## identical ($type)
 # 
 # Типы равны, если они имеют одинаковый прототип (`coerce`), одинаковое количество аргументов, родительский элемент, их аргументы и M и N равны.

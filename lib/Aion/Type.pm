@@ -29,7 +29,7 @@ use overload
 	"gt" => sub {die "gt do'nt used!"},
 	"le" => sub {die "le do'nt used!"},
 	"ge" => sub {die "ge do'nt used!"},
-	"cmp" => sub {die "ge do'nt used!"},
+	"cmp" => sub {die "cmp do'nt used!"},
 	"==" => "equals",
 	"!=" => "differs",
 	">=" => "superset",
@@ -293,10 +293,60 @@ sub distinct {
 my $_any; my $_none;
 sub Any() { $_any //= &Aion::Types::Any }
 sub None() { $_none //= ~Any }
-sub hash(@) { map { ($_->key => $_) } @_ }
 
-# Упрощение выражений
-sub simplify { shift->_unfolding->_pushing->_distribute }
+# Превращает выражение в ДНФ
+sub simplify { shift->_unfolding->_pushing->_distribute->_simplify }
+
+# Упрощает выражение
+sub _simplify {
+	my ($self) = @_;
+	
+	use DDP; p my $x=["_simplify", $self];
+	
+	my @union = map { $_->is_intersection? $_->_folding: $_ } $self->is_union? @{$self->{args}}: $self;
+	
+	use DDP; p my $x=["union", \@union];
+	
+	return $union[0] if @union == 1;
+	
+	@union = List::Util::uniqnum grep { my $item = $_; !List::Util::any { $item->infra($_) } @union } @union;
+	
+	@union == 0? None:
+	@union == 1? $union[0]: Aion::Types::Union(\@union);
+}
+
+# Сворачивает пересечения в наследование
+sub _folding {
+	my ($self) = @_;
+	
+	return $self unless $self->is_intersection;
+	
+	my @intersection = @{$self->{args}};
+	@intersection = grep { my $item = $_; !List::Util::any { $_->infra($item) } @intersection } @intersection;
+	use DDP; p my $x=["intersection", \@intersection];
+
+	@intersection == 0? ():
+	@intersection == 1? $intersection[0]: Aion::Types::Intersection(\@intersection);
+}
+
+# Определяет, что тип $other есть в иерархии $self
+sub infra {
+    my ($self, $other) = @_;
+    $self->{ancestor} //= do {
+        my @queue = $self->{as}? $self->{as}: ();
+        my %ancestor;
+        while (@queue) {
+            my $node = shift @queue;
+            my $key = $node->key;
+            next if exists $ancestor{$key};
+            $ancestor{$key} = $node;
+            if ($node->is_intersection || $node->is_union) { push @queue, @{$node->{args}} }
+            elsif($node->{as} && !$node->is_set_theoretic) { push @queue, $node->{as} }
+        }
+        \%ancestor;
+    };
+    exists $self->{ancestor}->{$other->key}
+}
 
 # A as B as C <=> A & B & C
 sub _unfolding {
@@ -305,7 +355,7 @@ sub _unfolding {
 	my @u;
 	for(my $i=$self; $i; $i = $i->{as}) {
 		push(@u, $i->clone(args => [map $_->_unfolding, @{$i->{args}}])), last if $i->is_set_theoretic;
-		push @u, $i;
+		push @u, $i; # if $i->{test} != \&true;
 	}
 
 	Aion::Types::Intersection(\@u);
@@ -420,7 +470,7 @@ sub _union_enums($,$) {
 	my ($enums, $exclude_enums) = @_;
 	
 	my %enum = map {($_=>$_)} map @{$_->{args}}, @$enums;
-	return $enums->[0]->clone(args => [values %enum]) unless @$exclude_enums;
+	return $enums->[0]->clone(args => [sort values %enum]) unless @$exclude_enums;
 
 	my $first_exclude_enum = shift(@$exclude_enums);
 	my %exclude_enum = map {($_=>$_)} @{$first_exclude_enum->{args}};
@@ -433,7 +483,7 @@ sub _union_enums($,$) {
 
 	return Any unless keys %exclude_enum;
 
-	~$first_exclude_enum->clone(args => [values %exclude_enum]);
+	~$first_exclude_enum->clone(args => [sort values %exclude_enum]);
 }
 
 # Пересечение перечислений
@@ -441,7 +491,7 @@ sub _intersection_enums($,$) {
 	my ($enums, $exclude_enums) = @_;
 	
 	my %exclude_enum = map {($_=>$_)} map @{$_->{args}}, @$exclude_enums;
-	return ~$exclude_enums->[0]->clone(args => [values %exclude_enum]) unless @$enums;
+	return ~$exclude_enums->[0]->clone(args => [sort values %exclude_enum]) unless @$enums;
 	
 	my $first_enum = shift(@$enums);
 	my %enum = map {($_=>$_)} @{$first_enum->{args}};
@@ -455,7 +505,7 @@ sub _intersection_enums($,$) {
 
 	return None unless keys %enum;
 
-	$first_enum->clone(args => [values %enum]);
+	$first_enum->clone(args => [sort values %enum]);
 }
 
 # Обрабатывает пересечение границ диапазонов
@@ -476,7 +526,7 @@ sub _ranges_bag(@) {
 
 # Создание пересечения с приведением
 sub _intersection(@) {
-	my %x = hash _ranges_bag \&_intersection_ranges, \&_intersection_enums, map { $_->is_intersection? @{$_->{args}}: $_ } @_;
+	my %x = map {($_->key => $_)} _ranges_bag \&_intersection_ranges, \&_intersection_enums, map { $_->is_intersection? @{$_->{args}}: $_ } @_;
 	# ~Any & A = ~Any
 	return None if exists $x{None->key};
 	# Any & A = A
@@ -492,7 +542,7 @@ sub _intersection(@) {
 
 # Создание объединения с приведением
 sub _union(@) {
-	my %x = hash _ranges_bag \&_union_ranges, \&_union_enums, map { $_->is_union? @{$_->{args}}: $_ } @_;
+	my %x = map {($_->key => $_)} _ranges_bag \&_union_ranges, \&_union_enums, map { $_->is_union? @{$_->{args}}: $_ } @_;
 	# Any | A = Any
 	return Any if exists $x{Any->key};
 	# ~Any | A = A
@@ -888,6 +938,35 @@ Doesn't work in C<|> and C<~>. Doesn't check arguments.
 =head2 is_set_theoretic
 
 Checks that the type is set-theoretic (ie - the C<|>, C<&> or C<~> operator).
+
+=head2 simplify
+
+Simplify a complex type expression into disjunctive normal form (DNF) and perform intersection and union merging for ranges and enumerations.
+
+	package Aion::Types;
+	
+	my $type = (Enum[1,2] | Enum[2,3]) & Enum[2,3,4];
+	$type->simplify; # => Enum[2,3]
+	
+	my $range = (Range[1,5] | Range[6,10]) & Range[4,8];
+	$range->simplify; # => Range[4,5] | Range[6,8]
+
+=head2 Any
+
+A constant for a type that includes all values.
+
+	package Aion::Type;
+	
+	Any->include(42)   # -> 1
+	None->include(42)  # -> ""
+	
+	Any->subset(Any)   # -> 1
+	None->subset(Any)  # -> 1
+	Any->subset(None)  # -> ""
+
+=head2 None
+
+Constant for an empty type that does not contain anything.
 
 =head2 identical ($type)
 

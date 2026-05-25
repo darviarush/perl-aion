@@ -430,6 +430,8 @@ eval {half 5}; $@ # ~> Return of method `half` must have the type Int. The it is
 
 Тип верхнего уровня в иерархии. Сопоставляет всё.
 
+Нижний тип можно получить как `~Any`.
+
 ## Control
 
 Тип верхнего уровня в конструкторах иерархии создает новые типы из любых типов.
@@ -440,8 +442,8 @@ eval {half 5}; $@ # ~> Return of method `half` must have the type Int. The it is
 
 ```perl
 33  ~~ Union[Int, Ref] # -> 1
-[]  ~~ Union[Int, Ref]	# -> 1
-"a" ~~ Union[Int, Ref]	# -> ""
+[]  ~~ Union[Int, Ref] # -> 1
+"a" ~~ Union[Int, Ref] # -> ""
 ```
 
 ## Intersection[A, B...]
@@ -483,11 +485,11 @@ sub arr : Isa(PositiveInt => Wantarray[ArrayRef[PositiveInt], PositiveInt]) {
 	wantarray? 1 .. $n: $n
 }
 
-my @a = arr(3);
-my $s = arr(3);
+my @array = arr(3);
+my $scalar = arr(3);
 
-\@a # --> [1,2,3]
-$s  # -> 3
+\@array # --> [1,2,3]
+$scalar  # -> 3
 ```
 
 ## Item
@@ -549,6 +551,16 @@ Enum["cat", "dog"] <= Enum["cat", "dog"] # -> 1
 
 Enum(["cat", "dog"])->disjoint(Enum[1]) # -> 1
 Enum(["cat", "dog"])->disjoint(Enum["ret", "cat"]) # -> ""
+
+(Enum[1,2] & Enum[2,3])->simplify; # => Enum[2]
+(Enum[1,2] | Enum[2,3])->simplify; # => Enum[1,2,3]
+
+Enum[1,2] <= Enum[1,2,3]          # -> 1
+Enum[1,2] <= Enum[2,3]            # -> ""
+Enum[1,2] == Enum[2,1]            # -> 1
+Enum[1,2] < Enum[1,2,3]           # -> 1
+Enum[1,2,3] > Enum[1,2]           # -> 1
+Enum[1,2] == (Enum[1] | Enum[2])  # -> 1
 ```
 
 ## Maybe[A]
@@ -840,9 +852,56 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 -0 ~~ PositiveNum   # -> 1
 ```
 
+## Int
+
+Целые числа.
+
+```perl
+123 ~~ Int	# -> 1
+-12 ~~ Int	# -> 1
+5.5 ~~ Int	# -> ""
+```
+
+## Nat
+
+Целые числа 1+.
+
+```perl
+0 ~~ Nat # -> ""
+1 ~~ Nat # -> 1
+
+Nat->instanceof('Range')  # -> 1
+Nat->instanceof('Int')    # -> 1
+
+Nat <= Range[1, 'Inf']    # -> 1
+Nat <= Range[2, 'Inf']    # -> ""
+Nat <= Range[-100, 'Inf'] # -> 1
+```
+
+## PositiveInt
+
+Положительные целые числа.
+
+```perl
++0 ~~ PositiveInt # -> 1
+-0 ~~ PositiveInt # -> 1
+55 ~~ PositiveInt # -> 1
+-1 ~~ PositiveInt # -> ""
+
+Int <= Num           # -> 1
+PositiveInt <= Int   # -> 1
+Nat <= PositiveInt   # -> 1
+Int < Num            # -> 1
+Str <= Any           # -> 1
+None <= Any          # -> 1
+
+(Int & Str)->simplify # => Str
+(Int | Str)->simplify # => Int
+```
+
 ## Float
 
-Машинное число с плавающей запятой составляет 4 байта.
+Каноничное машинное число с плавающей запятой составляет 4 байта.
 
 ```perl
 -4.8 ~~ Float             # -> 1
@@ -853,7 +912,7 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 
 ## Double
 
-Машинное число с плавающей запятой составляет 8 байт.
+Каноничное машинное число с плавающей запятой составляет 8 байт.
 
 ```perl
                       -4.8 ~~ Double # -> 1
@@ -875,21 +934,28 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 
 1 ~~ Range[Opened[1], 3] # -> ""
 2 ~~ Range[Opened[1], 3] # -> 1
+
+Range[1,5] <= Range[1,10]         # -> 1
+Range[1,5] <= Range[2,6]          # -> ""
+Range[Opened[1],5] <= Range[1,5]  # -> 1
+Range[1,5] == Range[1,5]          # -> 1
+Range[1,5] < Range[1,10]          # -> 1
+
+(Range[1,5] & Range[3,7])->simplify # => Range[3, 5]
+(Range[1,5] | Range[3,7])->simplify # => Range[1, 7]
+
+my $r1 = Range[Opened[1], Opened[5]];
+my $r2 = Range[2,4];
+$r2 <= $r1;  # -> 1
+$r1 <= $r2;  # -> ""
+
+my $disjoint = Range[1,2] | Range[4,5];
+$disjoint->simplify # => ( Range[1, 2] | Range[4, 5] )
 ```
 
 ## Opened[num]
 
 Открытая граница. Используется с `Range`.
-
-## Int
-
-Целые числа.
-
-```perl
-123 ~~ Int	# -> 1
--12 ~~ Int	# -> 1
-5.5 ~~ Int	# -> ""
-```
 
 ## Bytes[N]
 
@@ -918,17 +984,6 @@ my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
 ($N17 . "") ~~ Bytes[17]      # -> ""
 ```
 
-## PositiveInt
-
-Положительные целые числа.
-
-```perl
-+0 ~~ PositiveInt # -> 1
--0 ~~ PositiveInt # -> 1
-55 ~~ PositiveInt # -> 1
--1 ~~ PositiveInt # -> ""
-```
-
 ## PositiveBytes[N]
 
 Рассчитывает максимальное число, которое поместится в `N` байт (полагая, что в байтах нет отрицательного бита) и проверяет ограничение от 0 до этого числа.
@@ -950,22 +1005,6 @@ $N8 . "" ~~ PositiveBytes[8]     # -> 1
 
 -1 ~~ PositiveBytes[17] # -> ""
 0 ~~ PositiveBytes[17]  # -> 1
-```
-
-## Nat
-
-Целые числа 1+.
-
-```perl
-0 ~~ Nat # -> ""
-1 ~~ Nat # -> 1
-
-Nat->instanceof('Range')  # -> 1
-Nat->instanceof('Int')    # -> 1
-
-Nat <= Range[1, 'Inf']    # -> 1
-Nat <= Range[2, 'Inf']    # -> ""
-Nat <= Range[-100, 'Inf'] # -> 1
 ```
 
 ## Ref
@@ -1277,6 +1316,14 @@ close $sock;
 
 Lim[0, 10] <= Lim[0, 20]        # -> 1
 Lim[10, 'Inf'] <= Lim[0, 'Inf'] # -> 1
+
+Lim[3] <= Lim[5]          # -> 1
+Lim[3] <= Lim[2]          # -> ""
+Lim[2,5] < Lim[1,6]       # -> 1
+Lim[2,5] == Lim[2,5]      # -> 1
+
+(Lim[2,5] & Lim[4,7])->simplify # => Lim[4, 5]
+(Lim[2,5] | Lim[4,7])->simplify # => Lim[2, 7]
 ```
 
 ## HashRef`[H]
@@ -1391,6 +1438,12 @@ my %hash = (a => 1, b => 2);
 \%hash ~~ LimKeys[2, 2] # -> 1
 
 LimKeys[20, 'Inf'] <= LimKeys[2, 'Inf'] # -> 1
+
+LimKeys[3] <= LimKeys[5]    # -> 1
+LimKeys[2,5] < LimKeys[1,6] # -> 1
+
+(LimKeys[2,5] & LimKeys[4,7])->simplify # => LimKeys[4, 5]
+(LimKeys[2,5] | LimKeys[4,7])->simplify # => LimKeys[2, 7]
 ```
 
 ## Like
