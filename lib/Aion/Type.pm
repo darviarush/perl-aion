@@ -29,14 +29,14 @@ use overload
 	"gt" => sub {die "gt do'nt used!"},
 	"le" => sub {die "le do'nt used!"},
 	"ge" => sub {die "ge do'nt used!"},
-	"cmp" => sub {die "cmp do'nt used!"},
+	"cmp" => "compare",
+	"<=>" => "compare",
 	"==" => "equals",
 	"!=" => "differs",
 	">=" => "superset",
 	"<=" => "subset",
 	">" => "superproper",
 	"<" => "subproper",
-	"<=>" => sub { my $le; ($le = $a->subset($b)) && $b->subset($a)? 0: $le? -1: 1 },
 ;
 
 Aion::Meta::Util::create_getters(qw/name args as/);
@@ -88,7 +88,7 @@ sub clone {
 # Инициализировать тип
 sub init {
 	my ($self) = @_;
-
+	
 	# Есть параметрические типы – не инициализируем
 	return $self if $self->{args} && List::Util::first { UNIVERSAL::isa($_, __PACKAGE__) && exists $_->{is_param} } @{$self->{args}};
 
@@ -252,8 +252,20 @@ sub keyfn {
 		$keyfn{Scalar::Util::refaddr $self->{coerce}} = $fn;
 		$self
 	} else {
-		$keyfn{Scalar::Util::refaddr $self->{coerce}}
+		$keyfn{Scalar::Util::refaddr $self->{coerce}};
 	}
+}
+
+# Ключ для сравнения типов в <=> и cmp
+sub ckey {
+	my ($self) = @_;
+	$self->{ckey} //= "" . $self->_unfolding;
+}
+
+# Сравнение для сортировки
+sub compare {
+	my ($self, $other) = @_;
+	$self->ckey cmp $other->ckey;
 }
 
 # (Int & Tel)->instanceof('Int') -> 1; (Int | Tel)->instanceof('Int') -> ""; (~(~Int | Tel))->instanceof('Int') -> ""
@@ -295,24 +307,42 @@ sub Any() { $_any //= &Aion::Types::Any }
 sub None() { $_none //= ~Any }
 
 # Превращает выражение в ДНФ
-sub simplify { shift->_unfolding->_pushing->_distribute->_simplify }
+sub _simplify { shift->_unfolding->_pushing->_distribute }
 
 # Упрощает выражение
-sub _simplify {
+sub simplify {
 	my ($self) = @_;
-	
+
+	$self = $self->_simplify;
+
 	use DDP; p my $x=["_simplify", $self];
 	
-	my @union = map { $_->is_intersection? $_->_folding: $_ } $self->is_union? @{$self->{args}}: $self;
+	my %union =  map {($_->key => $_)} map $_->_folding, $self->is_union? @{$self->{args}}: $self;
+	my @union = values %union;
+	use DDP; p my $x=["union1", \@union];
+
+	#my @out = @union;
 	
-	use DDP; p my $x=["union", \@union];
+	#return None unless @union;
 	
-	return $union[0] if @union == 1;
+	#my @out = shift @union;
+	#while(@union) {
+	#	my $item = shift @union;
+	#	for my $candidate (@out) {
+	#		if($candidate->is_descendant($item, 1)) { $candidate = $item }
+	#		elsif($item->is_descendant($candidate, 1)) {}
+	#		elsif($candidate->in_hierarchy($item)) { push @out, $candidate; $candidate = $item }
+	#		elsif($item->in_hierarchy($candidate)) { push @out, $item }
+	#		#else { return None }
+	#	}
+	#}
 	
-	@union = List::Util::uniqnum grep { my $item = $_; !List::Util::any { $item->infra($_) } @union } @union;
-	
+	my @union = grep { my $item = $_; !List::Util::any { $item->is_descendant($_, 1) } grep { $_ ne $item } values %union } values %union;
+
+	#use DDP; p my $x=["union2", \@out];
+
 	@union == 0? None:
-	@union == 1? $union[0]: Aion::Types::Union(\@union);
+	@union == 1? $union[0]: Aion::Types::Union([sort @union]);
 }
 
 # Сворачивает пересечения в наследование
@@ -320,32 +350,89 @@ sub _folding {
 	my ($self) = @_;
 	
 	return $self unless $self->is_intersection;
-	
-	my @intersection = @{$self->{args}};
-	@intersection = grep { my $item = $_; !List::Util::any { $_->infra($item) } @intersection } @intersection;
-	use DDP; p my $x=["intersection", \@intersection];
 
+	my %intersection = map {($_->key => $_)} @{$self->{args}};
+	my @intersection = values %intersection;
+	use DDP; p my $x=["intersection1", \@intersection];
+
+	#my @out = shift @intersection;
+	
+	#while(@intersection) {
+	#	my $item = shift @intersection;
+	#	for my $candidate (@out) {
+	#		if($candidate->is_descendant($item, 1)) {}
+	#		elsif($item->is_descendant($candidate, 1)) { $candidate = $item }
+	#		elsif($candidate->in_branch($item)) { push @out, $item }
+	#		elsif($item->in_branch($candidate)) { push @out, $item }
+	#		else { return }
+	#	}
+	#}
+	
+	@intersection = grep { my $item = $_; !List::Util::any { $_->is_descendant($item, 1) } grep { $_ ne $item } @intersection } @intersection;
+	use DDP; p my $x=["intersection2", \@intersection];
+
+	my $candidate = $intersection[0];
+	for my $item (@intersection[1..$#intersection]) {
+		return unless $candidate->in_branch($item) || $item->in_branch($candidate);
+	}
+
+	use DDP; p my $x=["intersection3", \@intersection];
+	
 	@intersection == 0? ():
-	@intersection == 1? $intersection[0]: Aion::Types::Intersection(\@intersection);
+	@intersection == 1? $intersection[0]: Aion::Types::Intersection([sort @intersection]);
 }
 
-# Определяет, что тип $other есть в иерархии $self
-sub infra {
-    my ($self, $other) = @_;
-    $self->{ancestor} //= do {
-        my @queue = $self->{as}? $self->{as}: ();
-        my %ancestor;
-        while (@queue) {
-            my $node = shift @queue;
-            my $key = $node->key;
-            next if exists $ancestor{$key};
-            $ancestor{$key} = $node;
-            if ($node->is_intersection || $node->is_union) { push @queue, @{$node->{args}} }
-            elsif($node->{as} && !$node->is_set_theoretic) { push @queue, $node->{as} }
-        }
-        \%ancestor;
-    };
-    exists $self->{ancestor}->{$other->key}
+# A потомок B
+sub is_descendant {
+	my ($self, $other, $is_strict) = @_;
+	
+	return 1 if $is_strict && $self eq $other
+	    || !$is_strict && ($self->is_exclude && $other->is_exclude
+			? $self->{args}[0]{coerce} == $other->{args}[0]{coerce}
+			: $self->{coerce} == $other->{coerce});
+
+	if ($self->is_intersection) {
+		return List::Util::any { $_->is_descendant($other, $is_strict) } @{$self->{args}};
+	}
+	if ($self->is_union) {
+		return List::Util::all { $_->is_descendant($other, $is_strict) } @{$self->{args}};
+	}
+	if ($self->is_exclude) {
+		return $self->{args}[0]->is_descendant($other->is_exclude? $other->{args}[0]: ~$other, $is_strict);
+	}
+	return $self->{as}->is_descendant($other, $is_strict) if $self->{as};
+
+	""
+}
+
+# A в иерархии B
+sub in_hierarchy {
+	my ($self, $other, $is_strict) = @_;
+	
+	return 1 if $is_strict && $other eq $self
+	    || !$is_strict && ($other->is_exclude && $self->is_exclude
+			? $other->{args}[0]{coerce} == $self->{args}[0]{coerce}
+			: $other->{coerce} == $self->{coerce});
+
+	if ($other->is_intersection || $other->is_union) {
+		return List::Util::any { $self->in_hierarchy($_, $is_strict) } @{$other->{args}};
+	}
+	if ($other->is_exclude) {
+		return ($self->is_exclude? $self->{args}[0]: ~$self)->in_hierarchy($other->{args}[0], $is_strict);
+	}
+	return $self->in_hierarchy($other->{as}, $is_strict) if $other->{as};
+
+	""
+}
+
+# A в ветке совместимой с B
+sub in_branch {
+	my ($self, $other, $is_strict) = @_;
+	for(my $i = $self; $i; $i = $i->{as}) {
+		return 1 if $i->in_hierarchy($other, $is_strict);
+		last if $i->is_set_theoretic;
+	}
+	""
 }
 
 # A as B as C <=> A & B & C
@@ -354,11 +441,12 @@ sub _unfolding {
 	
 	my @u;
 	for(my $i=$self; $i; $i = $i->{as}) {
-		push(@u, $i->clone(args => [map $_->_unfolding, @{$i->{args}}])), last if $i->is_set_theoretic;
-		push @u, $i; # if $i->{test} != \&true;
+		unshift(@u, $i->clone(args => [map $_->_unfolding, @{$i->{args}}])), last if $i->is_set_theoretic;
+		unshift @u, $i if $i->{test} != \&true;
 	}
 
-	Aion::Types::Intersection(\@u);
+	@u == 0? Any:
+	@u == 1? $u[0]: Aion::Types::Intersection(\@u);
 }
 
 # Проталкивание исключений к термам, заодно уменьшает размерность с приведением
@@ -596,7 +684,7 @@ sub differs {
 }
 
 # Пересекаются
-sub intersects {
+sub joint {
 	my ($self, $other) = @_;
 	!$self->disjoint($other);
 }

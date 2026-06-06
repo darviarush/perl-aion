@@ -28,6 +28,7 @@ on 'test' => sub {
 	requires 'open';
 };
 
+requires 'aliased';
 requires 'B';
 requires 'Exporter';
 requires 'List::Util', '1.68';

@@ -427,7 +427,7 @@ subtype "Any";
 						init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
 						where { A <= length($_) && length($_) <= B };
 	
-				subtype "NumLike", as &Like, where { looks_like_number($_) };
+				subtype "NumLike", as &Num | &Object & Overload(["0+"]);
 					sub Opened($) { Aion::Type::Lim->from(ref $_[0] eq "ARRAY"? $_[0][0]: $_[0]) };
 					subtype "Range[from, to]", as &NumLike,
 						init_where {
