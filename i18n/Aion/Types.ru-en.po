@@ -46,6 +46,9 @@ msgstr "If the type can be with or without arguments, then it is used to check t
 msgid "Необходимо, если аргументы необязательны."
 msgstr "Required if arguments are optional."
 
+msgid "Указываеет, что тип является союзным к типам веток родителя. Есть у `Range`, `Len`, `Lim` и `LimKeys`, что позволяет им соединятся с типом `Int`, например. В то время как `Str` и `Version` будут в разных ветках."
+msgstr "Indicates that the type is allied to the parent's branch types. `Range`, `Len`, `Lim` and `LimKeys` have, which allows them to connect to the `Int` type, for example. While `Str` and `Version` will be in different branches."
+
 msgid "Текущий тип. `SELF` используется в `init_where`, `where` и `awhere`."
 msgstr "Current type. `SELF` is used in `init_where`, `where` and `awhere`."
 
@@ -84,6 +87,9 @@ msgstr "Checks the signature of a subroutine: arguments and results."
 
 msgid "Тип верхнего уровня в иерархии. Сопоставляет всё."
 msgstr "The top level type in the hierarchy. Compares everything."
+
+msgid "Нижний тип можно получить как `~Any`."
+msgstr "The bottom type can be obtained as `~Any`."
 
 msgid "Тип верхнего уровня в конструкторах иерархии создает новые типы из любых типов."
 msgstr "The top-level type in hierarchy constructors creates new types from any types."
@@ -202,11 +208,20 @@ msgstr "Numbers."
 msgid "Положительные числа."
 msgstr "Positive numbers."
 
-msgid "Машинное число с плавающей запятой составляет 4 байта."
-msgstr "A machine floating point number is 4 bytes."
+msgid "Целые числа."
+msgstr "Whole numbers."
 
-msgid "Машинное число с плавающей запятой составляет 8 байт."
-msgstr "A machine floating point number is 8 bytes."
+msgid "Целые числа 1+."
+msgstr "Integers 1+."
+
+msgid "Положительные целые числа."
+msgstr "Positive integers."
+
+msgid "Каноничное машинное число с плавающей запятой составляет 4 байта."
+msgstr "A canonical machine floating point number is 4 bytes."
+
+msgid "Каноничное машинное число с плавающей запятой составляет 8 байт."
+msgstr "The canonical machine floating point number is 8 bytes."
 
 msgid "Числа между `from` и `to` включительно."
 msgstr "Numbers between `from` and `to` inclusive."
@@ -214,20 +229,11 @@ msgstr "Numbers between `from` and `to` inclusive."
 msgid "Открытая граница. Используется с `Range`."
 msgstr "Open border. Used with `Range`."
 
-msgid "Целые числа."
-msgstr "Whole numbers."
-
 msgid "Рассчитывает максимальное и минимальное числа, которые поместятся в `N` байт и проверяет ограничение между ними."
 msgstr "Calculates the maximum and minimum numbers that will fit in `N` bytes and checks the constraint between them."
 
-msgid "Положительные целые числа."
-msgstr "Positive integers."
-
 msgid "Рассчитывает максимальное число, которое поместится в `N` байт (полагая, что в байтах нет отрицательного бита) и проверяет ограничение от 0 до этого числа."
 msgstr "Calculates the maximum number that will fit in `N` bytes (assuming there is no negative bit in the bytes) and checks the limit from 0 to that number."
-
-msgid "Целые числа 1+."
-msgstr "Integers 1+."
 
 msgid "Ссылка."
 msgstr "Link."

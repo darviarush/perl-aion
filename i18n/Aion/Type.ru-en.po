@@ -190,6 +190,9 @@ msgstr "A is a subset of B."
 msgid "A надмножество B."
 msgstr "A is a superset of B."
 
+msgid "Сравнение двух типов. Используется при сортировке."
+msgstr "Comparison of two types. Used for sorting."
+
 msgid "⚖ **GPLv3**"
 msgstr "⚖ **GPLv3**"
 

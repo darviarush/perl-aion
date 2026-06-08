@@ -283,6 +283,16 @@ BEGIN {
 "ab" ~~ MyEnum[qw/ab cd/] # -> 1
 ```
 
+## ally
+
+Указываеет, что тип является союзным к типам веток родителя. Есть у `Range`, `Len`, `Lim` и `LimKeys`, что позволяет им соединятся с типом `Int`, например. В то время как `Str` и `Version` будут в разных ветках.
+
+```perl
+(Range[-50, 50] & PositiveInt)->simplify # -> Range[0, 50] & Int
+
+(Str & Version)->simplify # -> ~Any
+```
+
 ## SELF
 
 Текущий тип. `SELF` используется в `init_where`, `where` и `awhere`.

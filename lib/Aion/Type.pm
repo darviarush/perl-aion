@@ -69,6 +69,9 @@ $Aion::Type::SELF = __PACKAGE__->new(
 # * title (Str) — Заголовок.
 # * description (Str) — Описание.
 # * example (Any) — Пример.
+# * is_option (Bool) – это Option[A].
+# * is_wantarray (Bool) – это Wantarray[A, S].
+# * ally (Bool) – вступать в союз для объединения ветвей наследования при пересечении типов.
 sub new {
 	my $cls = shift;
 	my $self = bless {@_}, $cls;
@@ -259,7 +262,7 @@ sub keyfn {
 # Ключ для сравнения типов в <=> и cmp
 sub ckey {
 	my ($self) = @_;
-	$self->{ckey} //= "" . $self->_unfolding;
+	$self->{ckey} //= $self->_unfolding->stringify . $self->stringify;
 }
 
 # Сравнение для сортировки
@@ -314,32 +317,11 @@ sub simplify {
 	my ($self) = @_;
 
 	$self = $self->_simplify;
-
-	use DDP; p my $x=["_simplify", $self];
 	
-	my %union =  map {($_->key => $_)} map $_->_folding, $self->is_union? @{$self->{args}}: $self;
+	my %union = map {($_->key => $_)} map $_->_folding, $self->is_union? @{$self->{args}}: $self;
 	my @union = values %union;
-	use DDP; p my $x=["union1", \@union];
-
-	#my @out = @union;
-	
-	#return None unless @union;
-	
-	#my @out = shift @union;
-	#while(@union) {
-	#	my $item = shift @union;
-	#	for my $candidate (@out) {
-	#		if($candidate->is_descendant($item, 1)) { $candidate = $item }
-	#		elsif($item->is_descendant($candidate, 1)) {}
-	#		elsif($candidate->in_hierarchy($item)) { push @out, $candidate; $candidate = $item }
-	#		elsif($item->in_hierarchy($candidate)) { push @out, $item }
-	#		#else { return None }
-	#	}
-	#}
 	
 	my @union = grep { my $item = $_; !List::Util::any { $item->is_descendant($_, 1) } grep { $_ ne $item } values %union } values %union;
-
-	#use DDP; p my $x=["union2", \@out];
 
 	@union == 0? None:
 	@union == 1? $union[0]: Aion::Types::Union([sort @union]);
@@ -353,33 +335,26 @@ sub _folding {
 
 	my %intersection = map {($_->key => $_)} @{$self->{args}};
 	my @intersection = values %intersection;
-	use DDP; p my $x=["intersection1", \@intersection];
-
-	#my @out = shift @intersection;
-	
-	#while(@intersection) {
-	#	my $item = shift @intersection;
-	#	for my $candidate (@out) {
-	#		if($candidate->is_descendant($item, 1)) {}
-	#		elsif($item->is_descendant($candidate, 1)) { $candidate = $item }
-	#		elsif($candidate->in_branch($item)) { push @out, $item }
-	#		elsif($item->in_branch($candidate)) { push @out, $item }
-	#		else { return }
-	#	}
-	#}
 	
 	@intersection = grep { my $item = $_; !List::Util::any { $_->is_descendant($item, 1) } grep { $_ ne $item } @intersection } @intersection;
-	use DDP; p my $x=["intersection2", \@intersection];
 
 	my $candidate = $intersection[0];
 	for my $item (@intersection[1..$#intersection]) {
 		return unless $candidate->in_branch($item) || $item->in_branch($candidate);
 	}
-
-	use DDP; p my $x=["intersection3", \@intersection];
 	
 	@intersection == 0? ():
 	@intersection == 1? $intersection[0]: Aion::Types::Intersection([sort @intersection]);
+}
+
+# Сравнивает по прототипам
+sub like {
+	my ($self, $other) = @_;
+	return List::Util::all { $_->[0]->like($_->[1]) } List::Util::zip $self->{args}, $other->{args} if $self->is_intersection && $other->is_intersection;
+	return List::Util::any { $_->[0]->like($_->[1]) } List::Util::zip $self->{args}, $other->{args} if $self->is_union && $other->is_union;
+	return $self->{args}[0]->like($other->{args}[0]) if $self->is_exclude && $other->is_exclude;
+	return "" if $self->is_set_theoretic || $other->is_set_theoretic;
+	$self->{coerce} == $other->{coerce};
 }
 
 # A потомок B
@@ -387,9 +362,7 @@ sub is_descendant {
 	my ($self, $other, $is_strict) = @_;
 	
 	return 1 if $is_strict && $self eq $other
-	    || !$is_strict && ($self->is_exclude && $other->is_exclude
-			? $self->{args}[0]{coerce} == $other->{args}[0]{coerce}
-			: $self->{coerce} == $other->{coerce});
+	    || !$is_strict && $self->like($other);
 
 	if ($self->is_intersection) {
 		return List::Util::any { $_->is_descendant($other, $is_strict) } @{$self->{args}};
@@ -405,33 +378,40 @@ sub is_descendant {
 	""
 }
 
-# A в иерархии B
-sub in_hierarchy {
-	my ($self, $other, $is_strict) = @_;
-	
-	return 1 if $is_strict && $other eq $self
-	    || !$is_strict && ($other->is_exclude && $self->is_exclude
-			? $other->{args}[0]{coerce} == $self->{args}[0]{coerce}
-			: $other->{coerce} == $self->{coerce});
+# Собирает ноды от которых отходят родственные ветви
+sub siblings {
+	my ($self) = @_;
 
-	if ($other->is_intersection || $other->is_union) {
-		return List::Util::any { $self->in_hierarchy($_, $is_strict) } @{$other->{args}};
-	}
-	if ($other->is_exclude) {
-		return ($self->is_exclude? $self->{args}[0]: ~$self)->in_hierarchy($other->{args}[0], $is_strict);
-	}
-	return $self->in_hierarchy($other->{as}, $is_strict) if $other->{as};
-
-	""
+	$self->{siblings} //= do {
+		if($self->is_union) {
+			+{map %{$_->siblings}, @{$self->{args}}};
+		}
+		elsif($self->{as} && ($self->{ally} || $self->{test} == \&true)) {
+			+{$self->key => $self, %{$self->{as}->siblings}};
+		}
+		else {
+			+{$self->key => $self};
+		}
+	};
 }
 
-# A в ветке совместимой с B
+# A отпочковался от B
 sub in_branch {
-	my ($self, $other, $is_strict) = @_;
-	for(my $i = $self; $i; $i = $i->{as}) {
-		return 1 if $i->in_hierarchy($other, $is_strict);
-		last if $i->is_set_theoretic;
+	my ($self, $other) = @_;
+	
+	return 1 if $self->key ~~ $other->siblings;
+
+	if ($self->is_intersection) {
+		return List::Util::all { $_->in_branch($other) } @{$self->{args}};
 	}
+	if ($self->is_union) {
+		return List::Util::any { $_->in_branch($other) } @{$self->{args}};
+	}
+	if ($self->is_exclude) {
+		return $self->{args}[0]->in_branch($other->is_exclude? $other->{args}[0]: ~$other);
+	}
+	return $self->{as}->in_branch($other) if $self->{as};
+
 	""
 }
 
@@ -1045,12 +1025,12 @@ A constant for a type that includes all values.
 
 	package Aion::Type;
 	
-	Any->include(42)   # -> 1
-	None->include(42)  # -> ""
+	42 ~~ Any   # -> 1
+	42 ~~ None  # -> ""
 	
-	Any->subset(Any)   # -> 1
-	None->subset(Any)  # -> 1
-	Any->subset(None)  # -> ""
+	Any <= Any   # -> 1
+	None <= Any  # -> 1
+	Any <= None  # -> ""
 
 =head2 None
 
@@ -1369,6 +1349,25 @@ A is a subset of B.
 =head2 >=
 
 A is a superset of B.
+
+=head2 <=>
+
+Comparison of two types. Used for sorting.
+
+	package Aion::Types;
+	
+	Enum[1,2] <=> Enum[1,2,3]   # -> -1
+	Enum[1,2,3] <=> Enum[1,2]   # -> 1
+	Enum[1,2] <=> Enum[1,2]     # -> 0
+	
+	Range[1,5] <=> Range[1,10]  # -> -1
+	Range[1,10] <=> Range[1,5]  # -> 1
+	Range[1,5] <=> Range[1,5]   # -> 0
+	
+	Int <=> Num                  # -> -1
+	Num <=> Int                  # -> 1
+	
+	Str <=> Int                  # -> 1
 
 =head1 AUTHOR
 

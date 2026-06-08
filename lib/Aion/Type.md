@@ -242,7 +242,7 @@ my $MyEnum = Aion::Type->new(name => "MyEnum", args => [3, 5, 'car']);
 package Aion::Types;
 
 my $type = (Enum[1,2] | Enum[2,3]) & Enum[2,3,4];
-$type->simplify; # => Enum[2,3]
+$type->simplify; # => Enum[2, 3]
 
 my $range = (Range[1,5] | Range[6,10]) & Range[4,8];
 $range->simplify; # => Range[4,5] | Range[6,8]
