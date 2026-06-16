@@ -248,7 +248,7 @@ my $type = (Enum[1,2] | Enum[2,3]) & Enum[2,3,4];
 $type->simplify->stringify # => ( ( Enum[1, 2] | Enum[2, 3] ) & Enum[2, 3, 4] )
 
 my $range = Range[-10,0] & Range[4,8];
-$range->simplify->stringify # => None
+$range->simplify->stringify # => ~Any
 ```
 
 ## Any
@@ -450,6 +450,171 @@ eval { Aion::Type->new(name=>"Rim")->make_maybe_arg }; $@ # ~> syntax error
 ## example (;$example)
 
 Акцессор примера (используется для создания схемы **swagger**).
+
+## true ()
+
+Всегда возвращает `1`. Нужна для указания теста для типа без `where`.
+
+## clone ()
+
+Клонировать тип.
+
+```perl
+my $type = Aion::Type->new(name => 'New');
+my $type10 = $type->clone(args => [10]);
+$type->stringify # => New
+$type10->stringify # => New[10]
+```
+
+## is_primitive ()
+
+Это - примитивный тип, то есть тот, в иерархии которого нет множественно-теоритических операторов.
+
+```perl
+Aion::Types::Int->is_primitive  # -> 1
+Aion::Types::Like->is_primitive # -> ""
+```
+
+## is_union ()
+
+Это объединение типов.
+
+```perl
+Aion::Types::Int->is_union # -> ""
+(Aion::Types::Int | Aion::Types::Int)->is_union  # -> 1
+```
+
+## is_intersection ()
+
+Это пересечение типов.
+
+```perl
+Aion::Types::Int->is_intersection # -> ""
+(Aion::Types::Int & Aion::Types::Int)->is_intersection  # -> 1
+```
+
+## is_exclude ()
+
+Это исключение типа.
+
+```perl
+Aion::Types::Any->is_exclude # -> ""
+(~Aion::Types::Any)->is_exclude # -> 1
+Aion::Types::None->is_exclude # -> 1
+~Aion::Types::Any eq Aion::Types::None # -> 1
+```
+
+## is_enum ()
+
+Это перечисление.
+
+```perl
+Aion::Types::Int->is_enum  # -> ""
+Aion::Types::Enum([1])->is_enum  # -> 1
+```
+
+## is_range_type ()
+
+Это интервальный тип.
+
+```perl
+Aion::Types::Int->is_range_type  # -> ""
+Aion::Types::Len([10])->is_range_type  # -> 1
+```
+
+## range_lbound ()
+
+Нижняя граница интервала.
+
+```perl
+Aion::Types::Int->range_lbound  # -> undef
+Aion::Types::Len([10])->range_lbound  # -> 0
+Aion::Types::Range([0, 10])->range_lbound  # -> '-Inf'
+```
+
+## is_range ()
+
+Это интервал.
+
+```perl
+Aion::Types::Int->is_range  # -> ""
+Aion::Types::Len([10])->is_range  # -> ""
+Aion::Types::Range([1, 10])->is_range  # -> 1
+```
+
+## typed_sorted_args_key ()
+
+Формирует ключ с отсортированными типизированными параметрами.
+
+```perl
+(Aion::Types::Int & Aion::Types::Num)->typed_sorted_args_key  # -> (Aion::Types::Num & Aion::Types::Int)->typed_sorted_args_key
+```
+
+## sorted_args_key ()
+
+Формирует ключ с отсортированными нетипизированными параметрами.
+
+```perl
+Aion::Types::Enum([10, 20])->sorted_args_key # -> Aion::Types::Enum([20, 10])->sorted_args_key
+```
+
+## key ()
+
+Уникальный ключ из прототипа типа и его параметров.
+
+## keyfn ($fn)
+
+Устанавливает/возвращает функцию построения ключа для типа как класса.
+
+```perl
+my $type = Aion::Type->new(name => 'New', args => [10, 20]);
+$type->keyfn($type->can('sorted_args_key'));
+
+my $type2 = Aion::Type->new(name => 'New', args => [20, 10], coerce => $type->{coerce});
+$type->key # -> $type2->key
+```
+
+## asen ()
+
+Возвращает цепочку предков.
+
+```perl
+[Aion::Types::Num->asen]  # --> [Aion::Types::Any, Aion::Types::Item, Aion::Types::Defined, Aion::Types::Value, Aion::Types::Str]
+```
+
+## ckey ()
+
+Ключ для сравнения типов в <=> и cmp.
+
+## compare ($other)
+
+Сравнение для сортировки. Используется в операторах `<=>` и `cmp`.
+
+## is_descendant ($other, $is_strict)
+
+A потомок B. Сравнивается прототип, но если указан `$is_strict`, то использется оператор `eq`.
+
+```perl
+Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Defined)  # -> 1
+Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)    # -> ""
+```
+
+## like ($other)
+
+Сравнивает по прототипам.
+
+```perl
+Aion::Types::Range([1, 10])->like(Aion::Types::Range([100, 200]))  # -> 1
+```
+
+## joint ($other)
+
+Типы пересекаются.
+
+```perl
+Aion::Types::Range([1, 10])->joint(Aion::Types::Range([100, 200]))  # -> ""
+Aion::Types::Range([1, 10])->joint(Aion::Types::Range([10, 200]))  # -> 1
+```
 
 # OPERATORS
 

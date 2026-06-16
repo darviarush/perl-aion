@@ -52,14 +52,26 @@ msgstr "Current type. `SELF` is used in `init_where`, `where` and `awhere`."
 msgid "Аргументы текущего типа. В скалярном контексте возвращает ссылку на массив, а в контексте массива возвращает список. Используется в `init_where`, `where` и `awhere`."
 msgstr "Arguments of the current type. In a scalar context, it returns a reference to an array, and in an array context, it returns a list. Used in `init_where`, `where` and `awhere`."
 
-msgid "Первый, второй, третий и пятый аргумент типа."
-msgstr "The first, second, third and fifth type arguments."
+msgid "A, B, C, D – первый, второй, третий и пятый аргумент типа."
+msgstr "A, B, C, D – the first, second, third and fifth type argument."
 
 msgid "Используется в `init_where`, `where` и `awhere`."
 msgstr "Used in `init_where`, `where` and `awhere`."
 
+msgid "Второй аргумент типа."
+msgstr "Second type argument."
+
+msgid "Третий аргумент типа."
+msgstr "Third type argument."
+
+msgid "Четвёртый аргумент типа."
+msgstr "The fourth type argument."
+
 msgid "`M` и `N` сокращение для `SELF->{M}` и `SELF->{N}`."
 msgstr "`M` and `N` are shorthand for `SELF->{M}` and `SELF->{N}`."
+
+msgid "Сокращение для `SELF->{N}`."
+msgstr "Shorthand for `SELF->{N}`."
 
 msgid "Используется с `subtype` для вывода сообщения об ошибке, если значение исключает тип. В `$code` используется: `SELF` - текущий тип, `ARGS`, `A`, `B`, `C`, `D` - аргументы типа (если есть) и проверочное значение в `$_`. Его можно преобразовать в строку с помощью `SELF->val_to_str($_)`."
 msgstr "Used with `subtype` to print an error message if the value excludes the type. `$code` uses: `SELF` - the current type, `ARGS`, `A`, `B`, `C`, `D` - type arguments (if any) and a test value in `$_`. It can be converted to a string using `SELF->val_to_str($_)`."

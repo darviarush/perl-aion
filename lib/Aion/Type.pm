@@ -964,7 +964,7 @@ Simplification of the expression in this function may appear in the future.
 	$type->simplify->stringify # => ( ( Enum[1, 2] | Enum[2, 3] ) & Enum[2, 3, 4] )
 	
 	my $range = Range[-10,0] & Range[4,8];
-	$range->simplify->stringify # => None
+	$range->simplify->stringify # => ~Any
 
 =head2 Any
 
@@ -1145,6 +1145,139 @@ Description accessor (used to create a B<swagger> schema).
 =head2 example (;$example)
 
 Example accessor (used to create the B<swagger> schema).
+
+=head2 true ()
+
+Always returns C<1>. Needed to specify a test for a type without C<where>.
+
+=head2 clone ()
+
+Clone type.
+
+	my $type = Aion::Type->new(name => 'New');
+	my $type10 = $type->clone(args => [10]);
+	$type->stringify # => New
+	$type10->stringify # => New[10]
+
+=head2 is_primitive ()
+
+This is a primitive type, that is, one in whose hierarchy there are no set-theoretic operators.
+
+	Aion::Types::Int->is_primitive  # -> 1
+	Aion::Types::Like->is_primitive # -> ""
+
+=head2 is_union ()
+
+This is a union of types.
+
+	Aion::Types::Int->is_union # -> ""
+	(Aion::Types::Int | Aion::Types::Int)->is_union  # -> 1
+
+=head2 is_intersection ()
+
+This is the intersection of types.
+
+	Aion::Types::Int->is_intersection # -> ""
+	(Aion::Types::Int & Aion::Types::Int)->is_intersection  # -> 1
+
+=head2 is_exclude ()
+
+This is a type exception.
+
+	Aion::Types::Any->is_exclude # -> ""
+	(~Aion::Types::Any)->is_exclude # -> 1
+	Aion::Types::None->is_exclude # -> 1
+	~Aion::Types::Any eq Aion::Types::None # -> 1
+
+=head2 is_enum ()
+
+This is an enumeration.
+
+	Aion::Types::Int->is_enum  # -> ""
+	Aion::Types::Enum([1])->is_enum  # -> 1
+
+=head2 is_range_type ()
+
+This is an interval type.
+
+	Aion::Types::Int->is_range_type  # -> ""
+	Aion::Types::Len([10])->is_range_type  # -> 1
+
+=head2 range_lbound ()
+
+Lower limit of the interval.
+
+	Aion::Types::Int->range_lbound  # -> undef
+	Aion::Types::Len([10])->range_lbound  # -> 0
+	Aion::Types::Range([0, 10])->range_lbound  # -> '-Inf'
+
+=head2 is_range ()
+
+This is an interval.
+
+	Aion::Types::Int->is_range  # -> ""
+	Aion::Types::Len([10])->is_range  # -> ""
+	Aion::Types::Range([1, 10])->is_range  # -> 1
+
+=head2 typed_sorted_args_key ()
+
+Generates a key with sorted typed parameters.
+
+	(Aion::Types::Int & Aion::Types::Num)->typed_sorted_args_key  # -> (Aion::Types::Num & Aion::Types::Int)->typed_sorted_args_key
+
+=head2 sorted_args_key ()
+
+Generates a key with sorted untyped parameters.
+
+	Aion::Types::Enum([10, 20])->sorted_args_key # -> Aion::Types::Enum([20, 10])->sorted_args_key
+
+=head2 key ()
+
+A unique key from the type prototype and its parameters.
+
+=head2 keyfn ($fn)
+
+Sets/returns the key construction function for the type as a class.
+
+	my $type = Aion::Type->new(name => 'New', args => [10, 20]);
+	$type->keyfn($type->can('sorted_args_key'));
+	
+	my $type2 = Aion::Type->new(name => 'New', args => [20, 10], coerce => $type->{coerce});
+	$type->key # -> $type2->key
+
+=head2 asen ()
+
+Returns the chain of ancestors.
+
+	[Aion::Types::Num->asen]  # --> [Aion::Types::Any, Aion::Types::Item, Aion::Types::Defined, Aion::Types::Value, Aion::Types::Str]
+
+=head2 ckey ()
+
+Key for comparing types in <=> and cmp.
+
+=head2 compare ($other)
+
+Comparison for sorting. Used in the C<< E<lt>=E<gt> >> and C<cmp> operators.
+
+=head2 is_descendant ($other, $is_strict)
+
+A is a child of B. The prototype is compared, but if C<$is_strict> is specified, then the C<eq> operator is used.
+
+	Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Defined)  # -> 1
+	Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)  # -> ""
+
+=head2 like ($other)
+
+Compares with prototypes.
+
+	Aion::Types::Range([1, 10])->like(Aion::Types::Range([100, 200]))  # -> 1
+
+=head2 joint ($other)
+
+Types overlap.
+
+	Aion::Types::Range([1, 10])->joint(Aion::Types::Range([100, 200]))  # -> ""
+	Aion::Types::Range([1, 10])->joint(Aion::Types::Range([10, 200]))  # -> 1
 
 =head1 OPERATORS
 

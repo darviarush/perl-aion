@@ -148,6 +148,66 @@ msgstr "Description accessor (used to create a **swagger** schema)."
 msgid "Акцессор примера (используется для создания схемы **swagger**)."
 msgstr "Example accessor (used to create the **swagger** schema)."
 
+msgid "Всегда возвращает `1`. Нужна для указания теста для типа без `where`."
+msgstr "Always returns `1`. Needed to specify a test for a type without `where`."
+
+msgid "Клонировать тип."
+msgstr "Clone type."
+
+msgid "Это - примитивный тип, то есть тот, в иерархии которого нет множественно-теоритических операторов."
+msgstr "This is a primitive type, that is, one in whose hierarchy there are no set-theoretic operators."
+
+msgid "Это объединение типов."
+msgstr "This is a union of types."
+
+msgid "Это пересечение типов."
+msgstr "This is the intersection of types."
+
+msgid "Это исключение типа."
+msgstr "This is a type exception."
+
+msgid "Это перечисление."
+msgstr "This is an enumeration."
+
+msgid "Это интервальный тип."
+msgstr "This is an interval type."
+
+msgid "Нижняя граница интервала."
+msgstr "Lower limit of the interval."
+
+msgid "Это интервал."
+msgstr "This is an interval."
+
+msgid "Формирует ключ с отсортированными типизированными параметрами."
+msgstr "Generates a key with sorted typed parameters."
+
+msgid "Формирует ключ с отсортированными нетипизированными параметрами."
+msgstr "Generates a key with sorted untyped parameters."
+
+msgid "Уникальный ключ из прототипа типа и его параметров."
+msgstr "A unique key from the type prototype and its parameters."
+
+msgid "Устанавливает/возвращает функцию построения ключа для типа как класса."
+msgstr "Sets/returns the key construction function for the type as a class."
+
+msgid "Возвращает цепочку предков."
+msgstr "Returns the chain of ancestors."
+
+msgid "Ключ для сравнения типов в <=> и cmp."
+msgstr "Key for comparing types in <=> and cmp."
+
+msgid "Сравнение для сортировки. Используется в операторах `<=>` и `cmp`."
+msgstr "Comparison for sorting. Used in the `<=>` and `cmp` operators."
+
+msgid "A потомок B. Сравнивается прототип, но если указан `$is_strict`, то использется оператор `eq`."
+msgstr "A is a child of B. The prototype is compared, but if `$is_strict` is specified, then the `eq` operator is used."
+
+msgid "Сравнивает по прототипам."
+msgstr "Compares with prototypes."
+
+msgid "Типы пересекаются."
+msgstr "Types overlap."
+
 msgid "Тестирует `$_`."
 msgstr "Tests `$_`."
 

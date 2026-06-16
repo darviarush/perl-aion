@@ -466,7 +466,8 @@ subtype "Any";
 	subtype "PositiveInt", as &Int & Range([0, 'Inf']);
 	subtype "Nat", as &Int & Range([1, 'Inf']);
 
-	subtype "None", as ~&Any;
+	my $_none = ~&Any;
+	sub None() { $_none }
 };
 
 $_->keyfn(\&Aion::Type::typed_sorted_args_key) for Union[], Intersection[];
@@ -760,9 +761,9 @@ Current type. C<SELF> is used in C<init_where>, C<where> and C<awhere>.
 
 Arguments of the current type. In a scalar context, it returns a reference to an array, and in an array context, it returns a list. Used in C<init_where>, C<where> and C<awhere>.
 
-=head2 A, B, C, D
+=head2 A
 
-The first, second, third and fifth type arguments.
+A, B, C, D – the first, second, third and fifth type argument.
 
 	BEGIN {
 		subtype "Seria[a,b,c,d]", where { A < B && B < $_ && $_ < C && C < D };
@@ -772,7 +773,19 @@ The first, second, third and fifth type arguments.
 
 Used in C<init_where>, C<where> and C<awhere>.
 
-=head2 M, N
+=head1 B
+
+Second type argument.
+
+=head1 C
+
+Third type argument.
+
+=head1 D
+
+The fourth type argument.
+
+=head2 M
 
 C<M> and C<N> are shorthand for C<< SELF-E<gt>{M} >> and C<< SELF-E<gt>{N} >>.
 
@@ -789,6 +802,10 @@ C<M> and C<N> are shorthand for C<< SELF-E<gt>{M} >> and C<< SELF-E<gt>{N} >>.
 	"Hi my dear!" ~~ BeginAndEnd["Hi,", "!"];  # -> ""
 	
 	"" . BeginAndEnd["Hi,", "!"] # => BeginAndEnd['Hi,', '!']
+
+=head2 N
+
+Shorthand for C<< SELF-E<gt>{N} >>.
 
 =head2 message ($code)
 

@@ -248,7 +248,7 @@ my $type = (Enum[1,2] | Enum[2,3]) & Enum[2,3,4];
 local ($::_g0 = do {$type->simplify->stringify}, $::_e0 = "( ( Enum[1, 2] | Enum[2, 3] ) & Enum[2, 3, 4] )"); ::ok $::_g0 eq $::_e0, '$type->simplify->stringify # => ( ( Enum[1, 2] | Enum[2, 3] ) & Enum[2, 3, 4] )' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 my $range = Range[-10,0] & Range[4,8];
-local ($::_g0 = do {$range->simplify->stringify}, $::_e0 = "None"); ::ok $::_g0 eq $::_e0, '$range->simplify->stringify # => None' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$range->simplify->stringify}, $::_e0 = "~Any"); ::ok $::_g0 eq $::_e0, '$range->simplify->stringify # => ~Any' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
 # ## Any
@@ -450,6 +450,171 @@ local ($::_g0 = do {5 ~~ Enum123[4,5,6]}, $::_e0 = do {1}); ::ok defined($::_g0)
 # ## example (;$example)
 # 
 # Акцессор примера (используется для создания схемы **swagger**).
+# 
+# ## true ()
+# 
+# Всегда возвращает `1`. Нужна для указания теста для типа без `where`.
+# 
+# ## clone ()
+# 
+# Клонировать тип.
+# 
+::done_testing; }; subtest 'clone ()' => sub { 
+my $type = Aion::Type->new(name => 'New');
+my $type10 = $type->clone(args => [10]);
+local ($::_g0 = do {$type->stringify}, $::_e0 = "New"); ::ok $::_g0 eq $::_e0, '$type->stringify # => New' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$type10->stringify}, $::_e0 = "New[10]"); ::ok $::_g0 eq $::_e0, '$type10->stringify # => New[10]' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## is_primitive ()
+# 
+# Это - примитивный тип, то есть тот, в иерархии которого нет множественно-теоритических операторов.
+# 
+::done_testing; }; subtest 'is_primitive ()' => sub { 
+local ($::_g0 = do {Aion::Types::Int->is_primitive}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Int->is_primitive  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Like->is_primitive}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Like->is_primitive # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## is_union ()
+# 
+# Это объединение типов.
+# 
+::done_testing; }; subtest 'is_union ()' => sub { 
+local ($::_g0 = do {Aion::Types::Int->is_union}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Int->is_union # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {(Aion::Types::Int | Aion::Types::Int)->is_union}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(Aion::Types::Int | Aion::Types::Int)->is_union  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## is_intersection ()
+# 
+# Это пересечение типов.
+# 
+::done_testing; }; subtest 'is_intersection ()' => sub { 
+local ($::_g0 = do {Aion::Types::Int->is_intersection}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Int->is_intersection # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {(Aion::Types::Int & Aion::Types::Int)->is_intersection}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(Aion::Types::Int & Aion::Types::Int)->is_intersection  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## is_exclude ()
+# 
+# Это исключение типа.
+# 
+::done_testing; }; subtest 'is_exclude ()' => sub { 
+local ($::_g0 = do {Aion::Types::Any->is_exclude}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Any->is_exclude # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {(~Aion::Types::Any)->is_exclude}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(~Aion::Types::Any)->is_exclude # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::None->is_exclude}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::None->is_exclude # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {~Aion::Types::Any eq Aion::Types::None}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '~Aion::Types::Any eq Aion::Types::None # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## is_enum ()
+# 
+# Это перечисление.
+# 
+::done_testing; }; subtest 'is_enum ()' => sub { 
+local ($::_g0 = do {Aion::Types::Int->is_enum}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Int->is_enum  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Enum([1])->is_enum}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Enum([1])->is_enum  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## is_range_type ()
+# 
+# Это интервальный тип.
+# 
+::done_testing; }; subtest 'is_range_type ()' => sub { 
+local ($::_g0 = do {Aion::Types::Int->is_range_type}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Int->is_range_type  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Len([10])->is_range_type}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Len([10])->is_range_type  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## range_lbound ()
+# 
+# Нижняя граница интервала.
+# 
+::done_testing; }; subtest 'range_lbound ()' => sub { 
+local ($::_g0 = do {Aion::Types::Int->range_lbound}, $::_e0 = do {undef}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Int->range_lbound  # -> undef' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Len([10])->range_lbound}, $::_e0 = do {0}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Len([10])->range_lbound  # -> 0' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Range([0, 10])->range_lbound}, $::_e0 = do {'-Inf'}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([0, 10])->range_lbound  # -> \'-Inf\'' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## is_range ()
+# 
+# Это интервал.
+# 
+::done_testing; }; subtest 'is_range ()' => sub { 
+local ($::_g0 = do {Aion::Types::Int->is_range}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Int->is_range  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Len([10])->is_range}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Len([10])->is_range  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Range([1, 10])->is_range}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->is_range  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## typed_sorted_args_key ()
+# 
+# Формирует ключ с отсортированными типизированными параметрами.
+# 
+::done_testing; }; subtest 'typed_sorted_args_key ()' => sub { 
+local ($::_g0 = do {(Aion::Types::Int & Aion::Types::Num)->typed_sorted_args_key}, $::_e0 = do {(Aion::Types::Num & Aion::Types::Int)->typed_sorted_args_key}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(Aion::Types::Int & Aion::Types::Num)->typed_sorted_args_key  # -> (Aion::Types::Num & Aion::Types::Int)->typed_sorted_args_key' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## sorted_args_key ()
+# 
+# Формирует ключ с отсортированными нетипизированными параметрами.
+# 
+::done_testing; }; subtest 'sorted_args_key ()' => sub { 
+local ($::_g0 = do {Aion::Types::Enum([10, 20])->sorted_args_key}, $::_e0 = do {Aion::Types::Enum([20, 10])->sorted_args_key}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Enum([10, 20])->sorted_args_key # -> Aion::Types::Enum([20, 10])->sorted_args_key' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## key ()
+# 
+# Уникальный ключ из прототипа типа и его параметров.
+# 
+# ## keyfn ($fn)
+# 
+# Устанавливает/возвращает функцию построения ключа для типа как класса.
+# 
+::done_testing; }; subtest 'keyfn ($fn)' => sub { 
+my $type = Aion::Type->new(name => 'New', args => [10, 20]);
+$type->keyfn($type->can('sorted_args_key'));
+
+my $type2 = Aion::Type->new(name => 'New', args => [20, 10], coerce => $type->{coerce});
+local ($::_g0 = do {$type->key}, $::_e0 = do {$type2->key}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$type->key # -> $type2->key' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## asen ()
+# 
+# Возвращает цепочку предков.
+# 
+::done_testing; }; subtest 'asen ()' => sub { 
+local ($::_g0 = do {[Aion::Types::Num->asen]}, $::_e0 = do {[Aion::Types::Any, Aion::Types::Item, Aion::Types::Defined, Aion::Types::Value, Aion::Types::Str]}); ::is_deeply $::_g0, $::_e0, '[Aion::Types::Num->asen]  # --> [Aion::Types::Any, Aion::Types::Item, Aion::Types::Defined, Aion::Types::Value, Aion::Types::Str]' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## ckey ()
+# 
+# Ключ для сравнения типов в <=> и cmp.
+# 
+# ## compare ($other)
+# 
+# Сравнение для сортировки. Используется в операторах `<=>` и `cmp`.
+# 
+# ## is_descendant ($other, $is_strict)
+# 
+# A потомок B. Сравнивается прототип, но если указан `$is_strict`, то использется оператор `eq`.
+# 
+::done_testing; }; subtest 'is_descendant ($other, $is_strict)' => sub { 
+local ($::_g0 = do {Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Defined)}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Defined)  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## like ($other)
+# 
+# Сравнивает по прототипам.
+# 
+::done_testing; }; subtest 'like ($other)' => sub { 
+local ($::_g0 = do {Aion::Types::Range([1, 10])->like(Aion::Types::Range([100, 200]))}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->like(Aion::Types::Range([100, 200]))  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## joint ($other)
+# 
+# Типы пересекаются.
+# 
+::done_testing; }; subtest 'joint ($other)' => sub { 
+local ($::_g0 = do {Aion::Types::Range([1, 10])->joint(Aion::Types::Range([100, 200]))}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->joint(Aion::Types::Range([100, 200]))  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Range([1, 10])->joint(Aion::Types::Range([10, 200]))}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->joint(Aion::Types::Range([10, 200]))  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
 # 
 # # OPERATORS
 # 

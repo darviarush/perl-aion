@@ -291,11 +291,11 @@ local ($::_g0 = do {"ab" ~~ MyEnum[qw/ab cd/]}, $::_e0 = do {1}); ::ok defined($
 # 
 # Аргументы текущего типа. В скалярном контексте возвращает ссылку на массив, а в контексте массива возвращает список. Используется в `init_where`, `where` и `awhere`.
 # 
-# ## A, B, C, D
+# ## A
 # 
-# Первый, второй, третий и пятый аргумент типа.
+# A, B, C, D – первый, второй, третий и пятый аргумент типа.
 # 
-::done_testing; }; subtest 'A, B, C, D' => sub { 
+::done_testing; }; subtest 'A' => sub { 
 BEGIN {
 	subtype "Seria[a,b,c,d]", where { A < B && B < $_ && $_ < C && C < D };
 }
@@ -305,11 +305,23 @@ local ($::_g0 = do {2.5 ~~ Seria[1,2,3,4]}, $::_e0 = do {1}); ::ok defined($::_g
 # 
 # Используется в `init_where`, `where` и `awhere`.
 # 
-# ## M, N
+# # B
+# 
+# Второй аргумент типа.
+# 
+# # C
+# 
+# Третий аргумент типа.
+# 
+# # D
+# 
+# Четвёртый аргумент типа.
+# 
+# ## M
 # 
 # `M` и `N` сокращение для `SELF->{M}` и `SELF->{N}`.
 # 
-::done_testing; }; subtest 'M, N' => sub { 
+::done_testing; }; subtest 'M' => sub { 
 BEGIN {
 	subtype "BeginAndEnd[begin, end]",
 		init_where {
@@ -324,6 +336,10 @@ local ($::_g0 = do {"Hi my dear!" ~~ BeginAndEnd["Hi,", "!"];}, $::_e0 = do {""}
 
 local ($::_g0 = do {"" . BeginAndEnd["Hi,", "!"]}, $::_e0 = "BeginAndEnd['Hi,', '!']"); ::ok $::_g0 eq $::_e0, '"" . BeginAndEnd["Hi,", "!"] # => BeginAndEnd[\'Hi,\', \'!\']' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
+# 
+# ## N
+# 
+# Сокращение для `SELF->{N}`.
 # 
 # ## message ($code)
 # 
