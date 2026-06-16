@@ -926,6 +926,7 @@ None <= Any          # -> 1
 
 ```perl
 diag POSIX::DBL_MAX;
+diag 0+POSIX::DBL_MAX;
 diag -(Aion::Types::DBL_MAX);
 diag +(Aion::Types::DBL_MAX);
 
