@@ -744,107 +744,11 @@ The creator of the aspect has the parameters:
 		has moon => (is => "rw", lvalue => 1);
 	}
 
-=head2 import (undef, $attr)
-
-Called from another package to import this one.
-
-=head2 unimport ()
-
-Removes added characters.
-
-=head2 export ()
-
-Exports functions to a package if they are not already there.
-
-=head2 is_aion ()
-
-Checks that this package is initialized by Aion.
-
-=head2 is_aspect ($is, $feature)
-
-ro, rw, + and -, *.
-
-=head2 isa_aspect ($isa, $feature)
-
-isa => Type.
-
-=head2 coerce_aspect ($coerce, $feature)
-
-coerce => 1.
-
 =head2 pleroma ()
 
 Returns the locator.
 
 	Aion->pleroma->isa('Aion::Pleroma')  # -> 1
-
-=head2 eon_aspect ($key, $feature)
-
-eon => $key.
-
-=head2 lazy_aspect ($lazy, $feature)
-
-lazy => 1|0.
-
-=head2 default_aspect ($default, $feature)
-
-default => value.
-
-=head2 trigger_aspect ($trigger, $feature)
-
-trigger => $sub.
-
-=head2 release_aspect ($release, $feature)
-
-release => $sub.
-
-=head2 init_arg_aspect ($init_arg, $feature)
-
-init_arg => $name.
-
-=head2 accessor_aspect ($accessor, $feature)
-
-accessor => $name.
-
-=head2 writer_aspect ($writer, $feature)
-
-writer => $name.
-
-=head2 reader_aspect ($reader, $feature)
-
-reader => $name.
-
-=head2 predicate_aspect ($predicate, $feature)
-
-predicate => $name.
-
-=head2 clearer_aspect ($clearer, $feature)
-
-clearer => $name.
-
-=head2 cleaner_aspect ($cleaner, $feature)
-
-cleaner => $sub.
-
-=head2 inherits ()
-
-Extends a class or role.
-
-=head2 extends ()
-
-Class inheritance.
-
-=head2 requires ()
-
-Connecting a role.
-
-=head2 req ($name)
-
-Property required.
-
-=head2 initialize ($cls)
-
-Initializer: closes the class and is replaced by a constructor.
 
 =head1 SUBROUTINES IN CLASSES
 

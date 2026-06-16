@@ -218,34 +218,6 @@ local ($::_g0 = do {$aspect_name}, $::_e0 = "lvalue"); ::ok $::_g0 eq $::_e0, '	
 }
 
 # 
-# ## import (undef, $attr)
-# 
-# Вызывается из другого пакета, для импорта данного.
-# 
-# ## unimport ()
-# 
-# Удаляет добавленные символы.
-# 
-# ## export ()
-# 
-# Экспортирует функции в пакет, если их там ещё нет.
-# 
-# ## is_aion ()
-# 
-# Проверяет, что этот пакет инициализирован Aion.
-# 
-# ## is_aspect ($is, $feature)
-# 
-# ro, rw, + и -, *.
-# 
-# ## isa_aspect ($isa, $feature)
-# 
-# isa => Type.
-# 
-# ## coerce_aspect ($coerce, $feature)
-# 
-# coerce => 1.
-# 
 # ## pleroma ()
 # 
 # Возвращает локатор.
@@ -253,74 +225,6 @@ local ($::_g0 = do {$aspect_name}, $::_e0 = "lvalue"); ::ok $::_g0 eq $::_e0, '	
 ::done_testing; }; subtest 'pleroma ()' => sub { 
 local ($::_g0 = do {Aion->pleroma->isa('Aion::Pleroma')}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion->pleroma->isa(\'Aion::Pleroma\')  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
-# 
-# ## eon_aspect ($key, $feature)
-# 
-# eon => $key.
-# 
-# ## lazy_aspect ($lazy, $feature)
-# 
-# lazy => 1|0.
-# 
-# ## default_aspect ($default, $feature)
-# 
-# default => value.
-# 
-# ## trigger_aspect ($trigger, $feature)
-# 
-# trigger => $sub.
-# 
-# ## release_aspect ($release, $feature)
-# 
-# release => $sub.
-# 
-# ## init_arg_aspect ($init_arg, $feature)
-# 
-# init_arg => $name.
-# 
-# ## accessor_aspect ($accessor, $feature)
-# 
-# accessor => $name.
-# 
-# ## writer_aspect ($writer, $feature)
-# 
-# writer => $name.
-# 
-# ## reader_aspect ($reader, $feature)
-# 
-# reader => $name.
-# 
-# ## predicate_aspect ($predicate, $feature)
-# 
-# predicate => $name.
-# 
-# ## clearer_aspect ($clearer, $feature)
-# 
-# clearer => $name.
-# 
-# ## cleaner_aspect ($cleaner, $feature)
-# 
-# cleaner => $sub.
-# 
-# ## inherits ()
-# 
-# Расширяет класс или роль.
-# 
-# ## extends ()
-# 
-# Наследование классов.
-# 
-# ## requires ()
-# 
-# Подключение роли.
-# 
-# ## req ($name)
-# 
-# Требуется свойство.
-# 
-# ## initialize ($cls)
-# 
-# Инициализатор: закрывает класс и заменяется на конструктор.
 # 
 # # SUBROUTINES IN CLASSES
 # 
