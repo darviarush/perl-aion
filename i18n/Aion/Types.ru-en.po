@@ -46,9 +46,6 @@ msgstr "If the type can be with or without arguments, then it is used to check t
 msgid "Необходимо, если аргументы необязательны."
 msgstr "Required if arguments are optional."
 
-msgid "Указываеет, что тип является союзным к типам веток родителя. Есть у `Range`, `Len`, `Lim` и `LimKeys`, что позволяет им соединятся с типом `Int`, например. В то время как `Str` и `Version` будут в разных ветках."
-msgstr "Indicates that the type is allied to the parent's branch types. `Range`, `Len`, `Lim` and `LimKeys` have, which allows them to connect to the `Int` type, for example. While `Str` and `Version` will be in different branches."
-
 msgid "Текущий тип. `SELF` используется в `init_where`, `where` и `awhere`."
 msgstr "Current type. `SELF` is used in `init_where`, `where` and `awhere`."
 

@@ -5,7 +5,7 @@ use warnings FATAL => 'recursion';
 #use warnings 'recursion';
 
 use Aion::Meta::Util qw//;
-use aliased 'Aion::Type::Lim';
+use Aion::Type::Lim;
 use List::Util qw//;
 use Scalar::Util qw//;
 
@@ -200,6 +200,10 @@ sub coerce {
 
 #@category compare
 
+#my $_any; my $_none;
+sub Any() { *Any = \&Aion::Types::Any; &Any }
+sub None() { *None = \&Aion::Types::None; &None }
+
 # refaddr coerce => минимальная нижняя граница. У Range она -Inf, а у остальных – 0
 our %range_lbound;
 
@@ -259,10 +263,19 @@ sub keyfn {
 	}
 }
 
+# Возвращает цепочку предков
+sub asen {
+	my ($self) = @_;
+	my @as;
+	for(my $i=$self->{as}; $i; $i = $i->{as}) { unshift @as, $i }
+	unshift @as, Any unless @as && $as[0] eq Any;
+	@as
+}
+
 # Ключ для сравнения типов в <=> и cmp
 sub ckey {
 	my ($self) = @_;
-	$self->{ckey} //= $self->_unfolding->stringify . $self->stringify;
+	$self->{ckey} //= join " <- ", map $_->stringify, $self->asen, $self;
 }
 
 # Сравнение для сортировки
@@ -271,11 +284,10 @@ sub compare {
 	$self->ckey cmp $other->ckey;
 }
 
-# (Int & Tel)->instanceof('Int') -> 1; (Int | Tel)->instanceof('Int') -> ""; (~(~Int | Tel))->instanceof('Int') -> ""
-# Нечёткий поиск в иерархии по имени
+# A потомок B
 sub instanceof {
 	my ($self, $name) = @_;
-	
+
 	my @S = $self;
 	while(@S) {
 		my $x = pop @S;
@@ -283,78 +295,9 @@ sub instanceof {
 		if($x->is_intersection) { push @S, @{$x->{args}} }
 		elsif($x->is_set_theoretic) {}
 		else { push @S, $x->{as} if $x->{as} }
-	}
-	
-	""
-}
+    }
 
-# Тождество
-sub identical {
-	my ($self, $other) = @_;
-
-	return 1 if Scalar::Util::refaddr $self == Scalar::Util::refaddr $other;
-	return "" unless UNIVERSAL::isa($other, __PACKAGE__)
-	 	&& $self->{coerce} == $other->{coerce};
-
-	$self->key eq $other->key
-}
-
-# Нетождественно
-sub distinct {
-	my ($self, $other) = @_;
-	!$self->identical($other);
-}
-
-my $_any; my $_none;
-sub Any() { $_any //= &Aion::Types::Any }
-sub None() { $_none //= ~Any }
-
-# Превращает выражение в ДНФ
-sub _simplify { shift->_unfolding->_pushing->_distribute }
-
-# Упрощает выражение
-sub simplify {
-	my ($self) = @_;
-
-	$self = $self->_simplify;
-	
-	my %union = map {($_->key => $_)} map $_->_folding, $self->is_union? @{$self->{args}}: $self;
-	my @union = values %union;
-	
-	my @union = grep { my $item = $_; !List::Util::any { $item->is_descendant($_, 1) } grep { $_ ne $item } values %union } values %union;
-
-	@union == 0? None:
-	@union == 1? $union[0]: Aion::Types::Union([sort @union]);
-}
-
-# Сворачивает пересечения в наследование
-sub _folding {
-	my ($self) = @_;
-	
-	return $self unless $self->is_intersection;
-
-	my %intersection = map {($_->key => $_)} @{$self->{args}};
-	my @intersection = values %intersection;
-	
-	@intersection = grep { my $item = $_; !List::Util::any { $_->is_descendant($item, 1) } grep { $_ ne $item } @intersection } @intersection;
-
-	my $candidate = $intersection[0];
-	for my $item (@intersection[1..$#intersection]) {
-		return unless $candidate->in_branch($item) || $item->in_branch($candidate);
-	}
-	
-	@intersection == 0? ():
-	@intersection == 1? $intersection[0]: Aion::Types::Intersection([sort @intersection]);
-}
-
-# Сравнивает по прототипам
-sub like {
-	my ($self, $other) = @_;
-	return List::Util::all { $_->[0]->like($_->[1]) } List::Util::zip $self->{args}, $other->{args} if $self->is_intersection && $other->is_intersection;
-	return List::Util::any { $_->[0]->like($_->[1]) } List::Util::zip $self->{args}, $other->{args} if $self->is_union && $other->is_union;
-	return $self->{args}[0]->like($other->{args}[0]) if $self->is_exclude && $other->is_exclude;
-	return "" if $self->is_set_theoretic || $other->is_set_theoretic;
-	$self->{coerce} == $other->{coerce};
+    ""
 }
 
 # A потомок B
@@ -378,41 +321,42 @@ sub is_descendant {
 	""
 }
 
-# Собирает ноды от которых отходят родственные ветви
-sub siblings {
-	my ($self) = @_;
-
-	$self->{siblings} //= do {
-		if($self->is_union) {
-			+{map %{$_->siblings}, @{$self->{args}}};
-		}
-		elsif($self->{as} && ($self->{ally} || $self->{test} == \&true)) {
-			+{$self->key => $self, %{$self->{as}->siblings}};
-		}
-		else {
-			+{$self->key => $self};
-		}
-	};
+# Сравнивает по прототипам
+sub like {
+	my ($self, $other) = @_;
+	return List::Util::all { $_->[0]->like($_->[1]) } List::Util::zip $self->{args}, $other->{args} if $self->is_intersection && $other->is_intersection;
+	return List::Util::any { $_->[0]->like($_->[1]) } List::Util::zip $self->{args}, $other->{args} if $self->is_union && $other->is_union;
+	return $self->{args}[0]->like($other->{args}[0]) if $self->is_exclude && $other->is_exclude;
+	return "" if $self->is_set_theoretic || $other->is_set_theoretic;
+	$self->{coerce} == $other->{coerce};
 }
 
-# A отпочковался от B
-sub in_branch {
+# Тождество
+sub identical {
 	my ($self, $other) = @_;
-	
-	return 1 if $self->key ~~ $other->siblings;
 
-	if ($self->is_intersection) {
-		return List::Util::all { $_->in_branch($other) } @{$self->{args}};
-	}
-	if ($self->is_union) {
-		return List::Util::any { $_->in_branch($other) } @{$self->{args}};
-	}
-	if ($self->is_exclude) {
-		return $self->{args}[0]->in_branch($other->is_exclude? $other->{args}[0]: ~$other);
-	}
-	return $self->{as}->in_branch($other) if $self->{as};
+	return 1 if Scalar::Util::refaddr $self == Scalar::Util::refaddr $other;
+	return "" unless UNIVERSAL::isa($other, __PACKAGE__)
+	 	&& $self->{coerce} == $other->{coerce};
 
-	""
+	$self->key eq $other->key
+}
+
+# Нетождественно
+sub distinct {
+	my ($self, $other) = @_;
+	!$self->identical($other);
+}
+
+# Превращает выражение в ДНФ
+sub _simplify { shift->_unfolding->_pushing->_distribute }
+
+# Упрощает выражение
+# TODO: использовать алгоритм Espresso для свёртки DNF
+sub simplify {
+	my ($self) = @_;
+
+	$self->_simplify eq None? None: $self;
 }
 
 # A as B as C <=> A & B & C
@@ -498,7 +442,7 @@ sub _union_ranges {
 	@ranges = map {
 		my ($min1, $max1) = @{$range->{args}};
 		my ($min2, $max2) = @{$_->{args}};
-		if($max1 > $min2) {	$range = Aion::Types::Range([$min1, List::Util::max($max1, $max2)]); () }
+		if($max1 > $min2) {	$range = $range->clone(args => [$min1, List::Util::max($max1, $max2)]); () }
 		else { my $arange = $range; $range = $_; $arange }
 	} @ranges;
 	push @ranges, $range;
@@ -527,7 +471,7 @@ sub _intersection_ranges($) {
 		my ($min2, $max2) = @{$arange->{args}};
 		my $max = List::Util::min($max1, $max2);
 		return None if $min2 > $max;
-		$range = Aion::Types::Range([$min2, $max]);
+		$range = $range->clone(args => [$min2, $max]);
 	}
 
 	$range
@@ -538,7 +482,7 @@ sub _union_enums($,$) {
 	my ($enums, $exclude_enums) = @_;
 	
 	my %enum = map {($_=>$_)} map @{$_->{args}}, @$enums;
-	return $enums->[0]->clone(args => [sort values %enum]) unless @$exclude_enums;
+	return $enums->[0]->clone(args => [sort values %enum])->init unless @$exclude_enums;
 
 	my $first_exclude_enum = shift(@$exclude_enums);
 	my %exclude_enum = map {($_=>$_)} @{$first_exclude_enum->{args}};
@@ -551,7 +495,7 @@ sub _union_enums($,$) {
 
 	return Any unless keys %exclude_enum;
 
-	~$first_exclude_enum->clone(args => [sort values %exclude_enum]);
+	~$first_exclude_enum->clone(args => [sort values %exclude_enum])->init;
 }
 
 # Пересечение перечислений
@@ -559,7 +503,7 @@ sub _intersection_enums($,$) {
 	my ($enums, $exclude_enums) = @_;
 	
 	my %exclude_enum = map {($_=>$_)} map @{$_->{args}}, @$exclude_enums;
-	return ~$exclude_enums->[0]->clone(args => [sort values %exclude_enum]) unless @$enums;
+	return ~$exclude_enums->[0]->clone(args => [sort values %exclude_enum])->init unless @$enums;
 	
 	my $first_enum = shift(@$enums);
 	my %enum = map {($_=>$_)} @{$first_enum->{args}};
@@ -573,7 +517,7 @@ sub _intersection_enums($,$) {
 
 	return None unless keys %enum;
 
-	$first_enum->clone(args => [sort values %enum]);
+	$first_enum->clone(args => [sort values %enum])->init;
 }
 
 # Обрабатывает пересечение границ диапазонов
@@ -630,7 +574,7 @@ sub subset {
 
 	return 1 if $self eq $other or $other eq Any;
 
- 	($self & ~$other)->simplify eq None;
+ 	($self & ~$other)->_simplify eq None;
 }
 
 # A < B (Строгое включение: подтип, но не равен) = A <= B && !(B <= A)
@@ -672,7 +616,7 @@ sub joint {
 # Не пересекаются
 sub disjoint {
 	my ($self, $other) = @_;
-	($self & $other)->simplify eq None;
+	($self & $other)->_simplify eq None;
 }
 
 #@category swagger
@@ -1009,15 +953,18 @@ Checks that the type is set-theoretic (ie - the C<|>, C<&> or C<~> operator).
 
 =head2 simplify
 
-Simplify a complex type expression into disjunctive normal form (DNF) and perform intersection and union merging for ranges and enumerations.
+If the expression has no values, it will return C<~Any>, otherwise it will return the expression.
+
+Simplification of the expression in this function may appear in the future.
 
 	package Aion::Types;
 	
 	my $type = (Enum[1,2] | Enum[2,3]) & Enum[2,3,4];
-	$type->simplify; # => Enum[2,3]
 	
-	my $range = (Range[1,5] | Range[6,10]) & Range[4,8];
-	$range->simplify; # => Range[4,5] | Range[6,8]
+	$type->simplify->stringify # => ( ( Enum[1, 2] | Enum[2, 3] ) & Enum[2, 3, 4] )
+	
+	my $range = Range[-10,0] & Range[4,8];
+	$range->simplify->stringify # => None
 
 =head2 Any
 
@@ -1356,18 +1303,18 @@ Comparison of two types. Used for sorting.
 
 	package Aion::Types;
 	
-	Enum[1,2] <=> Enum[1,2,3]   # -> -1
-	Enum[1,2,3] <=> Enum[1,2]   # -> 1
+	Enum[1,2] <=> Enum[1,2,3]   # -> 1
+	Enum[1,2,3] <=> Enum[1,2]   # -> -1
 	Enum[1,2] <=> Enum[1,2]     # -> 0
 	
-	Range[1,5] <=> Range[1,10]  # -> -1
-	Range[1,10] <=> Range[1,5]  # -> 1
+	Range[1,5] <=> Range[1,10]  # -> 1
+	Range[1,10] <=> Range[1,5]  # -> -1
 	Range[1,5] <=> Range[1,5]   # -> 0
 	
-	Int <=> Num                  # -> -1
-	Num <=> Int                  # -> 1
+	Int <=> Num                  # -> 1
+	Num <=> Int                  # -> -1
 	
-	Str <=> Int                  # -> 1
+	Str <=> Int                  # -> -1
 
 =head1 AUTHOR
 

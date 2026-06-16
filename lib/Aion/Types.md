@@ -283,16 +283,6 @@ BEGIN {
 "ab" ~~ MyEnum[qw/ab cd/] # -> 1
 ```
 
-## ally
-
-Указываеет, что тип является союзным к типам веток родителя. Есть у `Range`, `Len`, `Lim` и `LimKeys`, что позволяет им соединятся с типом `Int`, например. В то время как `Str` и `Version` будут в разных ветках.
-
-```perl
-(Range[-50, 50] & PositiveInt)->simplify # -> Range[0, 50] & Int
-
-(Str & Version)->simplify # -> ~Any
-```
-
 ## SELF
 
 Текущий тип. `SELF` используется в `init_where`, `where` и `awhere`.
@@ -561,9 +551,6 @@ Enum["cat", "dog"] <= Enum["cat", "dog"] # -> 1
 
 Enum(["cat", "dog"])->disjoint(Enum[1]) # -> 1
 Enum(["cat", "dog"])->disjoint(Enum["ret", "cat"]) # -> ""
-
-(Enum[1,2] & Enum[2,3])->simplify; # => Enum[2]
-(Enum[1,2] | Enum[2,3])->simplify; # => Enum[1,2,3]
 
 Enum[1,2] <= Enum[1,2,3]          # -> 1
 Enum[1,2] <= Enum[2,3]            # -> ""
@@ -904,9 +891,6 @@ Nat <= PositiveInt   # -> 1
 Int < Num            # -> 1
 Str <= Any           # -> 1
 None <= Any          # -> 1
-
-(Int & Str)->simplify # => Str
-(Int | Str)->simplify # => Int
 ```
 
 ## Float
@@ -951,16 +935,10 @@ Range[Opened[1],5] <= Range[1,5]  # -> 1
 Range[1,5] == Range[1,5]          # -> 1
 Range[1,5] < Range[1,10]          # -> 1
 
-(Range[1,5] & Range[3,7])->simplify # => Range[3, 5]
-(Range[1,5] | Range[3,7])->simplify # => Range[1, 7]
-
 my $r1 = Range[Opened[1], Opened[5]];
 my $r2 = Range[2,4];
 $r2 <= $r1;  # -> 1
 $r1 <= $r2;  # -> ""
-
-my $disjoint = Range[1,2] | Range[4,5];
-$disjoint->simplify # => ( Range[1, 2] | Range[4, 5] )
 ```
 
 ## Opened[num]
@@ -1331,9 +1309,6 @@ Lim[3] <= Lim[5]          # -> 1
 Lim[3] <= Lim[2]          # -> ""
 Lim[2,5] < Lim[1,6]       # -> 1
 Lim[2,5] == Lim[2,5]      # -> 1
-
-(Lim[2,5] & Lim[4,7])->simplify # => Lim[4, 5]
-(Lim[2,5] | Lim[4,7])->simplify # => Lim[2, 7]
 ```
 
 ## HashRef`[H]
@@ -1451,9 +1426,6 @@ LimKeys[20, 'Inf'] <= LimKeys[2, 'Inf'] # -> 1
 
 LimKeys[3] <= LimKeys[5]    # -> 1
 LimKeys[2,5] < LimKeys[1,6] # -> 1
-
-(LimKeys[2,5] & LimKeys[4,7])->simplify # => LimKeys[4, 5]
-(LimKeys[2,5] | LimKeys[4,7])->simplify # => LimKeys[2, 7]
 ```
 
 ## Like

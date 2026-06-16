@@ -67,8 +67,11 @@ msgstr "Doesn't work in `|` and `~`. Doesn't check arguments."
 msgid "Проверяет, что тип является множественно-теоритическим (т.е. – оператором `|`, `&` или `~`)."
 msgstr "Checks that the type is set-theoretic (ie - the `|`, `&` or `~` operator)."
 
-msgid "Упрощает сложное выражение типа, приводя его к дизъюнктивной нормальной форме (ДНФ) и выполняя слияние пересечений и объединений для диапазонов и перечислений."
-msgstr "Simplify a complex type expression into disjunctive normal form (DNF) and perform intersection and union merging for ranges and enumerations."
+msgid "Если выражение не имеет значений – вернёт `~Any`, иначе – выражение."
+msgstr "If the expression has no values, it will return `~Any`, otherwise it will return the expression."
+
+msgid "Упрощение выражения в этой функции возможно появится в будущем."
+msgstr "Simplification of the expression in this function may appear in the future."
 
 msgid "Константа для типа включающего все значения."
 msgstr "A constant for a type that includes all values."

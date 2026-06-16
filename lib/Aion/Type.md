@@ -236,16 +236,19 @@ my $MyEnum = Aion::Type->new(name => "MyEnum", args => [3, 5, 'car']);
 
 ## simplify
 
-Упрощает сложное выражение типа, приводя его к дизъюнктивной нормальной форме (ДНФ) и выполняя слияние пересечений и объединений для диапазонов и перечислений.
+Если выражение не имеет значений – вернёт `~Any`, иначе – выражение.
+
+Упрощение выражения в этой функции возможно появится в будущем.
 
 ```perl
 package Aion::Types;
 
 my $type = (Enum[1,2] | Enum[2,3]) & Enum[2,3,4];
-$type->simplify; # => Enum[2, 3]
 
-my $range = (Range[1,5] | Range[6,10]) & Range[4,8];
-$range->simplify; # => Range[4,5] | Range[6,8]
+$type->simplify->stringify # => ( ( Enum[1, 2] | Enum[2, 3] ) & Enum[2, 3, 4] )
+
+my $range = Range[-10,0] & Range[4,8];
+$range->simplify->stringify # => None
 ```
 
 ## Any
@@ -626,18 +629,18 @@ A надмножество B.
 ```perl
 package Aion::Types;
 
-Enum[1,2] <=> Enum[1,2,3]   # -> -1
-Enum[1,2,3] <=> Enum[1,2]   # -> 1
+Enum[1,2] <=> Enum[1,2,3]   # -> 1
+Enum[1,2,3] <=> Enum[1,2]   # -> -1
 Enum[1,2] <=> Enum[1,2]     # -> 0
 
-Range[1,5] <=> Range[1,10]  # -> -1
-Range[1,10] <=> Range[1,5]  # -> 1
+Range[1,5] <=> Range[1,10]  # -> 1
+Range[1,10] <=> Range[1,5]  # -> -1
 Range[1,5] <=> Range[1,5]   # -> 0
 
-Int <=> Num                  # -> -1
-Num <=> Int                  # -> 1
+Int <=> Num                  # -> 1
+Num <=> Int                  # -> -1
 
-Str <=> Int                  # -> 1
+Str <=> Int                  # -> -1
 ```
 
 # AUTHOR

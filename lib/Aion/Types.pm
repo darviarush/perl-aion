@@ -114,7 +114,7 @@ sub subtype(@) {
 	my $subtype = shift;
 	my %o = @_;
 	
-	my ($as, $init_where, $where, $awhere, $message, $ally) = delete @o{qw/as init_where where awhere message ally/};
+	my ($as, $init_where, $where, $awhere, $message) = delete @o{qw/as init_where where awhere message/};
 	
 	die "subtype $subtype unused keys left: " . join ", ", keys %o if keys %o;
 	
@@ -160,7 +160,6 @@ sub subtype(@) {
 		@init? (init => \@init): (),
 		$awhere? (a_test => $awhere): (),
 		$message? (message => $message): (),
-		$ally? (ally => 1): (),
 	);
 	
 	if($is_maybe_arg) {
@@ -178,7 +177,6 @@ sub init_where(&@) { (init_where => @_) }
 sub where(&@) { (where => @_) }
 sub awhere(&@) { (awhere => @_) }
 sub message(&@) { (message => @_) }
-sub ally(@) { (ally => 1, @_) }
 
 sub SELF() { $Aion::Type::SELF }
 sub ARGS() {
@@ -404,7 +402,7 @@ subtype "Any";
 				subtype "ArrayLike`[A]", as &Ref,
 					where { reftype($_) eq "ARRAY" || !!overload::Method($_, '@{}') }
 					awhere { &ArrayLike->test && do { my $A = A; all { $A->test } @$_ }};
-					subtype "Lim[from, to?]", as &ArrayLike, ally
+					subtype "Lim[from, to?]", as &ArrayLike,
 						init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
 						where { A <= @$_ && @$_ <= B };
 				subtype "HashLike`[A]", as &Ref,
@@ -412,7 +410,7 @@ subtype "Any";
 					awhere { &HashLike->test && do { my $A = A; all { $A->test } values %$_ }};
 						subtype "HasProp[p...]", as &HashLike,
 							where { my $x = $_; all { exists $x->{$_} } ARGS };
-						subtype "LimKeys[from, to?]", as &HashLike, ally
+						subtype "LimKeys[from, to?]", as &HashLike,
 							init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
 							where { A <= scalar keys %$_ && scalar keys %$_ <= B };
 		
@@ -425,13 +423,13 @@ subtype "Any";
 				subtype "InstanceOf[class...]", as &Like, where { my $x = $_; all { $x->isa($_) } ARGS };
 				subtype "ConsumerOf[role...]", as &Like, where { my $x = $_; all { $x->DOES($_) } ARGS };
 				subtype "StrLike", as &Like, where { !blessed($_) or !!overload::Method($_, '""') };
-					subtype "Len[from, to?]", as &StrLike, ally
+					subtype "Len[from, to?]", as &StrLike,
 						init_where { unshift @{&ARGS}, 0 if @{&ARGS} == 1; }
 						where { A <= length($_) && length($_) <= B };
 	
 				subtype "NumLike", as &Num | &Object & Overload(["0+"]);
 					sub Opened($) { Aion::Type::Lim->from(ref $_[0] eq "ARRAY"? $_[0][0]: $_[0]) };
-					subtype "Range[from, to]", as &NumLike, ally
+					subtype "Range[from, to]", as &NumLike,
 						init_where {
 							SELF->{args}[0] = A->inc if UNIVERSAL::isa(A, 'Aion::Type::Lim');
 							SELF->{args}[1] = B->dec if UNIVERSAL::isa(B, 'Aion::Type::Lim');
@@ -468,6 +466,7 @@ subtype "Any";
 	subtype "PositiveInt", as &Int & Range([0, 'Inf']);
 	subtype "Nat", as &Int & Range([1, 'Inf']);
 
+	subtype "None", as ~&Any;
 };
 
 $_->keyfn(\&Aion::Type::typed_sorted_args_key) for Union[], Intersection[];
@@ -753,14 +752,6 @@ Required if arguments are optional.
 	
 	"ab" ~~ MyEnum[qw/ab cd/] # -> 1
 
-=head2 ally
-
-Indicates that the type is allied to the parent's branch types. C<Range>, C<Len>, C<Lim> and C<LimKeys> have, which allows them to connect to the C<Int> type, for example. While C<Str> and C<Version> will be in different branches.
-
-	(Range[-50, 50] & PositiveInt)->simplify # -> Range[0, 50] & Int
-	
-	(Str & Version)->simplify # -> ~Any
-
 =head2 SELF
 
 Current type. C<SELF> is used in C<init_where>, C<where> and C<awhere>.
@@ -1006,9 +997,6 @@ Enumeration.
 	
 	Enum(["cat", "dog"])->disjoint(Enum[1]) # -> 1
 	Enum(["cat", "dog"])->disjoint(Enum["ret", "cat"]) # -> ""
-	
-	(Enum[1,2] & Enum[2,3])->simplify; # => Enum[2]
-	(Enum[1,2] | Enum[2,3])->simplify; # => Enum[1,2,3]
 	
 	Enum[1,2] <= Enum[1,2,3]          # -> 1
 	Enum[1,2] <= Enum[2,3]            # -> ""
@@ -1291,9 +1279,6 @@ Positive integers.
 	Int < Num            # -> 1
 	Str <= Any           # -> 1
 	None <= Any          # -> 1
-	
-	(Int & Str)->simplify # => Str
-	(Int | Str)->simplify # => Int
 
 =head2 Float
 
@@ -1332,16 +1317,10 @@ Numbers between C<from> and C<to> inclusive.
 	Range[1,5] == Range[1,5]          # -> 1
 	Range[1,5] < Range[1,10]          # -> 1
 	
-	(Range[1,5] & Range[3,7])->simplify # => Range[3, 5]
-	(Range[1,5] | Range[3,7])->simplify # => Range[1, 7]
-	
 	my $r1 = Range[Opened[1], Opened[5]];
 	my $r2 = Range[2,4];
 	$r2 <= $r1;  # -> 1
 	$r1 <= $r2;  # -> ""
-	
-	my $disjoint = Range[1,2] | Range[4,5];
-	$disjoint->simplify # => ( Range[1, 2] | Range[4, 5] )
 
 =head2 Opened[num]
 
@@ -1662,9 +1641,6 @@ Limits arrays from C<from> or 0 to C<to> elements.
 	Lim[3] <= Lim[2]          # -> ""
 	Lim[2,5] < Lim[1,6]       # -> 1
 	Lim[2,5] == Lim[2,5]      # -> 1
-	
-	(Lim[2,5] & Lim[4,7])->simplify # => Lim[4, 5]
-	(Lim[2,5] | Lim[4,7])->simplify # => Lim[2, 7]
 
 =head2 HashRef`[H]
 
@@ -1764,9 +1740,6 @@ Limits the number of keys in the hash from C<from> or 0 to C<to>.
 	
 	LimKeys[3] <= LimKeys[5]    # -> 1
 	LimKeys[2,5] < LimKeys[1,6] # -> 1
-	
-	(LimKeys[2,5] & LimKeys[4,7])->simplify # => LimKeys[4, 5]
-	(LimKeys[2,5] | LimKeys[4,7])->simplify # => LimKeys[2, 7]
 
 =head2 Like
 
@@ -1992,4 +1965,3 @@ Yaroslav O. Kosmina LL<mailto:dart@cpan.org>
 =head1 COPYRIGHT
 
 The Aion::Types module is copyright © 2023 Yaroslav O. Kosmina. Rusland. All rights reserved.
-
