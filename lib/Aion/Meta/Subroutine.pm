@@ -52,7 +52,7 @@ sub wrap_sub {
 	$self->{wrapsub} = $sub;
 	$Aion::META{$pkg}{subroutine}{$subname} = $self;
 
-	my $key = pack 'J', Scalar::Util::refaddr $sub;
+	my $key = pack "J", Scalar::Util::refaddr $sub;
 	$Aion::Isa{$key} = $self;
 	Scalar::Util::weaken $Aion::Isa{$key};
 	

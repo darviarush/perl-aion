@@ -64,6 +64,39 @@ msgstr ""
 "* `$feature` – meta-object describing the feature (`Aion::Meta::Feature`).\n"
 "* `$aspect_name` – aspect name."
 
+msgid "Вызывается из другого пакета, для импорта данного."
+msgstr "Called from another package to import this one."
+
+msgid "Удаляет добавленные символы."
+msgstr "Removes added characters."
+
+msgid "Экспортирует функции в пакет, если их там ещё нет."
+msgstr "Exports functions to a package if they are not already there."
+
+msgid "Проверяет, что этот пакет инициализирован Aion."
+msgstr "Checks that this package is initialized by Aion."
+
+msgid "ro, rw, + и -, *."
+msgstr "ro, rw, + and -, *."
+
+msgid "Возвращает локатор."
+msgstr "Returns the locator."
+
+msgid "Расширяет класс или роль."
+msgstr "Extends a class or role."
+
+msgid "Наследование классов."
+msgstr "Class inheritance."
+
+msgid "Подключение роли."
+msgstr "Connecting a role."
+
+msgid "Требуется свойство."
+msgstr "Property required."
+
+msgid "Инициализатор: закрывает класс и заменяется на конструктор."
+msgstr "Initializer: closes the class and is replaced by a constructor."
+
 msgid "Расширяет класс другим классом/классами. Он вызывает из каждого наследуемого класса метод `import_extends`, если он в нём есть."
 msgstr "Expands the class with another class/classes. It causes from each inherited class the method of `import_extends`, if it is in it."
 

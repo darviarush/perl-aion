@@ -20,17 +20,32 @@ SpeakOfKitty->validate("abc", "This") # @-> Speak is'nt included kitty!
 
 
 BEGIN {
-	subtype IntOrArrayRef => as (Int | ArrayRef);
+	subtype 'IntOrArrayRef[len, B]',
+		as Int & Range[5, A]
+			| ArrayRef[B & Len[A]];
 }
 
-[] ~~ IntOrArrayRef  # -> 1
-35 ~~ IntOrArrayRef  # -> 1
-"" ~~ IntOrArrayRef  # -> ""
+35 ~~ IntOrArrayRef[35, Tel] # -> 1
+35 ~~ IntOrArrayRef[34, Tel] # -> ""
+
+'+23456789'  ~~ Tel # -> 1
+'+234567890' ~~ Tel # -> 1
+'+23456789'  ~~ (Tel & Len[9]) # -> 1
+'+234567890' ~~ (Tel & Len[9]) # -> ""
+
+['+23456789',  '+23456789'] ~~ IntOrArrayRef[9, Tel] # -> 1
+['+234567890', '+23456789'] ~~ IntOrArrayRef[9, Tel] # -> ""
+
+"" ~~ IntOrArrayRef[8, Tel]  # -> ""
 
 
-coerce IntOrArrayRef, from Num, via { int($_ + .5) };
+coerce IntOrArrayRef[35, Str], from Num, via { int($_ + .5) };
 
-IntOrArrayRef->coerce(5.5) # => 6
+IntOrArrayRef([35, Str])->coerce(5.5) # => 6
+
+5.5 >> IntOrArrayRef[35, Str] # => 6
+
+(Tel & Len[9]) < (Tel & Len[10]) # => 1
 ```
 
 # DESCRIPTION
@@ -114,17 +129,17 @@ Any
 				RegexpLike
 				CodeLike
 				ArrayLike`[A]
-					Lim[from, to?]
+					Lim[from?, to]
 				HashLike`[A]
 					HasProp[p...]
-					LimKeys[from, to?]
+					LimKeys[from?, to]
 			Like
 				HasMethods[m...]
 				Overload`[m...]
 				InstanceOf[class...]
 				ConsumerOf[role...]
 				StrLike
-					Len[from, to?]
+					Len[from?, to]
 				NumLike
 					Range[from, to]
 						Float
@@ -201,7 +216,9 @@ BEGIN {
 
 ## init_where ($code)
 
-Инициализирует тип с новыми аргументами. Используется с `subtype`.
+Инициализирует тип с новыми аргументами. Используется с `subtype`. 
+
+Инициализация – ленивая. Это значит, что она сработает в методе `test` или подобном.
 
 ```perl
 BEGIN {
@@ -274,9 +291,9 @@ BEGIN {
 
 Аргументы текущего типа. В скалярном контексте возвращает ссылку на массив, а в контексте массива возвращает список. Используется в `init_where`, `where` и `awhere`.
 
-## A, B, C, D
+## A
 
-Первый, второй, третий и пятый аргумент типа.
+A, B, C, D – первый, второй, третий и пятый аргумент типа.
 
 ```perl
 BEGIN {
@@ -288,7 +305,19 @@ BEGIN {
 
 Используется в `init_where`, `where` и `awhere`.
 
-## M, N
+# B
+
+Второй аргумент типа.
+
+# C
+
+Третий аргумент типа.
+
+# D
+
+Четвёртый аргумент типа.
+
+## M
 
 `M` и `N` сокращение для `SELF->{M}` и `SELF->{N}`.
 
@@ -307,6 +336,10 @@ BEGIN {
 
 "" . BeginAndEnd["Hi,", "!"] # => BeginAndEnd['Hi,', '!']
 ```
+
+## N
+
+Сокращение для `SELF->{N}`.
 
 ## message ($code)
 
@@ -413,6 +446,8 @@ eval {half 5}; $@ # ~> Return of method `half` must have the type Int. The it is
 
 Тип верхнего уровня в иерархии. Сопоставляет всё.
 
+Нижний тип можно получить как `~Any`.
+
 ## Control
 
 Тип верхнего уровня в конструкторах иерархии создает новые типы из любых типов.
@@ -423,8 +458,8 @@ eval {half 5}; $@ # ~> Return of method `half` must have the type Int. The it is
 
 ```perl
 33  ~~ Union[Int, Ref] # -> 1
-[]  ~~ Union[Int, Ref]	# -> 1
-"a" ~~ Union[Int, Ref]	# -> ""
+[]  ~~ Union[Int, Ref] # -> 1
+"a" ~~ Union[Int, Ref] # -> ""
 ```
 
 ## Intersection[A, B...]
@@ -435,23 +470,15 @@ eval {half 5}; $@ # ~> Return of method `half` must have the type Int. The it is
 15 ~~ Intersection[Int, StrMatch[/5/]] # -> 1
 ```
 
-## Exclude[A, B...]
+## Exclude[A]
 
-Исключение нескольких типов. Аналогичен оператору `~ $type`.
+Исключение значения типа. Аналогичен оператору `~ $type`.
 
 ```perl
 -5  ~~ Exclude[PositiveInt] # -> 1
 "a" ~~ Exclude[PositiveInt] # -> 1
 5   ~~ Exclude[PositiveInt] # -> ""
 5.5 ~~ Exclude[PositiveInt] # -> 1
-```
-
-Если `Exclude` имеет много аргументов, то это аналог `~ ($type1 | $type2 ...)`.
-
-```perl
--5  ~~ Exclude[PositiveInt, Enum[-2]] # -> 1
--2  ~~ Exclude[PositiveInt, Enum[-2]] # -> ""
-0   ~~ Exclude[PositiveInt, Enum[-2]] # -> ""
 ```
 
 ## Option[A]
@@ -474,11 +501,11 @@ sub arr : Isa(PositiveInt => Wantarray[ArrayRef[PositiveInt], PositiveInt]) {
 	wantarray? 1 .. $n: $n
 }
 
-my @a = arr(3);
-my $s = arr(3);
+my @array = arr(3);
+my $scalar = arr(3);
 
-\@a # --> [1,2,3]
-$s  # -> 3
+\@array # --> [1,2,3]
+$scalar  # -> 3
 ```
 
 ## Item
@@ -534,6 +561,19 @@ undef ~~ Bool # -> 1
 3 ~~ Enum[1,2,3];            # -> 1
 "cat" ~~ Enum["cat", "dog"]; # -> 1
 4 ~~ Enum[1,2,3];            # -> ""
+
+Enum["cat"] <= Enum["cat", "dog"] # -> 1
+Enum["cat", "dog"] <= Enum["cat", "dog"] # -> 1
+
+Enum(["cat", "dog"])->disjoint(Enum[1]) # -> 1
+Enum(["cat", "dog"])->disjoint(Enum["ret", "cat"]) # -> ""
+
+Enum[1,2] <= Enum[1,2,3]          # -> 1
+Enum[1,2] <= Enum[2,3]            # -> ""
+Enum[1,2] == Enum[2,1]            # -> 1
+Enum[1,2] < Enum[1,2,3]           # -> 1
+Enum[1,2,3] > Enum[1,2]           # -> 1
+Enum[1,2] == (Enum[1] | Enum[2])  # -> 1
 ```
 
 ## Maybe[A]
@@ -574,9 +614,9 @@ undef ~~ Defined # -> ""
 undef ~~ Value # -> ""
 ```
 
-## Len[from, to?]
+## Len[from?, to]
 
-Определяет значение длины от `from` до `to` или от 0 до `from`, если `to` отсутствует.
+Определяет значение длины от `from` или 0 до `to`.
 
 ```perl
 "1234" ~~ Len[3]   # -> ""
@@ -586,6 +626,10 @@ undef ~~ Value # -> ""
 "1" ~~ Len[1, 2]   # -> 1
 "12" ~~ Len[1, 2]  # -> 1
 "123" ~~ Len[1, 2] # -> ""
+
+Len[3] <= Len[3] # -> 1
+Len[3] <= Len[4] # -> 1
+Len[3] <= Len[2] # -> ""
 ```
 
 ## Version
@@ -594,6 +638,7 @@ Perl версии.
 
 ```perl
 1.1.0 ~~ Version   # -> 1
+1.1.0.5 ~~ Version # -> 1
 v1.1.0 ~~ Version  # -> 1
 v1.1 ~~ Version    # -> 1
 v1 ~~ Version      # -> 1
@@ -820,9 +865,53 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 -0 ~~ PositiveNum   # -> 1
 ```
 
+## Int
+
+Целые числа.
+
+```perl
+123 ~~ Int	# -> 1
+-12 ~~ Int	# -> 1
+5.5 ~~ Int	# -> ""
+```
+
+## Nat
+
+Целые числа 1+.
+
+```perl
+0 ~~ Nat # -> ""
+1 ~~ Nat # -> 1
+
+Nat->instanceof('Range')  # -> 1
+Nat->instanceof('Int')    # -> 1
+
+Nat <= Range[1, 'Inf']    # -> 1
+Nat <= Range[2, 'Inf']    # -> ""
+Nat <= Range[-100, 'Inf'] # -> 1
+```
+
+## PositiveInt
+
+Положительные целые числа.
+
+```perl
++0 ~~ PositiveInt # -> 1
+-0 ~~ PositiveInt # -> 1
+55 ~~ PositiveInt # -> 1
+-1 ~~ PositiveInt # -> ""
+
+Int <= Num           # -> 1
+PositiveInt <= Int   # -> 1
+Nat <= PositiveInt   # -> 1
+Int < Num            # -> 1
+Str <= Any           # -> 1
+None <= Any          # -> 1
+```
+
 ## Float
 
-Машинное число с плавающей запятой составляет 4 байта.
+Каноничное машинное число с плавающей запятой составляет 4 байта.
 
 ```perl
 -4.8 ~~ Float             # -> 1
@@ -833,7 +922,7 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 
 ## Double
 
-Машинное число с плавающей запятой составляет 8 байт.
+Каноничное машинное число с плавающей запятой составляет 8 байт.
 
 ```perl
                       -4.8 ~~ Double # -> 1
@@ -852,17 +941,25 @@ Math::BigRat->new("6/7") ~~ Rat # -> 1
 3 ~~ Range[1, 3]   # -> 1
 3.1 ~~ Range[1, 3] # -> ""
 0.9 ~~ Range[1, 3] # -> ""
+
+1 ~~ Range[Opened[1], 3] # -> ""
+2 ~~ Range[Opened[1], 3] # -> 1
+
+Range[1,5] <= Range[1,10]         # -> 1
+Range[1,5] <= Range[2,6]          # -> ""
+Range[Opened[1],5] <= Range[1,5]  # -> 1
+Range[1,5] == Range[1,5]          # -> 1
+Range[1,5] < Range[1,10]          # -> 1
+
+my $r1 = Range[Opened[1], Opened[5]];
+my $r2 = Range[2,4];
+$r2 <= $r1;  # -> 1
+$r1 <= $r2;  # -> ""
 ```
 
-## Int
+## Opened[num]
 
-Целые числа.
-
-```perl
-123 ~~ Int	# -> 1
--12 ~~ Int	# -> 1
-5.5 ~~ Int	# -> ""
-```
+Открытая граница. Используется с `Range`.
 
 ## Bytes[N]
 
@@ -891,17 +988,6 @@ my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
 ($N17 . "") ~~ Bytes[17]      # -> ""
 ```
 
-## PositiveInt
-
-Положительные целые числа.
-
-```perl
-+0 ~~ PositiveInt # -> 1
--0 ~~ PositiveInt # -> 1
-55 ~~ PositiveInt # -> 1
--1 ~~ PositiveInt # -> ""
-```
-
 ## PositiveBytes[N]
 
 Рассчитывает максимальное число, которое поместится в `N` байт (полагая, что в байтах нет отрицательного бита) и проверяет ограничение от 0 до этого числа.
@@ -923,19 +1009,6 @@ $N8 . "" ~~ PositiveBytes[8]     # -> 1
 
 -1 ~~ PositiveBytes[17] # -> ""
 0 ~~ PositiveBytes[17]  # -> 1
-```
-
-## Nat
-
-Целые числа 1+.
-
-```perl
-0 ~~ Nat # -> ""
-1 ~~ Nat # -> 1
-
-Nat->instanceof(Range[1, 'Inf'])    # -> 1
-Nat->instanceof(Range[2, 'Inf'])    # -> ""
-Nat->instanceof(Range[-100, 'Inf']) # -> 1
 ```
 
 ## Ref
@@ -1230,9 +1303,9 @@ close $sock;
 [1, undef] ~~ ArrayRef[Num]	# -> ""
 ```
 
-## Lim[A, B?]
+## Lim[from?, to]
 
-Ограничивает массивы от `A` до `B` элементов или от 0 до `A`, если `B` отсутствует.
+Ограничивает массивы от `from` или 0 до `to` элементов.
 
 ```perl
 [] ~~ Lim[5]     # -> 1
@@ -1244,6 +1317,14 @@ close $sock;
 
 [1] ~~ Lim[1,5] # -> 1
 [] ~~ Lim[1,5]  # -> ""
+
+Lim[0, 10] <= Lim[0, 20]        # -> 1
+Lim[10, 'Inf'] <= Lim[0, 'Inf'] # -> 1
+
+Lim[3] <= Lim[5]          # -> 1
+Lim[3] <= Lim[2]          # -> ""
+Lim[2,5] < Lim[1,6]       # -> 1
+Lim[2,5] == Lim[2,5]      # -> 1
 ```
 
 ## HashRef`[H]
@@ -1277,9 +1358,9 @@ bless(\(my $val=10), "A1") ~~ Object["B1"] # -> ""
 
 ```perl
 package A1 {
- use Aion;
- bless({}, __PACKAGE__) ~~ Me  # -> 1
- bless({}, "A2") ~~ Me         # -> ""
+	use Aion;
+	bless({}, __PACKAGE__) ~~ Me  # -> 1
+	bless({}, "A2") ~~ Me         # -> ""
 }
 ```
 
@@ -1341,6 +1422,26 @@ package A1 {
 {a => 1, c => 3} ~~ HasProp[qw/a b/] # -> ""
 
 bless({a => 1, b => 3}, "A") ~~ HasProp[qw/a b/] # -> 1
+```
+
+## LimKeys[from?, to]
+
+Ограничивает количество ключей в хеше от `from` или 0 до `to`.
+
+```perl
+my %hash = (a => 1, b => 2);
+
+\%hash ~~ LimKeys[1] # -> ""
+\%hash ~~ LimKeys[2] # -> 1
+\%hash ~~ LimKeys[3] # -> 1
+\%hash ~~ LimKeys[3, 3] # -> ""
+\%hash ~~ LimKeys[2, 3] # -> 1
+\%hash ~~ LimKeys[2, 2] # -> 1
+
+LimKeys[20, 'Inf'] <= LimKeys[2, 'Inf'] # -> 1
+
+LimKeys[3] <= LimKeys[5]    # -> 1
+LimKeys[2,5] < LimKeys[1,6] # -> 1
 ```
 
 ## Like
