@@ -925,6 +925,7 @@ None <= Any          # -> 1
 Каноничное машинное число с плавающей запятой составляет 8 байт.
 
 ```perl
+diag POSIX::DBL_MAX;
 diag -(Aion::Types::DBL_MAX);
 diag +(Aion::Types::DBL_MAX);
 

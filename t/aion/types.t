@@ -925,6 +925,7 @@ local ($::_g0 = do {-3.402823467E+38 ~~ Float}, $::_e0 = do {""}); ::ok defined(
 # Каноничное машинное число с плавающей запятой составляет 8 байт.
 # 
 ::done_testing; }; subtest 'Double' => sub { 
+diag POSIX::DBL_MAX;
 diag -(Aion::Types::DBL_MAX);
 diag +(Aion::Types::DBL_MAX);
 

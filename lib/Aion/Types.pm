@@ -1310,6 +1310,7 @@ A canonical machine floating point number is 4 bytes.
 
 The canonical machine floating point number is 8 bytes.
 
+	diag POSIX::DBL_MAX;
 	diag -(Aion::Types::DBL_MAX);
 	diag +(Aion::Types::DBL_MAX);
 	
