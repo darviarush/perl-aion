@@ -209,10 +209,13 @@ sub coerce(@) {
 sub from($) { (from => $_[0]) }
 sub via(&) { (via => $_[0]) }
 
-use constant DBL_MAX => (POSIX::DBL_MAX+0) =~ /inf/i? do {
-	require Math::BigFloat;
-	Math::BigFloat->new(POSIX::DBL_MAX =~ /inf/i? '1.79769313486232e+308': POSIX::DBL_MAX)
-}: POSIX::DBL_MAX;
+use constant DBL_MAX => do {
+	my $ieee_dbl_max_str = '1.7976931348623157e+308';
+	($ieee_dbl_max_str+0) =~ /inf/i? do {
+		require Math::BigFloat;
+		Math::BigFloat->new($ieee_dbl_max_str)
+	}: $ieee_dbl_max_str+0
+};
 
 
 sub _8BITS() {
@@ -1317,10 +1320,13 @@ The canonical machine floating point number is 8 bytes.
 	
 	diag POSIX::DBL_MAX;
 	diag 0+POSIX::DBL_MAX;
-	diag -(Aion::Types::DBL_MAX);
-	diag +(Aion::Types::DBL_MAX);
+	diag('x: ', -(Aion::Types::DBL_MAX));
+	diag('y: ', +(Aion::Types::DBL_MAX));
+	diag('1.7976931348623157e+308' + 0);
+	diag('+1.7976931348623157e+308' + 0);
+	diag('-1.7976931348623157e+308' + 0);
 	
-	                      -4.8 ~~ Double # -> 1
+	-4.8 ~~ Double # -> 1
 	'-1.7976931348623157e+308' ~~ Double # -> 1
 	'+1.7976931348623157e+308' ~~ Double # -> 1
 	'-1.7976931348623159e+308' ~~ Double # -> ""

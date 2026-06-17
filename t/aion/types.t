@@ -932,10 +932,13 @@ diag "Размер NV: " . $Config{nvsize} . " байт\n";
 
 diag POSIX::DBL_MAX;
 diag 0+POSIX::DBL_MAX;
-diag -(Aion::Types::DBL_MAX);
-diag +(Aion::Types::DBL_MAX);
+diag('x: ', -(Aion::Types::DBL_MAX));
+diag('y: ', +(Aion::Types::DBL_MAX));
+diag('1.7976931348623157e+308' + 0);
+diag('+1.7976931348623157e+308' + 0);
+diag('-1.7976931348623157e+308' + 0);
 
-local ($::_g0 = do {-4.8 ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '                      -4.8 ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {-4.8 ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '-4.8 ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {'-1.7976931348623157e+308' ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'-1.7976931348623157e+308\' ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {'+1.7976931348623157e+308' ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+1.7976931348623157e+308\' ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {'-1.7976931348623159e+308' ~~ Double}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'-1.7976931348623159e+308\' ~~ Double # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;

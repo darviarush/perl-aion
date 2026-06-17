@@ -932,12 +932,15 @@ diag "Размер NV: " . $Config{nvsize} . " байт\n";
 
 diag POSIX::DBL_MAX;
 diag 0+POSIX::DBL_MAX;
-diag -(Aion::Types::DBL_MAX);
-diag +(Aion::Types::DBL_MAX);
+diag('x: ', -(Aion::Types::DBL_MAX));
+diag('y: ', +(Aion::Types::DBL_MAX));
+diag('1.7976931348623157e+308' + 0);
+diag('+1.7976931348623157e+308' + 0);
+diag('-1.7976931348623157e+308' + 0);
 
 -4.8 ~~ Double # -> 1
-'-' . POSIX::DBL_MAX ~~ Double # -> 1
-'+' . POSIX::DBL_MAX ~~ Double # -> 1
+'-1.7976931348623157e+308' ~~ Double # -> 1
+'+1.7976931348623157e+308' ~~ Double # -> 1
 '-1.7976931348623159e+308' ~~ Double # -> ""
 ```
 
