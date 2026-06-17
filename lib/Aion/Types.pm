@@ -211,7 +211,7 @@ sub via(&) { (via => $_[0]) }
 
 use constant DBL_MAX => (POSIX::DBL_MAX+0) =~ /inf/i? do {
 	require Math::BigFloat;
-	Math::BigFloat->new(POSIX::DBL_MAX =~ /inf/i? '1.7976931348623157e+308': POSIX::DBL_MAX)
+	Math::BigFloat->new(POSIX::DBL_MAX =~ /inf/i? '1.79769313486232e+308': POSIX::DBL_MAX)
 }: POSIX::DBL_MAX;
 
 
