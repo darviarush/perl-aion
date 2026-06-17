@@ -60,10 +60,10 @@
             "Sub::Util" : "1.63",
             "bytes" : "0",
             "common::sense" : "3.75",
-            "config" : "1.3",
             "constant" : "0",
             "overload" : "0",
-            "perl" : "v5.22.0"
+            "perl" : "v5.22.0",
+            "warnings" : "0"
          }
       },
       "test" : {
@@ -97,7 +97,7 @@
          "web" : "https://github.com/darviarush/perl-aion"
       }
    },
-   "version" : "2.0",
+   "version" : "2.1",
    "x_authority" : "cpan:DART",
    "x_contributors" : [
       "Iaroslav O. Kosmina <darviarush@ya.ru>",
