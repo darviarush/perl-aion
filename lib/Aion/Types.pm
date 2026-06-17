@@ -1361,7 +1361,7 @@ Calculates the maximum and minimum numbers that will fit in C<N> bytes and check
 	(-$N-1) ~~ Bytes[3] # -> ""
 	(-$N) ~~ Bytes[3]   # -> 1
 	($N-1) ~~ Bytes[3]  # -> 1
-	$N ~~ Bytes[3];      # -> ""
+	$N ~~ Bytes[3];     # -> ""
 	
 	require Math::BigInt;
 	

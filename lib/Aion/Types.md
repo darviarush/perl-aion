@@ -976,7 +976,7 @@ my $N = 1 << (8*3-1);
 (-$N-1) ~~ Bytes[3] # -> ""
 (-$N) ~~ Bytes[3]   # -> 1
 ($N-1) ~~ Bytes[3]  # -> 1
-$N ~~ Bytes[3];      # -> ""
+$N ~~ Bytes[3];     # -> ""
 
 require Math::BigInt;
 
