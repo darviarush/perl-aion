@@ -925,19 +925,6 @@ local ($::_g0 = do {-3.402823467E+38 ~~ Float}, $::_e0 = do {""}); ::ok defined(
 # Каноничное машинное число с плавающей запятой составляет 8 байт.
 # 
 ::done_testing; }; subtest 'Double' => sub { 
-use Config;
-
-# Размер типа данных NV (число с плавающей точкой) в байтах
-diag "Размер NV: " . $Config{nvsize} . " байт\n";
-
-diag POSIX::DBL_MAX;
-diag 0+POSIX::DBL_MAX;
-diag('x: ', -(Aion::Types::DBL_MAX));
-diag('y: ', +(Aion::Types::DBL_MAX));
-diag('1.7976931348623157e+308' + 0);
-diag('+1.7976931348623157e+308' + 0);
-diag('-1.7976931348623157e+308' + 0);
-
 local ($::_g0 = do {-4.8 ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '-4.8 ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {'-1.7976931348623157e+308' ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'-1.7976931348623157e+308\' ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {'+1.7976931348623157e+308' ~~ Double}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '\'+1.7976931348623157e+308\' ~~ Double # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
@@ -989,9 +976,12 @@ my $N = 1 << (8*3-1);
 local ($::_g0 = do {(-$N-1) ~~ Bytes[3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(-$N-1) ~~ Bytes[3] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {(-$N) ~~ Bytes[3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(-$N) ~~ Bytes[3]   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {($N-1) ~~ Bytes[3]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '($N-1) ~~ Bytes[3]  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {$N ~~ Bytes[3]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$N ~~ Bytes[3]      # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {$N ~~ Bytes[3];}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$N ~~ Bytes[3];      # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 require Math::BigInt;
+
+diag "Bytes[17] as: " . Bytes([17])->as . " " . Bytes([17]) . " ";
+use DDP; p my $x=["hi!", Bytes([17]), Bytes([17])->as];
 
 my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
 

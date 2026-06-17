@@ -217,11 +217,12 @@ use constant DBL_MAX => do {
 	}: $ieee_dbl_max_str+0
 };
 
-
 sub _8BITS() {
 	undef *_8BITS;
 	require Math::BigInt;
-	constant->import(_8BITS => Math::BigInt->new(8));
+	my $_8bits = Math::BigInt->new(8);
+	constant->import(_8BITS => $_8bits);
+	$_8bits
 }
 
 BEGIN {
@@ -443,7 +444,7 @@ subtype "Any";
 						subtype "Bytes[n]", as Range([]),
 							init_where {
 								my $N = 1 << (8 * A - 1);
-								$N = 1 << (_8BITS * A - 1) if $N eq 0;
+								$N = 1 << (_8BITS * A - 1) if $N == 0;
 								SELF->{as} = Range([-$N, $N-1]);
 							};
 						subtype "PositiveBytes[n]", as Range([]),
@@ -1313,19 +1314,6 @@ A canonical machine floating point number is 4 bytes.
 
 The canonical machine floating point number is 8 bytes.
 
-	use Config;
-	
-	# Размер типа данных NV (число с плавающей точкой) в байтах
-	diag "Размер NV: " . $Config{nvsize} . " байт\n";
-	
-	diag POSIX::DBL_MAX;
-	diag 0+POSIX::DBL_MAX;
-	diag('x: ', -(Aion::Types::DBL_MAX));
-	diag('y: ', +(Aion::Types::DBL_MAX));
-	diag('1.7976931348623157e+308' + 0);
-	diag('+1.7976931348623157e+308' + 0);
-	diag('-1.7976931348623157e+308' + 0);
-	
 	-4.8 ~~ Double # -> 1
 	'-1.7976931348623157e+308' ~~ Double # -> 1
 	'+1.7976931348623157e+308' ~~ Double # -> 1
@@ -1373,9 +1361,12 @@ Calculates the maximum and minimum numbers that will fit in C<N> bytes and check
 	(-$N-1) ~~ Bytes[3] # -> ""
 	(-$N) ~~ Bytes[3]   # -> 1
 	($N-1) ~~ Bytes[3]  # -> 1
-	$N ~~ Bytes[3]      # -> ""
+	$N ~~ Bytes[3];      # -> ""
 	
 	require Math::BigInt;
+	
+	diag "Bytes[17] as: " . Bytes([17])->as . " " . Bytes([17]) . " ";
+	use DDP; p my $x=["hi!", Bytes([17]), Bytes([17])->as];
 	
 	my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
 	
