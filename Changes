@@ -2,6 +2,8 @@ Revision history for Perl extension Aion
 
 {{$NEXT}}
 
+    - separated Aion::Env to separate package
+
 2.1 2026-06-17T15:48:13Z
 
     - make module Aion::Env for .env

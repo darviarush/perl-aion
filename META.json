@@ -50,6 +50,7 @@
       },
       "runtime" : {
          "requires" : {
+            "Aion::Env" : "0.1",
             "B" : "0",
             "Exporter" : "0",
             "List::Util" : "1.68",
@@ -97,7 +98,7 @@
          "web" : "https://github.com/darviarush/perl-aion"
       }
    },
-   "version" : "2.1",
+   "version" : "2.2",
    "x_authority" : "cpan:DART",
    "x_contributors" : [
       "Iaroslav O. Kosmina <darviarush@mail.ru>",
