@@ -443,14 +443,14 @@ subtype "Any";
 						subtype "Double", as Range([-(DBL_MAX), DBL_MAX]);
 						subtype "Bytes[n]", as Range([]),
 							init_where {
-								my $N = 1 << (8 * A - 1);
-								$N = 1 << (_8BITS * A - 1) if $N == 0;
+								my $_8bits = A < 8? 8: _8BITS;
+								my $N = 1 << ($_8bits * A - 1);
 								SELF->{as} = Range([-$N, $N-1]);
 							};
 						subtype "PositiveBytes[n]", as Range([]),
 							init_where {
-								my $M = (1 << (8*A));
-								$M = (1 << (_8BITS*A)) if $M eq 0;
+								my $_8bits = A < 8? 8: _8BITS;
+								my $M = 1 << ($_8bits*A);
 								SELF->{as} = Range([0, $M-1]);
 							};
 
@@ -1365,13 +1365,7 @@ Calculates the maximum and minimum numbers that will fit in C<N> bytes and check
 	
 	require Math::BigInt;
 	
-	diag 'Bytes[17]->{as} = ' . Bytes([17])->{as};
-	diag 'x = ' . (1 << (8 * 17 - 1));
-	
 	my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
-	
-	diag "N17 = " . $N17;
-	diag "-N17 = " . -$N17;
 	
 	((-$N17-1) . "") ~~ Bytes[17] # -> ""
 	(-$N17 . "") ~~ Bytes[17]     # -> 1

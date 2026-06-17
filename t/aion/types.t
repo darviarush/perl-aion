@@ -980,13 +980,7 @@ local ($::_g0 = do {$N ~~ Bytes[3];}, $::_e0 = do {""}); ::ok defined($::_g0) ==
 
 require Math::BigInt;
 
-diag 'Bytes[17]->{as} = ' . Bytes([17])->{as};
-diag 'x = ' . (1 << (8 * 17 - 1));
-
 my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
-
-diag "N17 = " . $N17;
-diag "-N17 = " . -$N17;
 
 local ($::_g0 = do {((-$N17-1) . "") ~~ Bytes[17]}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '((-$N17-1) . "") ~~ Bytes[17] # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 local ($::_g0 = do {(-$N17 . "") ~~ Bytes[17]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '(-$N17 . "") ~~ Bytes[17]     # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
