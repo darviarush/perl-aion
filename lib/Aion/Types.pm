@@ -1365,9 +1365,6 @@ Calculates the maximum and minimum numbers that will fit in C<N> bytes and check
 	
 	require Math::BigInt;
 	
-	diag "Bytes[17] as: " . Bytes([17])->as . " " . Bytes([17]) . " ";
-	use DDP; p my $x=["hi!", Bytes([17]), Bytes([17])->as];
-	
 	my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
 	
 	((-$N17-1) . "") ~~ Bytes[17] # -> ""
