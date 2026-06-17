@@ -596,7 +596,7 @@ local ($::_g0 = do {[Aion::Types::Num->asen]}, $::_e0 = do {[Aion::Types::Any, A
 # 
 ::done_testing; }; subtest 'is_descendant ($other, $is_strict)' => sub { 
 local ($::_g0 = do {Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Defined)}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Defined)  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)  # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)}, $::_e0 = do {""}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)    # -> ""' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
 # ## like ($other)
@@ -807,6 +807,10 @@ local ($::_g0 = do {Num <=> Int}, $::_e0 = do {-1}); ::ok defined($::_g0) == def
 
 local ($::_g0 = do {Str <=> Int}, $::_e0 = do {-1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Str <=> Int                  # -> -1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
+# 
+# ## cmp
+# 
+# Аналогично `<=>`.
 # 
 # # AUTHOR
 # 

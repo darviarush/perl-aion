@@ -1264,7 +1264,7 @@ Comparison for sorting. Used in the C<< E<lt>=E<gt> >> and C<cmp> operators.
 A is a child of B. The prototype is compared, but if C<$is_strict> is specified, then the C<eq> operator is used.
 
 	Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Defined)  # -> 1
-	Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)  # -> ""
+	Aion::Types::Range([1, 10])->is_descendant(Aion::Types::Value)    # -> ""
 
 =head2 like ($other)
 
@@ -1448,6 +1448,10 @@ Comparison of two types. Used for sorting.
 	Num <=> Int                  # -> -1
 	
 	Str <=> Int                  # -> -1
+
+=head2 cmp
+
+Similar to C<< E<lt>=E<gt> >>.
 
 =head1 AUTHOR
 

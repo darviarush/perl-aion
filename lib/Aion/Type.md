@@ -808,6 +808,10 @@ Num <=> Int                  # -> -1
 Str <=> Int                  # -> -1
 ```
 
+## cmp
+
+Аналогично `<=>`.
+
 # AUTHOR
 
 Yaroslav O. Kosmina <dart@cpan.org>

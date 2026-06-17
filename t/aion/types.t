@@ -925,6 +925,11 @@ local ($::_g0 = do {-3.402823467E+38 ~~ Float}, $::_e0 = do {""}); ::ok defined(
 # Каноничное машинное число с плавающей запятой составляет 8 байт.
 # 
 ::done_testing; }; subtest 'Double' => sub { 
+use Config;
+
+# Размер типа данных NV (число с плавающей точкой) в байтах
+diag "Размер NV: " . $Config{nvsize} . " байт\n";
+
 diag POSIX::DBL_MAX;
 diag 0+POSIX::DBL_MAX;
 diag -(Aion::Types::DBL_MAX);

@@ -925,6 +925,11 @@ None <= Any          # -> 1
 Каноничное машинное число с плавающей запятой составляет 8 байт.
 
 ```perl
+use Config;
+
+# Размер типа данных NV (число с плавающей точкой) в байтах
+diag "Размер NV: " . $Config{nvsize} . " байт\n";
+
 diag POSIX::DBL_MAX;
 diag 0+POSIX::DBL_MAX;
 diag -(Aion::Types::DBL_MAX);

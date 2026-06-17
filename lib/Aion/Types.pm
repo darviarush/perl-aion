@@ -1310,6 +1310,11 @@ A canonical machine floating point number is 4 bytes.
 
 The canonical machine floating point number is 8 bytes.
 
+	use Config;
+	
+	# Размер типа данных NV (число с плавающей точкой) в байтах
+	diag "Размер NV: " . $Config{nvsize} . " байт\n";
+	
 	diag POSIX::DBL_MAX;
 	diag 0+POSIX::DBL_MAX;
 	diag -(Aion::Types::DBL_MAX);

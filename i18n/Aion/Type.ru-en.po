@@ -256,6 +256,9 @@ msgstr "A is a superset of B."
 msgid "Сравнение двух типов. Используется при сортировке."
 msgstr "Comparison of two types. Used for sorting."
 
+msgid "Аналогично `<=>`."
+msgstr "Similar to `<=>`."
+
 msgid "⚖ **GPLv3**"
 msgstr "⚖ **GPLv3**"
 
