@@ -44,6 +44,6 @@ requires 'Scalar::Util', '1.63';
 requires 'Sub::Util', '1.63';
 requires 'bytes';
 requires 'common::sense', '3.75';
-requires 'config', '1.3';
 requires 'constant';
 requires 'overload';
+requires 'warnings';
