@@ -981,6 +981,7 @@ local ($::_g0 = do {$N ~~ Bytes[3];}, $::_e0 = do {""}); ::ok defined($::_g0) ==
 require Math::BigInt;
 
 diag 'Bytes[17]->{as} = ' . Bytes([17])->{as};
+diag 'x = ' . (1 << (8 * 17 - 1));
 
 my $N17 = 1 << (8*Math::BigInt->new(17) - 1);
 
