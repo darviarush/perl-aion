@@ -34,6 +34,7 @@ on 'test' => sub {
 	requires 'open';
 };
 
+requires 'Aion::Env', '0.1';
 requires 'B';
 requires 'Exporter';
 requires 'List::Util', '1.68';
