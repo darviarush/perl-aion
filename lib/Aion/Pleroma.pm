@@ -177,7 +177,7 @@ Module settings that can be set in C<.env>:
 
 =back
 
-=head1 ЭОНЫ ИЗ КОНФИГУРАЦИИ
+=head1 EONS FROM CONFIG
 
 You can add the C<aion.eon> key to C<etc/*.yml> with a description of additional eons. This allows you to assemble eons declaratively: specify constructor arguments (named or ordered), call methods after creation, and pass references to other eons via C<@>.
 
@@ -251,7 +251,7 @@ Let's load the configuration from C<etc/aion/eon.yml>, create a container and re
 	$jupiter->discoverer->name # => Galileo Galilei
 	ref($jupiter->discoverer)  # => Ex::Eon::Astronomer
 
-=head2 Aeon description keys
+=head2 Eon description keys
 
 Each eon in C<aion.eon> is described by a string or hash.
 

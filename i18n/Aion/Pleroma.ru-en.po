@@ -42,9 +42,6 @@ msgstr "File etc/aion/eon.yml:"
 msgid "Загрузим конфигурацию из `etc/aion/eon.yml`, создадим контейнер и запросим эоны."
 msgstr "Let's load the configuration from `etc/aion/eon.yml`, create a container and request eons."
 
-msgid "## Ключи описания эона"
-msgstr "## Aeon description keys"
-
 msgid "Каждый эон в `aion.eon` описывается строкой или хешем."
 msgstr "Each eon in `aion.eon` is described by a string or hash."
 

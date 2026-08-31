@@ -31,7 +31,7 @@ eval {$pleroma->resolve('user')}; local ($::_g0 = $@, $::_e0 = 'user is\'nt eon!
 # * AION_PLEROMA_INI – файл аннотаций. По умолчанию `etc/annotation/eon.ann`.
 # * AION_PLEROMA_AUTOWARE – подгружать модули автоматически, даже если они не прописаны в конфигурации. По умолчанию `1`.
 # 
-# # ЭОНЫ ИЗ КОНФИГУРАЦИИ
+# # EONS FROM CONFIG
 # 
 # В `etc/*.yml` можно добавить ключ `aion.eon` с описанием дополнительных эонов. Это позволяет собирать эоны декларативно: задавать аргументы конструктора (именованные или упорядоченные), вызывать методы после создания и передавать ссылки на другие эоны через `@`.
 # 
@@ -90,7 +90,7 @@ eval {$pleroma->resolve('user')}; local ($::_g0 = $@, $::_e0 = 'user is\'nt eon!
 # 
 # Загрузим конфигурацию из `etc/aion/eon.yml`, создадим контейнер и запросим эоны.
 # 
-::done_testing; }; subtest 'ЭОНЫ ИЗ КОНФИГУРАЦИИ' => sub { 
+::done_testing; }; subtest 'EONS FROM CONFIG' => sub { 
 use Aion::Pleroma;
 use Aion::Env::Etc ();
 
@@ -110,7 +110,7 @@ local ($::_g0 = do {$jupiter->discoverer->name}, $::_e0 = "Galileo Galilei"); ::
 local ($::_g0 = do {ref($jupiter->discoverer)}, $::_e0 = "Ex::Eon::Astronomer"); ::ok $::_g0 eq $::_e0, 'ref($jupiter->discoverer)  # => Ex::Eon::Astronomer' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
-# ## Ключи описания эона
+# ## Eon description keys
 # 
 # Каждый эон в `aion.eon` описывается строкой или хешем.
 # 
