@@ -50,7 +50,7 @@ sub get {
 	if($config) {
 		$self->{eon}{$key} = $self->_build($key, $config);
 	}
-	elsif(AION_PLEROMA_AUTOWARE and $key =~ /^([\w:]+)(#\w+)?$/ and _find_pm($1)) { $self->autoware($key); return $self->get($key) }
+	elsif(AION_PLEROMA_AUTOWARE and $key =~ /^([\w:]+)(#\w+)?$/ and _find_pm($1)) { $self->autoware($key)->get($key) }
 	else { undef }
 }
 
