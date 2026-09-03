@@ -57,18 +57,18 @@ $Aion::Type::SELF = __PACKAGE__->new(
 );
 
 # конструктор
-# * name (Str) — Имя типа.
-# * as (Object[Aion::Type]) — наследуемый тип.
-# * args (ArrayRef) — Список аргументов.
-# * init (ArrayRef[CodeRef]) — Инициализатор типа.
-# * test (CodeRef) — Чекер.
-# * a_test (CodeRef) — Используется для проверки типа с аргументами, если аргументы не указаны, то используется test.
-# * coerce (ArrayRef) — Массив преобразователей в этот тип: [Type => sub {}]. Общий для экземплятов параметрического типа.
+# * name (Str) – Имя типа.
+# * as (Object[Aion::Type]) – наследуемый тип.
+# * args (ArrayRef) – Список аргументов.
+# * init (ArrayRef[CodeRef]) – Инициализатор типа.
+# * test (CodeRef) – Чекер.
+# * a_test (CodeRef) – Используется для проверки типа с аргументами, если аргументы не указаны, то используется test.
+# * coerce (ArrayRef) – Массив преобразователей в этот тип: [Type => sub {}]. Общий для экземплятов параметрического типа.
 # * subset (CodeRef) - Проверка на подмножество типа A типу B.
-# * message (CodeRef) — Сообщение об ошибке.
-# * title (Str) — Заголовок.
-# * description (Str) — Описание.
-# * example (Any) — Пример.
+# * message (CodeRef) – Сообщение об ошибке.
+# * title (Str) – Заголовок.
+# * description (Str) – Описание.
+# * example (Any) – Пример.
 # * is_option (Bool) – это Option[A].
 # * is_wantarray (Bool) – это Wantarray[A, S].
 # * ally (Bool) – вступать в союз для объединения ветвей наследования при пересечении типов.
@@ -779,15 +779,15 @@ Constructor.
 
 =over
 
-=item * name (Str) — Type name.
+=item * name (Str) – Type name.
 
-=item * args (ArrayRef) — List of type arguments.
+=item * args (ArrayRef) – List of type arguments.
 
-=item * init (CodeRef) — Type initializer.
+=item * init (CodeRef) – Type initializer.
 
 =item * test (CodeRef) - Checker.
 
-=item * a_test (CodeRef) — Value checker for types with optional arguments.
+=item * a_test (CodeRef) – Value checker for types with optional arguments.
 
 =item * coerce (ArrayRef[Tuple[Aion::Type, CodeRef]]) - Array of pairs: type and transition.
 
