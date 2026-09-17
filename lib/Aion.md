@@ -218,6 +218,33 @@ package Example::Mars {
 }
 ```
 
+## have ($name, @options)
+
+Вызывает подстрекателя для настройки класса.
+
+```perl
+package ORM::Role::Table { use Aion -role;
+
+	inciter table => sub {
+		my ($meta, %table) = @_;
+
+		$meta->{table} = \%table;
+	};
+}
+
+package Ex::Person { use Aion;
+	with qw/ORM::Role::Table/;
+
+	have table => (name => 'person');
+}
+
+$Aion::META{'Ex::Person'}{table} # --> {name => 'person'}
+```
+
+## inciter ($meta, @options)
+
+Устанавливает подстрекателя для настройки класса, который вызывается из `have`.
+
 ## pleroma ()
 
 Возвращает локатор.

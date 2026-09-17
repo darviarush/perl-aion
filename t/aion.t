@@ -218,6 +218,33 @@ local ($::_g0 = do {$aspect_name}, $::_e0 = "lvalue"); ::ok $::_g0 eq $::_e0, '	
 }
 
 # 
+# ## have ($name, @options)
+# 
+# Вызывает подстрекателя для настройки класса.
+# 
+::done_testing; }; subtest 'have ($name, @options)' => sub { 
+package ORM::Role::Table { use Aion -role;
+
+	inciter table => sub {
+		my ($meta, %table) = @_;
+
+		$meta->{table} = \%table;
+	};
+}
+
+package Ex::Person { use Aion;
+	with qw/ORM::Role::Table/;
+
+	have table => (name => 'person');
+}
+
+local ($::_g0 = do {$Aion::META{'Ex::Person'}{table}}, $::_e0 = do {{name => 'person'}}); ::is_deeply $::_g0, $::_e0, '$Aion::META{\'Ex::Person\'}{table} # --> {name => \'person\'}' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+
+# 
+# ## inciter ($meta, @options)
+# 
+# Устанавливает подстрекателя для настройки класса, который вызывается из `have`.
+# 
 # ## pleroma ()
 # 
 # Возвращает локатор.

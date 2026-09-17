@@ -64,6 +64,12 @@ msgstr ""
 "* `$feature` – meta-object describing the feature (`Aion::Meta::Feature`).\n"
 "* `$aspect_name` – aspect name."
 
+msgid "Вызывает подстрекателя для настройки класса."
+msgstr "Summons an instigator to customize the class."
+
+msgid "Устанавливает подстрекателя для настройки класса, который вызывается из `have`."
+msgstr "Sets the instigator to configure the class that is called from `have`."
+
 msgid "Возвращает локатор."
 msgstr "Returns the locator."
 

@@ -36,7 +36,7 @@ sub import {
 		export $pkg, qw/requires req/;
 	}
 
-	export $pkg, qw/with has aspect does exactly/;
+	export $pkg, qw/with has aspect does exactly have inciter/;
 
 	# Метаинформация
 	$META{$pkg} = {
@@ -303,18 +303,20 @@ sub inherits($$@) {
 
 	is_aion $pkg;
 
-	my $FEATURE = $Aion::META{$pkg}{feature};
-	my $ASPECT = $Aion::META{$pkg}{aspect};
-	my $REQUIRE = $Aion::META{$pkg}{require} //= {};
+	my $own_meta = $Aion::META{$pkg};
 
 	# Добавляем наследуемые свойства и атрибуты
 	for my $module (@_) {
 		eval "require $module" or die unless $module->can('with') || $module->can('new');
 
 		if(my $meta = $Aion::META{$module}) {
-			%$FEATURE = (%$FEATURE, %{$meta->{feature}}) ;
-			%$ASPECT = (%$ASPECT, %{$meta->{aspect}});
-			%$REQUIRE = (%$REQUIRE, %{$meta->{require}});
+			for my $property (qw/aspect feature require inciter/) {
+				my $own_property_href = $own_meta->{$property} //= {};
+				my $property_href = $meta->{$property} //= {};
+				for my $key (keys %$property_href) {
+					 $own_property_href->{$key} = $property_href->{$key};
+				}
+			}
 		}
 	}
 
@@ -351,6 +353,34 @@ sub with(@) {
 
 	unshift @_, $pkg, 1;
 	goto &inherits;
+}
+
+# Вызывает подстрекателя для настройки класса
+sub have(@) {
+	my ($name, @options) = @_;
+	my $pkg = caller;
+
+	is_aion $pkg;
+
+	my $meta = $Aion::META{$pkg};
+	my $inciter_sub = $meta->{inciter}{$name} // die "Inciter `$name` not exists!";
+
+	local $meta->{have} = $name;
+	$inciter_sub->($meta, @options);
+	return;
+}
+
+# Устанавливает подстрекатель для настройки класса
+sub inciter($$) {
+	my ($name, $sub) = @_;
+	my $pkg = caller;
+
+	is_aion $pkg;
+
+	my $inciter = $Aion::META{$pkg}{inciter} //= {};
+	die "Inciter `$name` exists!" if exists $inciter->{$name};
+	$inciter->{$name} = $sub;
+	return;
 }
 
 sub requires(@) {
@@ -743,6 +773,31 @@ The creator of the aspect has the parameters:
 	
 		has moon => (is => "rw", lvalue => 1);
 	}
+
+=head2 have ($name, @options)
+
+Summons an instigator to customize the class.
+
+	package ORM::Role::Table { use Aion -role;
+	
+		inciter table => sub {
+			my ($meta, %table) = @_;
+	
+			$meta->{table} = \%table;
+		};
+	}
+	
+	package Ex::Person { use Aion;
+		with qw/ORM::Role::Table/;
+	
+		have table => (name => 'person');
+	}
+	
+	$Aion::META{'Ex::Person'}{table} # --> {name => 'person'}
+
+=head2 inciter ($meta, @options)
+
+Sets the instigator to configure the class that is called from C<have>.
 
 =head2 pleroma ()
 
