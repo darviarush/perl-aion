@@ -18,18 +18,37 @@ use Aion::Meta::Subroutine;
 use Aion::Env AION_ISA => (default => 'rw');
 
 sub export($@);
+sub with(@);
+sub extends(@);
 
 # Классы в которых подключён Aion с метаинформацией
 our %META;
 
 # Вызывается из другого пакета, для импорта данного
 sub import {
-	my (undef, $attr) = @_;
+	my (undef, @attrs) = @_;
 	my $pkg = caller;
 
 	*{"$pkg\::DOES"} = \&does if \&does != $pkg->can('DOES');
 
-	if($attr ne '-role') {  # Класс
+	my $is_role; my @type_attrs; my @with; my @extends; my @export;
+	while(local $_ = shift @attrs) {
+		$is_role = 1 when $_ eq '-role';
+		push @with, $_ when $_ eq 'with';
+		push @extends, $_ when $_ eq 'extends';
+		default { push @type_attrs, $_ }
+	}
+
+	if(@extends) {
+		die "Extends role!" if $is_role;
+		eval "package $pkg; extends qw{${\join ' ', @extends}}; 1" or die;
+	}
+
+	if(@with) {
+		eval "package $pkg; with qw{${\join ' ', @with}}; 1" or die;
+	}
+	
+	if($is_role) {  # Класс
 		export $pkg, qw/extends/;
 		*{"${pkg}::new"} = \&initialize;
 	} else {	# Роль
@@ -63,7 +82,8 @@ sub import {
 		}
 	};
 
-	eval "package $pkg; use Aion::Types; 1" or die;
+	my $attrs = @type_attrs? "qw{${\join ' ', @type_attrs}}": '';
+	eval "package $pkg; use Aion::Types@type_attrs; 1" or die;
 }
 
 # Удаляет добавленные символы
@@ -311,11 +331,9 @@ sub inherits($$@) {
 
 		if(my $meta = $Aion::META{$module}) {
 			for my $property (qw/aspect feature require inciter/) {
+				my $inherit_property_href = $meta->{$property} // next;
 				my $own_property_href = $own_meta->{$property} //= {};
-				my $property_href = $meta->{$property} //= {};
-				for my $key (keys %$property_href) {
-					 $own_property_href->{$key} = $property_href->{$key};
-				}
+				%$own_property_href = (%$own_property_href, %$inherit_property_href);
 			}
 		}
 	}
