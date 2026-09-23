@@ -2,6 +2,11 @@ Revision history for Perl extension Aion
 
 {{$NEXT}}
 
+2.4 2026-09-23T14:50:46Z
+
+    - `use Aion` landed options: with, extends, -use_only and -export
+    - classes now have compile-time hooks for configuration with keyword "have", and added it's "havelock"
+
 2.3 2026-08-31T14:39:04Z
 
     - eons config in yaml
