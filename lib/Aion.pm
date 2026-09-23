@@ -348,7 +348,6 @@ sub inherits($$@) {
 	}
 	
 	die "use: use Aion ${\($is_with? 'with': 'extends')} => [qw/@use_only/];" if @use_only;
-
 	
 	# Добавляем наследуемые свойства и атрибуты
 	for my $module (@_) {
@@ -378,13 +377,13 @@ sub inherits($$@) {
 
 # Наследование классов
 sub extends(@) {
-	unshift @_, scalar caller, 0;
+	unshift @_, scalar caller(), 0;
 	goto &inherits;
 }
 
 # Расширение ролями
 sub with(@) {
-	unshift @_, scalar caller, 1;
+	unshift @_, scalar caller(), 1;
 	goto &inherits;
 }
 
