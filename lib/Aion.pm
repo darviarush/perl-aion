@@ -377,13 +377,15 @@ sub inherits($$@) {
 
 # Наследование классов
 sub extends(@) {
-	unshift @_, scalar caller(), 0;
+	my $pkg = caller;
+	unshift @_, $pkg, 0;
 	goto &inherits;
 }
 
 # Расширение ролями
 sub with(@) {
-	unshift @_, scalar caller(), 1;
+my $pkg = caller;
+	unshift @_, $pkg, 1;
 	goto &inherits;
 }
 
