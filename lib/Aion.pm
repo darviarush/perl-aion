@@ -49,12 +49,14 @@ sub import {
 	# Метаинформация
 	$META{$pkg} = {
 		order => scalar keys %META,
+		with => [],
+		extends => [],
+		export => \@export,
+		use_only => ($use_only || !!@export),
 		require => {},
 		feature => {},
 		subroutine => {},
 		havelock => {},
-		export => \@export,
-		use_only => ($use_only || !!@export),
 		aspect => {
 			is        => \&is_aspect,
 			isa       => \&isa_aspect,
@@ -377,15 +379,13 @@ sub inherits($$@) {
 
 # Наследование классов
 sub extends(@) {
-	my $pkg = caller;
-	unshift @_, $pkg, 0;
+	unshift @_, scalar caller, 0;
 	goto &inherits;
 }
 
 # Расширение ролями
 sub with(@) {
-	my $pkg = caller;
-	unshift @_, $pkg, 1;
+	unshift @_, scalar caller, 1;
 	goto &inherits;
 }
 
