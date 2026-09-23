@@ -4,8 +4,8 @@ msgstr "Aion - a postmodern object system for Perl 5, such as “Mouse”, “Mo
 msgid "Aion – ООП-фреймворк для создания классов с **фичами**, имеет **аспекты**, **роли** и так далее."
 msgstr "Aion is OOP-framework for creating classes with **features**, has **aspects**, **roles** and so on."
 
-msgid "Свойства, объявленные через has, называются **фичами**."
-msgstr "The properties declared through HAS are called **features**."
+msgid "Свойства, объявленные через `has`, называются **фичами**."
+msgstr "Properties declared with `has` are called **features**."
 
 msgid "А `is`, `isa`, `default` и так далее в `has` называются **аспектами**."
 msgstr "And `is`,` isa`, `default`, and so on in` has` are called **aspects**."
@@ -15,6 +15,27 @@ msgstr "In addition to standard aspects, roles can add their own aspects using t
 
 msgid "Сигнатура методов может проверяться с помощью атрибута `:Isa(...)`."
 msgstr "The signature of the methods can be checked using the attribute `:Isa(...)`."
+
+msgid "Настройщики класса, вызываемые через `have`, называются **подстрекателями**."
+msgstr "Class customizers called via `have` are called **instigators**."
+
+msgid "`use Aion` имеет несколько специализированных аргументов. Остальные передаются `Aion::Types`, импорт которого происходит неявно для импортирования типов."
+msgstr "`use Aion` has several specialized arguments. The rest are passed to `Aion::Types`, which is imported implicitly to import types."
+
+msgid "Создать роль, а не класс."
+msgstr "Create a role, not a class."
+
+msgid "Расширяет класс."
+msgstr "Extends a class."
+
+msgid "Добавляет роль на этапе компиляции модуля. Это делается, чтобы `import_with` мог добавить функции."
+msgstr "Adds a role at the module compilation stage. This is done so that `import_with` can add features."
+
+msgid "Экспортирует указанные подпрограммы в модули в которые будет добавлен пакет через `with` или `extends`."
+msgstr "Exports the specified routines to modules into which the package will be added via `with` or `extends`."
+
+msgid "Указывает, что модуль может быть импортирован только в `use Aion`."
+msgstr "Indicates that the module can only be imported into `use Aion`."
 
 msgid "`use Aion` импортирует типы из модуля `Aion::Types` и следующие подпрограммы:"
 msgstr "`Use Aion` imports types from the module`Aion::Types` and the following subprograms:"
@@ -64,11 +85,11 @@ msgstr ""
 "* `$feature` – meta-object describing the feature (`Aion::Meta::Feature`).\n"
 "* `$aspect_name` – aspect name."
 
-msgid "Вызывает подстрекателя для настройки класса."
-msgstr "Summons an instigator to customize the class."
+msgid "Вызывает хэвлок для настройки класса."
+msgstr "Calls a havelock to configure the class."
 
-msgid "Устанавливает подстрекателя для настройки класса, который вызывается из `have`."
-msgstr "Sets the instigator to configure the class that is called from `have`."
+msgid "Устанавливает обработчик для настройки класса, который вызывается из `have`."
+msgstr "Sets up a handler for setting up the class that is called from `have`."
 
 msgid "Возвращает локатор."
 msgstr "Returns the locator."
@@ -93,9 +114,6 @@ msgstr "Checks that classes using this role have the specified routines or featu
 
 msgid "Проверяет, что в классах, использующих эту роль, есть указанные фичи с указанными аспектами."
 msgstr "Checks that classes using this role have the specified features with the specified aspects."
-
-msgid "## Роль наследует роль"
-msgstr "## Role inherits role"
 
 msgid "Роль может наследовать другую роль через `with`. Так можно уточнять интерфейс: типы требующихся фичей (`req`) и методов (`:Isa`) либо остаются такими же, либо понижаются – становятся более узкими подтипами. Понижение проверяется оператором меньше (`<`): `Num < (Num | Object)`, так как `Num` – подтип объединения `Num | Object`."
 msgstr "A role can inherit another role via `with`. This way you can refine the interface: the types of required features (`req`) and methods (`:Isa`) either remain the same or are lowered - they become narrower subtypes. Demotion is checked by the less-than operator (`<`): `Num < (Num | Object)`, since `Num` is a subtype of the union `Num | Object`."

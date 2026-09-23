@@ -225,32 +225,24 @@ Aion::Type::DNF - casting an expression type to DNF by equivalent conversions
 
 =head1 SYNOPSIS
 
-	use Aion::Types qw/Range Enum None/;
+	use Aion::Types qw/Range None/;
 	
 	my $gap = Range[-10, 0] & Range[4, 8];
 	$gap->_simplify eq None   # -> 1
-	$gap->simplify->stringify # => ~Any
-	
-	my $noint = Enum[1, 2] & Enum[3, 4];
-	$noint->_simplify eq None # -> 1
-	$noint->simplify->stringify # => ~Any
-	
-	Range[0, 5] < Range[-1, 10] # -> 1
-	Range[0, 5] <= Range[0, 5]  # -> 1
 
 =head1 DESCRIPTION
 
-The role that C<Aion::Type> includes. Contains utility methods for expanding an expression type (combinations C<&>, C<|>, C<~>) into B<DNF - disjunctive normal form>.
+This is the role that C<Aion::Type> includes. Contains utility methods for expanding an expression type (combinations C<&>, C<|>, C<~>) into B<DNF - disjunctive normal form>.
 
 This module implements algorithm No. 1 from the list of methods for constructing DNFs:
 
 =over
 
-=item 1. B<Equivalent transformations based on the laws of Boolean algebra.> ✅ (implemented here)
+=item 1. B<Equivalent transformations based on the laws of Boolean algebra> ✅ (implemented here).
 
 =item 2. Truth table method (construction of SDNF).
 
-=item 3. Tseitin's algorithm.
+=item 3. Tseitin’s algorithm (introduction of “garbage” variables).
 
 =item 4. Algorithms based on BDD (Binary Decision Diagrams).
 

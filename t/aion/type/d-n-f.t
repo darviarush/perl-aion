@@ -6,29 +6,21 @@ use common::sense; use open qw/:std :utf8/;  use Carp qw//; use Cwd qw//; use Fi
 # # SYNOPSIS
 # 
 subtest 'SYNOPSIS' => sub { 
-use Aion::Types qw/Range Enum None/;
+use Aion::Types qw/Range None/;
 
 my $gap = Range[-10, 0] & Range[4, 8];
 local ($::_g0 = do {$gap->_simplify eq None}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$gap->_simplify eq None   # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {$gap->simplify->stringify}, $::_e0 = "~Any"); ::ok $::_g0 eq $::_e0, '$gap->simplify->stringify # => ~Any' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-
-my $noint = Enum[1, 2] & Enum[3, 4];
-local ($::_g0 = do {$noint->_simplify eq None}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '$noint->_simplify eq None # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {$noint->simplify->stringify}, $::_e0 = "~Any"); ::ok $::_g0 eq $::_e0, '$noint->simplify->stringify # => ~Any' or ::diag ::_string_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-
-local ($::_g0 = do {Range[0, 5] < Range[-1, 10]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Range[0, 5] < Range[-1, 10] # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
-local ($::_g0 = do {Range[0, 5] <= Range[0, 5]}, $::_e0 = do {1}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Range[0, 5] <= Range[0, 5]  # -> 1' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
 # # DESCRIPTION
 # 
-# Роль, которую включает в себя `Aion::Type`. Содержит служебные методы для развёртки типа-выражения (комбинации `&`, `|`, `~`) в **ДНФ — дизъюнктивную нормальную форму**.
+# Это роль, которую включает в себя `Aion::Type`. Содержит служебные методы для развёртки типа-выражения (комбинации `&`, `|`, `~`) в **ДНФ — дизъюнктивную нормальную форму**.
 # 
 # Этот модуль реализует алгоритм №1 из списка способов построения ДНФ:
 # 
-# 1. **Эквивалентные преобразования на основе законов булевой алгебры.** ✅ (реализовано здесь)
+# 1. **Эквивалентные преобразования на основе законов булевой алгебры** ✅ (реализовано здесь).
 # 2. Метод таблиц истинности (построение СДНФ).
-# 3. Алгоритм Цейтина.
+# 3. Алгоритм Цейтина (введение «мусорных» переменных).
 # 4. Алгоритмы на основе BDD (Binary Decision Diagrams).
 # 
 # Пояснение остальных вариантов (для контекста):

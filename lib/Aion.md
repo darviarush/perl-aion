@@ -32,13 +32,95 @@ Calc->new(a => 1.1, b => 2)->result   # => 3.1
 
 Aion – ООП-фреймворк для создания классов с **фичами**, имеет **аспекты**, **роли** и так далее.
 
-Свойства, объявленные через has, называются **фичами**.
+Свойства, объявленные через `has`, называются **фичами**.
 
 А `is`, `isa`, `default` и так далее в `has` называются **аспектами**.
 
 Помимо стандартных аспектов, роли могут добавлять свои собственные аспекты с помощью подпрограммы **aspect**.
 
 Сигнатура методов может проверяться с помощью атрибута `:Isa(...)`.
+
+Настройщики класса, вызываемые через `have`, называются **подстрекателями**.
+
+# USE ARGUMENTS
+
+`use Aion` имеет несколько специализированных аргументов. Остальные передаются `Aion::Types`, импорт которого происходит неявно для импортирования типов.
+
+## -role
+
+Создать роль, а не класс.
+
+```perl
+package Role::My {
+	use Aion -role;
+
+	__PACKAGE__->can('extends') # -> undef
+}
+```
+
+## extends => classes
+
+Расширяет класс.
+
+## with => roles
+
+Добавляет роль на этапе компиляции модуля. Это делается, чтобы `import_with` мог добавить функции.
+
+```perl
+package Role::ImportWithTune {
+	use Aion -role, -use_only;
+
+	sub tune (@) { shift }
+
+	sub import_with {
+		my ($module, $pkg) = @_;
+		no strict 'refs';
+		*{"$pkg\::tune"} = \&tune;
+	}
+}
+
+package Role::ImportWithCfg {
+	use Aion -role, -export => [qw/cfg/];
+
+	sub cfg (@) { shift }
+}
+
+package MyClass1 {
+	use Aion
+		with => 'Role::ImportWithTune',
+		with => 'Role::ImportWithCfg',
+	;
+
+	cfg 123;  # -> 123
+	tune 456; # -> 456
+}
+
+package MyClass2 {
+	use Aion
+		with => [qw/Role::ImportWithTune Role::ImportWithCfg/],
+	;
+
+	cfg 123;  # -> 123
+	tune 456; # -> 456
+}
+
+eval {
+	package MyClass3 {
+		use Aion;
+
+		with qw/Role::ImportWithTune Role::ImportWithCfg/;
+	}
+};
+$@ # ^-> use: use Aion with => [qw/Role::ImportWithTune Role::ImportWithCfg/]
+```
+
+# export => subroutines
+
+Экспортирует указанные подпрограммы в модули в которые будет добавлен пакет через `with` или `extends`.
+
+# -use-only
+
+Указывает, что модуль может быть импортирован только в `use Aion`.
 
 # SUBROUTINES IN CLASSES AND ROLES
 
@@ -220,12 +302,12 @@ package Example::Mars {
 
 ## have ($name, @options)
 
-Вызывает подстрекателя для настройки класса.
+Вызывает хэвлок для настройки класса.
 
 ```perl
 package ORM::Role::Table { use Aion -role;
 
-	inciter table => sub {
+	havelock table => sub {
 		my ($meta, %table) = @_;
 
 		$meta->{table} = \%table;
@@ -241,9 +323,9 @@ package Ex::Person { use Aion;
 $Aion::META{'Ex::Person'}{table} # --> {name => 'person'}
 ```
 
-## inciter ($meta, @options)
+## havelock ($meta, @options)
 
-Устанавливает подстрекателя для настройки класса, который вызывается из `have`.
+Устанавливает обработчик для настройки класса, который вызывается из `have`.
 
 ## pleroma ()
 
@@ -359,7 +441,7 @@ package Omega3 { use Aion;
 Omega3->new->x  # -> 12
 ```
 
-## Роль наследует роль
+### Role inherits role
 
 Роль может наследовать другую роль через `with`. Так можно уточнять интерфейс: типы требующихся фичей (`req`) и методов (`:Isa`) либо остаются такими же, либо понижаются – становятся более узкими подтипами. Понижение проверяется оператором меньше (`<`): `Num < (Num | Object)`, так как `Num` – подтип объединения `Num | Object`.
 
