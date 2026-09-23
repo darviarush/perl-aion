@@ -60,26 +60,27 @@ package Role::My {
 
 ## extends => classes
 
-
+Расширяет класс.
 
 ## with => roles
 
-Добавить роль на этапе компиляции модуля. Это делается, чтобы `import_with` мог добавить функции.
+Добавляет роль на этапе компиляции модуля. Это делается, чтобы `import_with` мог добавить функции.
 
 ```perl
 package Role::ImportWithTune {
-	use Aion -role;
+	use Aion -role, -use_only;
 
 	sub tune (@) { shift }
 
 	sub import_with {
 		my ($module, $pkg) = @_;
-		*{"$pkg\::"} = \&tune;
+		no strict 'refs';
+		*{"$pkg\::tune"} = \&tune;
 	}
 }
 
 package Role::ImportWithCfg {
-	use Aion -role, export => [qw/cfg/];
+	use Aion -role, -export => [qw/cfg/];
 
 	sub cfg (@) { shift }
 }
@@ -301,12 +302,12 @@ package Example::Mars {
 
 ## have ($name, @options)
 
-Вызывает подстрекателя для настройки класса.
+Вызывает хэвлок для настройки класса.
 
 ```perl
 package ORM::Role::Table { use Aion -role;
 
-	inciter table => sub {
+	havelock table => sub {
 		my ($meta, %table) = @_;
 
 		$meta->{table} = \%table;
@@ -322,9 +323,9 @@ package Ex::Person { use Aion;
 $Aion::META{'Ex::Person'}{table} # --> {name => 'person'}
 ```
 
-## inciter ($meta, @options)
+## havelock ($meta, @options)
 
-Устанавливает подстрекателя для настройки класса, который вызывается из `have`.
+Устанавливает обработчик для настройки класса, который вызывается из `have`.
 
 ## pleroma ()
 

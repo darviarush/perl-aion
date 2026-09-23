@@ -32,13 +32,95 @@ local ($::_g0 = do {Calc->new(a => 1.1, b => 2)->result}, $::_e0 = "3.1"); ::ok 
 # 
 # Aion – ООП-фреймворк для создания классов с **фичами**, имеет **аспекты**, **роли** и так далее.
 # 
-# Свойства, объявленные через has, называются **фичами**.
+# Свойства, объявленные через `has`, называются **фичами**.
 # 
 # А `is`, `isa`, `default` и так далее в `has` называются **аспектами**.
 # 
 # Помимо стандартных аспектов, роли могут добавлять свои собственные аспекты с помощью подпрограммы **aspect**.
 # 
 # Сигнатура методов может проверяться с помощью атрибута `:Isa(...)`.
+# 
+# Настройщики класса, вызываемые через `have`, называются **подстрекателями**.
+# 
+# # USE ARGUMENTS
+# 
+# `use Aion` имеет несколько специализированных аргументов. Остальные передаются `Aion::Types`, импорт которого происходит неявно для импортирования типов.
+# 
+# ## -role
+# 
+# Создать роль, а не класс.
+# 
+::done_testing; }; subtest '-role' => sub { 
+package Role::My {
+	use Aion -role;
+
+local ($::_g0 = do {__PACKAGE__->can('extends')}, $::_e0 = do {undef}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '	__PACKAGE__->can(\'extends\') # -> undef' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+}
+
+# 
+# ## extends => classes
+# 
+# Расширяет класс.
+# 
+# ## with => roles
+# 
+# Добавляет роль на этапе компиляции модуля. Это делается, чтобы `import_with` мог добавить функции.
+# 
+::done_testing; }; subtest 'with => roles' => sub { 
+package Role::ImportWithTune {
+	use Aion -role, -use_only;
+
+	sub tune (@) { shift }
+
+	sub import_with {
+		my ($module, $pkg) = @_;
+		no strict 'refs';
+		*{"$pkg\::tune"} = \&tune;
+	}
+}
+
+package Role::ImportWithCfg {
+	use Aion -role, -export => [qw/cfg/];
+
+	sub cfg (@) { shift }
+}
+
+package MyClass1 {
+	use Aion
+		with => 'Role::ImportWithTune',
+		with => 'Role::ImportWithCfg',
+	;
+
+local ($::_g0 = do {cfg 123;}, $::_e0 = do {123}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '	cfg 123;  # -> 123' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {tune 456;}, $::_e0 = do {456}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '	tune 456; # -> 456' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+}
+
+package MyClass2 {
+	use Aion
+		with => [qw/Role::ImportWithTune Role::ImportWithCfg/],
+	;
+
+local ($::_g0 = do {cfg 123;}, $::_e0 = do {123}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '	cfg 123;  # -> 123' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+local ($::_g0 = do {tune 456;}, $::_e0 = do {456}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, '	tune 456; # -> 456' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
+}
+
+eval {
+	package MyClass3 {
+		use Aion;
+
+		with qw/Role::ImportWithTune Role::ImportWithCfg/;
+	}
+};
+local ($::_g0 = do {$@}, $::_e0 = 'use: use Aion with => [qw/Role::ImportWithTune Role::ImportWithCfg/]'); ::ok $::_g0 =~ /^${\quotemeta $::_e0}/, '$@ # ^-> use: use Aion with => [qw/Role::ImportWithTune Role::ImportWithCfg/]' or ::diag ::_string_diff($::_g0, $::_e0, 1); undef $::_g0; undef $::_e0;
+
+# 
+# # export => subroutines
+# 
+# Экспортирует указанные подпрограммы в модули в которые будет добавлен пакет через `with` или `extends`.
+# 
+# # -use-only
+# 
+# Указывает, что модуль может быть импортирован только в `use Aion`.
 # 
 # # SUBROUTINES IN CLASSES AND ROLES
 # 
@@ -220,12 +302,12 @@ local ($::_g0 = do {$aspect_name}, $::_e0 = "lvalue"); ::ok $::_g0 eq $::_e0, '	
 # 
 # ## have ($name, @options)
 # 
-# Вызывает подстрекателя для настройки класса.
+# Вызывает хэвлок для настройки класса.
 # 
 ::done_testing; }; subtest 'have ($name, @options)' => sub { 
 package ORM::Role::Table { use Aion -role;
 
-	inciter table => sub {
+	havelock table => sub {
 		my ($meta, %table) = @_;
 
 		$meta->{table} = \%table;
@@ -241,9 +323,9 @@ package Ex::Person { use Aion;
 local ($::_g0 = do {$Aion::META{'Ex::Person'}{table}}, $::_e0 = do {{name => 'person'}}); ::is_deeply $::_g0, $::_e0, '$Aion::META{\'Ex::Person\'}{table} # --> {name => \'person\'}' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
-# ## inciter ($meta, @options)
+# ## havelock ($meta, @options)
 # 
-# Устанавливает подстрекателя для настройки класса, который вызывается из `have`.
+# Устанавливает обработчик для настройки класса, который вызывается из `have`.
 # 
 # ## pleroma ()
 # 
@@ -359,13 +441,13 @@ package Omega3 { use Aion;
 local ($::_g0 = do {Omega3->new->x}, $::_e0 = do {12}); ::ok defined($::_g0) == defined($::_e0) && $::_g0 eq $::_e0, 'Omega3->new->x  # -> 12' or ::diag ::_struct_diff($::_g0, $::_e0); undef $::_g0; undef $::_e0;
 
 # 
-# ## Роль наследует роль
+# ### Role inherits role
 # 
 # Роль может наследовать другую роль через `with`. Так можно уточнять интерфейс: типы требующихся фичей (`req`) и методов (`:Isa`) либо остаются такими же, либо понижаются – становятся более узкими подтипами. Понижение проверяется оператором меньше (`<`): `Num < (Num | Object)`, так как `Num` – подтип объединения `Num | Object`.
 # 
 # Роль `Role::Animal` требует свойство `legs` широкого типа `Num | Object` и метод `sound` с сигнатурой `(Me => Str)`.
 # 
-::done_testing; }; subtest 'Роль наследует роль' => sub { 
+::done_testing; }; subtest 'Role inherits role' => sub { 
 package Role::Animal { use Aion -role;
 
 	req legs => (isa => Num | Object);
