@@ -25,6 +25,10 @@ sub with(@);
 # Классы в которых подключён Aion с метаинформацией
 our %META;
 
+my @EXPORT_BASE = qw/with has aspect does exactly have havelock/;
+my @EXPORT_IN_CLASS = qw/extends/;
+my @EXPORT_IN_ROLE = qw/requires req/;
+
 # Вызывается из другого пакета, для импорта данного
 sub import {
 	my (undef, @attrs) = @_;
@@ -49,6 +53,7 @@ sub import {
 	# Метаинформация
 	$META{$pkg} = {
 		order => scalar keys %META,
+		is_role => $is_role,
 		with => [],
 		extends => [],
 		export => \@export,
@@ -86,13 +91,13 @@ sub import {
 	}
 
 	unless($is_role) {  # Класс
-		export $pkg, qw/extends/;
+		export $pkg, @EXPORT_IN_CLASS;
 		*{"${pkg}::new"} = \&initialize;
 	} else {	# Роль
-		export $pkg, qw/requires req/;
+		export $pkg, @EXPORT_IN_ROLE;
 	}
 
-	export $pkg, qw/with has aspect does exactly have havelock/;
+	export $pkg, @EXPORT_BASE;
 	
 	my $attrs = @type_attrs? "qw{${\join ' ', @type_attrs}}": '';
 	eval "package $pkg; use Aion::Types@type_attrs; 1" or die;
@@ -101,9 +106,12 @@ sub import {
 # Удаляет добавленные символы
 sub unimport {
 	my $pkg = caller;
+
+	my $meta = $META{$pkg};
 	
-	undef &{"${pkg}::$_"} for qw/extends with aspect requires req/;
-	
+	undef &{"${pkg}::$_"} for @EXPORT_BASE,
+		$meta->{is_role}? @EXPORT_IN_ROLE: (@EXPORT_IN_CLASS, 'new');
+
 	eval "package $pkg; no Aion::Types; 1" or die;
 }
 
