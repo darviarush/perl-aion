@@ -384,7 +384,7 @@ sub extends(@) {
 
 # Расширение ролями
 sub with(@) {
-my $pkg = caller;
+	my $pkg = caller;
 	unshift @_, $pkg, 1;
 	goto &inherits;
 }
