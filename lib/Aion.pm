@@ -2,7 +2,7 @@ package Aion;
 
 use common::sense;
 
-our $VERSION = "2.5";
+our $VERSION = "2.6";
 
 use Aion::Types qw//;
 use Aion::Meta::RequiresAnyFunction;
@@ -612,7 +612,7 @@ Aion - a postmodern object system for Perl 5, such as “Mouse”, “Moose”, 
 
 =head1 VERSION
 
-2.5
+2.6
 
 =head1 SYNOPSIS
 
