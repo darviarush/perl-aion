@@ -44,10 +44,10 @@ $subroutine->stringify  # => my_subroutine(Int => Int) of My::Package
 
 ```perl
 use Aion::Types;
-use aliased 'Aion::Meta::Subroutine';
+use Aion::Meta::Subroutine;
 
-my $x1 = Subroutine->new(pkg => 'ExCompare', subname => 'x1', signature => [Num() => Any]);
-my $x2 = Subroutine->new(pkg => 'ExCompare', subname => 'x2', signature => [Int() => Str]);
+my $x1 = Aion::Meta::Subroutine->new(pkg => 'ExCompare', subname => 'x1', signature => [Num() => Any]);
+my $x2 = Aion::Meta::Subroutine->new(pkg => 'ExCompare', subname => 'x2', signature => [Int() => Str]);
 
 Int <= Num # -> 1
 Str <= Any # -> 1
@@ -55,7 +55,7 @@ Str <= Any # -> 1
 $x1->compare($x2);
 $x2->compare($x1); # @-> Signature mismatch: x2(Int => Str) of ExCompare <=> x1(Num => Any) of ExCompare
 
-my $x3 = Subroutine->new(pkg => 'ExCompare', subname => 'x3', signature => [Str() => Any]);
+my $x3 = Aion::Meta::Subroutine->new(pkg => 'ExCompare', subname => 'x3', signature => [Str() => Any]);
 
 Str <= Num # -> ""
 
