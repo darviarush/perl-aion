@@ -273,8 +273,8 @@ subtype "Any";
 			subtype "Value", as &Defined, where { "" eq ref $_ };
 				subtype "Version", as &Value, where { "VSTRING" eq ref \$_ };
 				subtype "Str", as &Value, where { "SCALAR" eq ref \$_ };
-					subtype "Uni", as &Str,	where { utf8::is_utf8($_) || /[\x80-\xFF]/a };
-					subtype "Bin", as &Str, where { !utf8::is_utf8($_) && !/[\x80-\xFF]/a };
+					subtype "Uni", as &Str,	where { utf8::is_utf8($_) || !/[\x80-\xFF]/a };
+					subtype "Bin", as &Str, where { !utf8::is_utf8($_) };
 					subtype "NonEmptyStr", as &Str,	where { /\S/ };
 					subtype "StartsWith[start]", as &Str,
 						init_where { M = qr/^${\ quotemeta A}/ },
@@ -1094,20 +1094,20 @@ Strings, including numbers.
 
 =head2 Uni
 
-Unicode strings with the utf8 flag or if decoding to utf8 occurs without errors.
+Lines with the utf8 flag or with character numbers less than 128.
 
 	"↭" ~~ Uni # -> 1
-	123 ~~ Uni # -> ""
-	do {no utf8; "↭" ~~ Uni} # -> 1
+	123 ~~ Uni # -> 1
+	do {no utf8; "↭" ~~ Uni} # -> ""
 
 =head2 Bin
 
-Binary strings without the utf8 flag and octets with numbers less than 128.
+Lines without the utf8 flag.
 
 	123 ~~ Bin # -> 1
 	"z" ~~ Bin # -> 1
 	"↭" ~~ Bin # -> ""
-	do {no utf8; "↭" ~~ Bin }   # -> ""
+	do {no utf8; "↭" ~~ Bin }   # -> 1
 
 =head2 StartsWith[begin]
 
